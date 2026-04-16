@@ -1,0 +1,94 @@
+{
+  "name": "server-operator",
+  "version": "1.0.0",
+  "description": "Premium server manager - deploy code, manage Docker, view logs",
+  "author": {
+    "name": "Ritesh Mahale",
+    "email": "riteshmahale15@gmail.com"
+  },
+  "homepage": "https://github.com/everest1508",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build && electron-builder",
+    "preview": "vite preview",
+    "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && ELECTRON_DEV=1 electron . --no-sandbox\"",
+    "electron:build": "vite build && electron-builder",
+    "electron:build:win": "vite build && electron-builder --win",
+    "website:serve": "npx --yes serve website -l 8788",
+    "postinstall": "mkdir -p public && cp -r node_modules/monaco-editor/min/vs public/ 2>/dev/null || true",
+    "ssh-connect": "node scripts/ssh-connect.js"
+  },
+  "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "lucide-react": "^0.460.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "socks": "^2.8.3",
+    "ssh2": "^1.17.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.0",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "com.server-operator.app",
+    "productName": "Server Operator",
+    "files": [
+      "dist/**",
+      "electron/**",
+      "package.json",
+      "node_modules/**"
+    ],
+    "asarUnpack": [
+      "node_modules/ssh2/**"
+    ],
+    "linux": {
+      "target": [
+        "deb"
+      ],
+      "category": "Utility",
+      "icon": "build/icons",
+      "executableName": "server-operator",
+      "executableArgs": ["--no-sandbox"]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "${productName}-${version}-Setup.${ext}"
+    },
+    "directories": {
+      "output": "release"
+    },
+    "npmRebuild": false
+  }
+}

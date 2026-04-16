@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Server Operator — premium desktop server manager. SSH, Docker, Compose logs, deploy, integrated terminal, VS Code–inspired UI."
+    />
+    <title>Server Operator — Manage servers like an IDE</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-nav">
+      <a class="site-nav__brand" href="#">
+        <span class="site-nav__logo">SO</span>
+        Server Operator
+      </a>
+      <nav aria-label="Primary">
+        <ul class="site-nav__links">
+          <li><a href="#features">Features</a></li>
+          <li><a href="#stack">Tech</a></li>
+          <li><a href="#downloads">Downloads</a></li>
+          <li>
+            <a class="btn btn--primary btn--sm" href="#downloads">Download</a>
+          </li>
+        </ul>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-heading">
+        <div class="hero__inner">
+          <div>
+            <p class="hero__eyebrow">Electron · React · TypeScript</p>
+            <h1 id="hero-heading">The server manager that feels like your editor</h1>
+            <p class="hero__lead">
+              Connect over SSH, browse remote files with Monaco, inspect Docker and Compose logs, run
+              deploy presets, and open an integrated terminal — all in a VS Code–inspired workspace.
+            </p>
+            <div class="hero__actions">
+              <a class="btn btn--primary" href="#downloads">Download</a>
+              <a class="btn btn--secondary" href="#features">Explore features</a>
+            </div>
+            <p class="hero__meta">Open source · Linux &amp; Windows builds</p>
+          </div>
+          <div class="mock-ide" aria-hidden="true">
+            <div class="mock-ide__activity">
+              <div class="mock-ide__activity-icon mock-ide__activity-icon--active" title="Servers">◇</div>
+              <div class="mock-ide__activity-icon">📁</div>
+              <div class="mock-ide__activity-icon">⬡</div>
+              <div class="mock-ide__activity-icon">▸</div>
+            </div>
+            <div class="mock-ide__main">
+              <div class="mock-ide__titlebar">docker-compose.yml — Server Operator</div>
+              <div class="mock-ide__body">
+                <div class="mock-ide__sidebar">
+                  <div class="mock-ide__sidebar-line"></div>
+                  <div class="mock-ide__sidebar-line"></div>
+                  <div class="mock-ide__sidebar-line"></div>
+                  <div class="mock-ide__sidebar-line" style="width: 55%"></div>
+                </div>
+                <div class="mock-ide__editor">
+                  <span class="kw">services</span>:<br />
+                  &nbsp;&nbsp;<span class="str">web</span>:<br />
+                  &nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">image</span>: <span class="str">nginx:alpine</span><br />
+                  &nbsp;&nbsp;&nbsp;&nbsp;<span class="cmt"># Deploy from the panel →</span>
+                </div>
+              </div>
+              <div class="mock-ide__panel">Output · Docker Compose · Terminal</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="features" aria-labelledby="features-heading">
+        <div class="section__inner">
+          <h2 class="section__title" id="features-heading">Everything in one workspace</h2>
+          <p class="section__subtitle">
+            Built for developers who live in terminals and compose files — with optional AI-assisted
+            deploy suggestions and Tor/SOCKS support when you need it.
+          </p>
+          <div class="feature-grid">
+            <article class="feature-card">
+              <div class="feature-card__icon" aria-hidden="true">🔐</div>
+              <h3>SSH servers</h3>
+              <p>
+                Add servers with host, username, and private key or password. Optional project path and
+                working directory for commands. Test connection before you commit.
+              </p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-card__icon" aria-hidden="true">📂</div>
+              <h3>Remote file tree</h3>
+              <p>
+                Browse the server filesystem from the sidebar: open Dockerfiles, compose files, env
+                files, and edit them in the editor area with familiar keyboard shortcuts.
+              </p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-card__icon" aria-hidden="true">✎</div>
+              <h3>Monaco editor</h3>
+              <p>
+                Same editor engine as VS Code for syntax highlighting and a comfortable editing
+                experience on YAML, Dockerfiles, shell scripts, and more.
+              </p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-card__icon" aria-hidden="true">⬡</div>
+              <h3>Docker overview</h3>
+              <p>
+                List containers from <code class="mono">docker ps -a</code>, inspect status, and jump
+                into logs or terminal workflows for the selected server.
+              </p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-card__icon" aria-hidden="true">📜</div>
+              <h3>Compose logs</h3>
+              <p>
+                Tail Docker Compose logs in the bottom panel with optional service filter and line
+                count. Stream logs over SSH when you need live output.
+              </p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-card__icon" aria-hidden="true">🚀</div>
+              <h3>Deploy &amp; presets</h3>
+              <p>
+                Run deploy commands such as <code class="mono">git pull &amp;&amp; docker compose up -d --build</code>
+                with one click. Save time with sensible presets for common flows.
+              </p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-card__icon" aria-hidden="true">⌨</div>
+              <h3>Integrated terminal</h3>
+              <p>
+                Full xterm.js terminal over SSH: resize-aware, fit-to-panel, and ready for interactive
+                sessions on the remote host.
+              </p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-card__icon" aria-hidden="true">🧅</div>
+              <h3>Proxy &amp; Tor</h3>
+              <p>
+                Optional global SOCKS proxy (e.g. Tor on 9050 or Tor Browser on 9150). Per-server
+                toggle to connect directly when the host is clearnet-only.
+              </p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-card__icon" aria-hidden="true">✨</div>
+              <h3>Groq-powered assist</h3>
+              <p>
+                Optional Groq API key (stored locally) for AI-suggested deploy commands and helpers in
+                the deploy flow — your key never leaves your machine except to Groq’s API.
+              </p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-card__icon" aria-hidden="true">⚙</div>
+              <h3>Config generators</h3>
+              <p>
+                Scaffold nginx, Docker Compose snippets, and related config from structured forms —
+                paste the output straight into your server tree.
+              </p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-card__icon" aria-hidden="true">🖥</div>
+              <h3>Dummy local server</h3>
+              <p>
+                Try the UI without SSH using a built-in “dummy” workspace with a sample
+                <code class="mono">docker-compose.yml</code> and local file operations.
+              </p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-card__icon" aria-hidden="true">🎤</div>
+              <h3>Voice input (optional)</h3>
+              <p>
+                Voice-to-text via Groq Whisper where supported — handy for long deploy notes or
+                command dictation from the desktop app.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section--alt" id="stack" aria-labelledby="stack-heading">
+        <div class="section__inner">
+          <h2 class="section__title" id="stack-heading">Built with modern tooling</h2>
+          <p class="section__subtitle">
+            The same stack you already use for web apps — packaged as a fast desktop experience.
+          </p>
+          <ul class="tech-list">
+            <li>Electron 33</li>
+            <li>React 18</li>
+            <li>TypeScript</li>
+            <li>Vite 5</li>
+            <li>Tailwind CSS v4</li>
+            <li>Monaco Editor</li>
+            <li>xterm.js</li>
+            <li>ssh2</li>
+            <li>electron-builder</li>
+          </ul>
+
+          <div class="feature-row" style="margin-top: 48px">
+            <div>
+              <h3 class="section__title" style="font-size: 20px; margin-bottom: 12px">From the README</h3>
+              <p style="color: var(--text-secondary); font-size: 15px; margin: 0 0 16px">
+                Clone the repo, install dependencies, and run the desktop shell with Vite hot reload, or
+                open the web UI alone for layout work.
+              </p>
+              <a class="btn btn--secondary" href="https://github.com/everest1508/server-operator">View on GitHub</a>
+            </div>
+            <div class="code-block" aria-label="Example commands">
+              <span class="prompt">$</span> git clone https://github.com/everest1508/server-operator.git<br />
+              <span class="prompt">$</span> cd server-operator &amp;&amp; npm install<br />
+              <span class="prompt">$</span> npm run electron:dev
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="downloads" aria-labelledby="downloads-heading">
+        <div class="section__inner">
+          <h2 class="section__title" id="downloads-heading">Download</h2>
+          <p class="section__subtitle">
+            Grab a build for your platform. Assets are published with each GitHub release (Windows
+            installer + portable, Linux .deb). Version numbers follow <code class="mono">package.json</code>.
+          </p>
+          <div class="download-grid">
+            <div class="download-card">
+              <span class="download-card__platform">Windows · x64</span>
+              <h3>NSIS installer</h3>
+              <p>Setup wizard, choose install directory, Start Menu shortcut.</p>
+              <a class="btn btn--primary" id="dl-setup" href="https://github.com/everest1508/server-operator/releases/latest">Download Setup.exe</a>
+            </div>
+            <div class="download-card">
+              <span class="download-card__platform">Windows · x64</span>
+              <h3>Portable</h3>
+              <p>No installation — run the executable from any folder or USB drive.</p>
+              <a class="btn btn--primary" id="dl-portable" href="https://github.com/everest1508/server-operator/releases/latest">Download portable</a>
+            </div>
+            <div class="download-card">
+              <span class="download-card__platform">Linux · deb</span>
+              <h3>Debian / Ubuntu</h3>
+              <p>Install with <code class="mono">sudo dpkg -i *.deb</code> then launch from the app menu.</p>
+              <a class="btn btn--primary" id="dl-deb" href="https://github.com/everest1508/server-operator/releases/latest">Download .deb</a>
+            </div>
+          </div>
+          <div class="download-note">
+            <strong style="color: var(--text-primary)">Prefer the release page?</strong>
+            All artifacts and checksums live on
+            <a href="https://github.com/everest1508/server-operator/releases/latest">GitHub Releases</a>.
+            If a direct link 404s after a version bump, open the latest release and download the matching
+            filename. You can change the repo URL in <code class="mono">website/index.html</code> if your fork
+            lives elsewhere.
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer__inner">
+        <p>© Ritesh Mahale · Server Operator</p>
+        <div class="site-footer__links">
+          <a href="https://github.com/everest1508/server-operator">GitHub</a>
+          <a href="https://github.com/everest1508/server-operator/issues">Issues</a>
+          <a href="#features">Features</a>
+        </div>
+      </div>
+    </footer>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>

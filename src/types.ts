@@ -1,0 +1,34 @@
+export type ViewId = 'servers' | 'files' | 'docker' | 'deploy';
+
+export interface ProxySettings {
+  enabled: boolean;
+  host: string;
+  port: number;
+}
+
+export type ConnectionType = 'ec2' | 'password';
+
+export interface ServerConnection {
+  id: string;
+  name: string;
+  host: string;
+  username: string;
+  /** Defaults to 'ec2' if privateKeyPath is set, else 'password' */
+  connectionType?: ConnectionType;
+  /** For EC2: path to SSH private key file */
+  privateKeyPath?: string;
+  /** For password: server password (stored in memory; consider using keychain for production) */
+  password?: string;
+  projectPath?: string;
+  cwd?: string;
+  useProxy?: boolean;
+}
+
+export interface DockerContainer {
+  ID?: string;
+  Names?: string;
+  Image?: string;
+  Status?: string;
+  State?: string;
+  [key: string]: string | undefined;
+}
