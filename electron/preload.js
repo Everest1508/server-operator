@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld('serverOperator', {
   listDir: (opts) => ipcRenderer.invoke('server:list-dir', opts),
   mkdir: (opts) => ipcRenderer.invoke('server:mkdir', opts),
   deletePath: (opts) => ipcRenderer.invoke('server:deletePath', opts),
+  uploadLocalFile: (opts) => ipcRenderer.invoke('server:upload-local-file', opts),
+  downloadRemoteFile: (opts) => ipcRenderer.invoke('server:download-remote-file', opts),
   deploy: (opts) => ipcRenderer.invoke('server:deploy', opts),
   openShell: (opts) => ipcRenderer.invoke('server:open-shell', opts),
   closeShell: (opts) => ipcRenderer.invoke('server:close-shell', opts),

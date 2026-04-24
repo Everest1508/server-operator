@@ -3,6 +3,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { Loader2 } from 'lucide-react';
+import { attachXtermClipboardKeys } from '../utils/xtermClipboardKeys';
 import type { ServerConnection, ProxySettings } from '../types';
 
 export interface ProjectTerminalProps {
@@ -97,6 +98,7 @@ export function ProjectTerminal({ currentServer, proxy, projectPath, onReady, on
     });
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
+    attachXtermClipboardKeys(term);
     term.open(container);
     fitAddon.fit();
     const sid = shellId;

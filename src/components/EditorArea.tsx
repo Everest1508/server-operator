@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Editor from '@monaco-editor/react';
-import { FileCode, Save, Loader2, X } from 'lucide-react';
+import { FileCode, Save, Loader2, X, Download, ChevronDown, Plus, FolderOpen, Shield } from 'lucide-react';
 import type { ServerConnection, ViewId, ProxySettings } from '../types';
 import { DockerView } from './DockerView';
 import { DeployView } from './DeployView';
@@ -45,9 +45,14 @@ interface EditorAreaProps {
   fileLoadError?: string | null;
   currentPath?: string;
   basePath?: string;
-  onSaveFile?: (filePath: string, content: string) => Promise<{ ok: boolean; error?: string }>;
+  onSaveFile?: (filePath: string, content: string, opts?: { useSudo?: boolean }) => Promise<{ ok: boolean; error?: string }>;
   onCloseTab?: (path: string) => void;
   onSelectTab?: (path: string) => void;
+  onOpenFileByPath?: (filePath: string, opts?: { useSudo?: boolean }) => void;
+  onCreateFileByPath?: (filePath: string, opts?: { useSudo?: boolean }) => Promise<{ ok: boolean; error?: string }>;
+  activeTabUsesSudo?: boolean;
+  /** Save remote file to disk via native dialog (Electron). */
+  onDownloadRemoteFile?: (remoteFilePath: string) => Promise<{ ok: boolean; canceled?: boolean; error?: string; savedTo?: string }>;
   composePaths?: string[];
   projectRepos?: string[];
   projectTreeListings?: Record<string, string>;
@@ -88,12 +93,24 @@ export function EditorArea({
   onSaveFile,
   onCloseTab,
   onSelectTab,
+  onOpenFileByPath,
+  onCreateFileByPath,
+  activeTabUsesSudo = false,
+  onDownloadRemoteFile,
   composePaths = [],
   projectRepos = [],
   projectTreeListings = {},
 }: EditorAreaProps) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [fileMenuOpen, setFileMenuOpen] = useState(false);
+  const [pathDialogOpen, setPathDialogOpen] = useState(false);
+  const [pathDialogMode, setPathDialogMode] = useState<'open' | 'create'>('open');
+  const [pathDialogSudo, setPathDialogSudo] = useState(false);
+  const [pathInput, setPathInput] = useState('');
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const activeContent = activeTabPath ? (contentByPath[activeTabPath] ?? '') : '';
   const activeSaved = activeTabPath ? (savedContentByPath[activeTabPath] ?? '') : '';
@@ -103,7 +120,19 @@ export function EditorArea({
 
   useEffect(() => {
     setSaveError(null);
+    setDownloadError(null);
+    setFileMenuOpen(false);
+    setPathDialogOpen(false);
   }, [activeTabPath]);
+
+  useEffect(() => {
+    if (!fileMenuOpen) return;
+    const close = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setFileMenuOpen(false);
+    };
+    window.addEventListener('click', close);
+    return () => window.removeEventListener('click', close);
+  }, [fileMenuOpen]);
 
   const handleSave = useCallback(() => {
     if (!activeTabPath || !onSaveFile) return;
@@ -115,6 +144,67 @@ export function EditorArea({
       })
       .finally(() => setSaving(false));
   }, [activeTabPath, activeContent, onSaveFile]);
+
+  const handleDownload = useCallback(() => {
+    if (!activeTabPath || !onDownloadRemoteFile) return;
+    setDownloading(true);
+    setDownloadError(null);
+    onDownloadRemoteFile(activeTabPath)
+      .then((res) => {
+        if (res.canceled) return;
+        if (!res.ok) setDownloadError(res.error || 'Download failed');
+      })
+      .finally(() => setDownloading(false));
+  }, [activeTabPath, onDownloadRemoteFile]);
+
+  const handleOpenFromPath = useCallback((useSudo: boolean) => {
+    const suggested = (activeTabPath || _currentPath || _basePath || '').trim() || '.';
+    setPathDialogMode('open');
+    setPathDialogSudo(useSudo);
+    setPathInput(suggested === '.' ? '' : suggested);
+    setPathDialogOpen(true);
+    setFileMenuOpen(false);
+  }, [activeTabPath, _basePath, _currentPath]);
+
+  const handleCreateFromPath = useCallback((useSudo: boolean) => {
+    const base = ((_currentPath && _currentPath !== '.') ? _currentPath.replace(/\/+$/, '') + '/' : '');
+    const suggested = `${base}new-file.txt`;
+    setPathDialogMode('create');
+    setPathDialogSudo(useSudo);
+    setPathInput(suggested);
+    setPathDialogOpen(true);
+    setFileMenuOpen(false);
+  }, [_currentPath]);
+
+  const submitPathDialog = useCallback(() => {
+    const path = pathInput.trim().replace(/^\.\/+/, '');
+    if (!path || path === '.') {
+      setSaveError('Please enter a valid file path');
+      return;
+    }
+    setSaveError(null);
+    setDownloadError(null);
+    if (pathDialogMode === 'open') {
+      onOpenFileByPath?.(path, { useSudo: pathDialogSudo });
+    } else {
+      onCreateFileByPath?.(path, { useSudo: pathDialogSudo }).then((res) => {
+        if (!res.ok) setSaveError(res.error || 'Create file failed');
+      });
+    }
+    setPathDialogOpen(false);
+  }, [onCreateFileByPath, onOpenFileByPath, pathDialogMode, pathDialogSudo, pathInput]);
+
+  const handleSaveAsSudo = useCallback(() => {
+    if (!activeTabPath || !onSaveFile) return;
+    setSaving(true);
+    setSaveError(null);
+    onSaveFile(activeTabPath, activeContent, { useSudo: true })
+      .then((res) => {
+        if (!res.ok) setSaveError(res.error || 'Save failed');
+      })
+      .finally(() => setSaving(false));
+    setFileMenuOpen(false);
+  }, [activeContent, activeTabPath, onSaveFile]);
   if (!currentServer) {
     return (
       <div className="flex-1 flex items-center justify-center bg-[var(--bg-primary)] text-[var(--text-secondary)]">
@@ -164,6 +254,44 @@ export function EditorArea({
       )}
       {activeView === 'files' && (
         <div className="flex-1 flex flex-col bg-[var(--bg-primary)] min-h-0">
+          {pathDialogOpen && (
+            <div className="absolute inset-0 z-30 bg-black/40 flex items-center justify-center p-4">
+              <div className="w-full max-w-lg rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-4">
+                <p className="text-sm font-medium text-[var(--text-primary)] mb-2">
+                  {pathDialogMode === 'open'
+                    ? (pathDialogSudo ? 'Open file as sudo' : 'Open file')
+                    : (pathDialogSudo ? 'Create file as sudo' : 'Create file')}
+                </p>
+                <input
+                  autoFocus
+                  value={pathInput}
+                  onChange={(e) => setPathInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') submitPathDialog();
+                    if (e.key === 'Escape') setPathDialogOpen(false);
+                  }}
+                  placeholder="e.g. /etc/nginx/nginx.conf or app/config.json"
+                  className="w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                />
+                <div className="mt-3 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPathDialogOpen(false)}
+                    className="px-3 py-1.5 rounded border border-[var(--border)] text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={submitPathDialog}
+                    className="px-3 py-1.5 rounded bg-[var(--accent)] text-white text-sm font-medium hover:bg-[var(--accent-hover)]"
+                  >
+                    {pathDialogMode === 'open' ? 'Open' : 'Create'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {openTabs.length > 0 ? (
             <>
               <div className="flex items-center gap-0 border-b border-[var(--border)] bg-[var(--bg-secondary)] shrink-0 min-h-0">
@@ -199,6 +327,90 @@ export function EditorArea({
                     );
                   })}
                 </div>
+                {activeTabPath && onDownloadRemoteFile && (
+                  <button
+                    type="button"
+                    onClick={handleDownload}
+                    disabled={downloading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 m-2 rounded border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm font-medium hover:border-[var(--accent)]/50 disabled:opacity-50 shrink-0"
+                    title="Download a copy to your computer"
+                  >
+                    {downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                    Download
+                  </button>
+                )}
+                {onOpenFileByPath && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenFromPath(false)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 m-2 rounded border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm font-medium hover:border-[var(--accent)]/50 shrink-0"
+                    title="Edit file by path"
+                  >
+                    <FolderOpen size={14} />
+                    Edit
+                  </button>
+                )}
+                {onCreateFileByPath && (
+                  <button
+                    type="button"
+                    onClick={() => handleCreateFromPath(false)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 m-2 rounded border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm font-medium hover:border-[var(--accent)]/50 shrink-0"
+                    title="Create file by path"
+                  >
+                    <Plus size={14} />
+                    Create
+                  </button>
+                )}
+                {(onOpenFileByPath || onCreateFileByPath || (activeTabPath && onSaveFile)) && (
+                  <div className="relative shrink-0" ref={menuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setFileMenuOpen((v) => !v)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 m-2 rounded border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm font-medium hover:border-[var(--accent)]/50"
+                      title="File actions"
+                    >
+                      File
+                      <ChevronDown size={14} />
+                    </button>
+                    {fileMenuOpen && (
+                      <div className="absolute right-2 top-full mt-1 py-1 min-w-[190px] rounded-md border border-[var(--border)] bg-[var(--bg-secondary)] shadow-lg z-20">
+                        {onOpenFileByPath && (
+                          <>
+                            <button type="button" onClick={() => handleOpenFromPath(false)} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
+                              <FolderOpen size={12} />
+                              Open by path
+                            </button>
+                            <button type="button" onClick={() => handleOpenFromPath(true)} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
+                              <Shield size={12} />
+                              Open as sudo
+                            </button>
+                          </>
+                        )}
+                        {onCreateFileByPath && (
+                          <>
+                            <button type="button" onClick={() => handleCreateFromPath(false)} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
+                              <Plus size={12} />
+                              Create by path
+                            </button>
+                            <button type="button" onClick={() => handleCreateFromPath(true)} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
+                              <Shield size={12} />
+                              Create as sudo
+                            </button>
+                          </>
+                        )}
+                        {activeTabPath && onSaveFile && (
+                          <>
+                            <div className="border-t border-[var(--border)] my-1" />
+                            <button type="button" onClick={handleSaveAsSudo} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
+                              <Shield size={12} />
+                              Save as sudo
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {activeTabPath && onSaveFile && (
                   <button
                     type="button"
@@ -211,10 +423,15 @@ export function EditorArea({
                     Save
                   </button>
                 )}
+                {activeTabPath && activeTabUsesSudo && (
+                  <span className="mr-2 px-2 py-1 rounded-full text-[10px] font-medium bg-[var(--accent)]/15 text-[var(--accent)] shrink-0">
+                    sudo mode
+                  </span>
+                )}
               </div>
-              {saveError && (
+              {(saveError || downloadError) && (
                 <div className="px-4 py-2 bg-[var(--error)]/20 border-b border-[var(--error)]/40 text-[var(--error)] text-sm shrink-0">
-                  {saveError}
+                  {saveError || downloadError}
                 </div>
               )}
               {fileLoadError && (
@@ -251,8 +468,30 @@ export function EditorArea({
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-[var(--text-secondary)] text-sm">
-              Select a file from the left to view or edit (e.g. Dockerfile, docker-compose.yml)
+            <div className="flex-1 flex flex-col items-center justify-center text-[var(--text-secondary)] text-sm gap-3">
+              <p>Select a file from the left to view or edit (e.g. Dockerfile, docker-compose.yml)</p>
+              <div className="flex items-center gap-2">
+                {onOpenFileByPath && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenFromPath(false)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm font-medium hover:border-[var(--accent)]/50"
+                  >
+                    <FolderOpen size={14} />
+                    Edit by path
+                  </button>
+                )}
+                {onCreateFileByPath && (
+                  <button
+                    type="button"
+                    onClick={() => handleCreateFromPath(false)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm font-medium hover:border-[var(--accent)]/50"
+                  >
+                    <Plus size={14} />
+                    Create by path
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>

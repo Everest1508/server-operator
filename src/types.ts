@@ -24,6 +24,13 @@ export interface ServerConnection {
   useProxy?: boolean;
 }
 
+/** Clipboard for cut/copy in remote file trees (main Files panel and Projects). */
+export interface FileTreeClipboard {
+  serverId: string;
+  action: 'cut' | 'copy';
+  paths: string[];
+}
+
 export interface DockerContainer {
   ID?: string;
   Names?: string;

@@ -9,9 +9,12 @@ import CssWorker from 'monaco-editor/esm/vs/language/css/css.worker.js?worker';
 import HtmlWorker from 'monaco-editor/esm/vs/language/html/html.worker.js?worker';
 import TsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker.js?worker';
 
-// Load Monaco from /vs (public copy) instead of CDN so CSP doesn't block
+// Load Monaco from `public/vs` (copied in postinstall). Must be relative to the HTML
+// document so it works under file:// in packaged Electron; `/vs` would hit the OS root.
+const viteBase = (import.meta.env.BASE_URL ?? './').replace(/\/+$/, '') || '.';
+const vsPath = viteBase === '/' ? '/vs' : `${viteBase}/vs`;
 loader.config({
-  paths: { vs: '/vs' },
+  paths: { vs: vsPath },
 });
 
 declare global {

@@ -1,8 +1,14 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { execSync, spawn } = require('child_process');
 
+/**
+ * Logs + app state live under Electron userData (Linux: usually ~/.config/server-operator).
+ * That path is outside the .deb payload (/opt/Server Operator/…). Reinstalling or upgrading
+ * the package only replaces files under /opt and the /usr/bin wrapper; it does not remove
+ * userData, so saved servers, proxy settings, and dummy-root files persist.
+ */
 function getLogPath() {
   try {
     const dir = app.getPath('userData');
@@ -70,6 +76,63 @@ function getLinuxIconPath() {
   return null;
 }
 
+function installApplicationMenu() {
+  const isMac = process.platform === 'darwin';
+  const template = [
+    ...(isMac
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              { role: 'about' },
+              { type: 'separator' },
+              { role: 'services' },
+              { type: 'separator' },
+              { role: 'hide' },
+              { role: 'hideOthers' },
+              { role: 'unhide' },
+              { type: 'separator' },
+              { role: 'quit' },
+            ],
+          },
+        ]
+      : [
+          {
+            label: 'File',
+            submenu: [{ role: 'quit' }],
+          },
+        ]),
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        ...(isMac ? [{ role: 'pasteAndMatchStyle' }] : []),
+        { role: 'delete' },
+        { type: 'separator' },
+        { role: 'selectAll' },
+      ],
+    },
+    ...(isMac
+      ? [{ role: 'windowMenu' }]
+      : [
+          {
+            label: 'View',
+            submenu: [{ role: 'togglefullscreen' }],
+          },
+          {
+            label: 'Window',
+            submenu: [{ role: 'minimize' }, { role: 'close' }],
+          },
+        ]),
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
 function createWindow() {
   const linuxIconPath = getLinuxIconPath();
   // titleBarStyle 'hiddenInset' is macOS-only; on Linux it can cause crash or broken window
@@ -110,6 +173,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   log('started', { logFile: getLogPath() });
+  installApplicationMenu();
   createWindow();
   registerShellHandlers();
 });
@@ -376,6 +440,111 @@ function execCommand(conn, command, cwd) {
   });
 }
 
+const DOCKER_PREFIX_CACHE_TTL_MS = 60 * 1000;
+const dockerPrefixCache = new Map(); // key -> { prefix, checkedAt }
+
+function dockerPrefixCacheKey(connection, proxy) {
+  const key = poolKey(connection, proxy);
+  if (key) return key;
+  const host = connection && connection.host ? String(connection.host).trim() : '';
+  const user = connection && connection.username ? String(connection.username).trim() : '';
+  return `ssh:${host}:${user}:docker-prefix`;
+}
+
+function commandMentionsDocker(command) {
+  return /\bdocker\b/.test(String(command || ''));
+}
+
+function dockerPermissionDenied(output) {
+  const text = String(output || '').toLowerCase();
+  return (
+    text.includes('permission denied while trying to connect to the docker daemon socket') ||
+    (text.includes('got permission denied') && text.includes('docker')) ||
+    (text.includes('/var/run/docker.sock') && text.includes('permission denied'))
+  );
+}
+
+function sudoNeedsPassword(output) {
+  const text = String(output || '').toLowerCase();
+  return (
+    text.includes('a password is required') ||
+    text.includes('sudo: no tty present') ||
+    text.includes('sudo: a terminal is required') ||
+    text.includes('sudo: a password is required')
+  );
+}
+
+function withDockerPrefix(command, prefix) {
+  const cmd = String(command || '');
+  if (!cmd || prefix === 'docker') return cmd;
+  if (/\bsudo\s+(-n\s+)?docker\b/.test(cmd)) return cmd;
+  return cmd.replace(/\bdocker\b/g, prefix);
+}
+
+async function resolveDockerPrefix(conn, connection, proxy, cwd, forceRefresh = false) {
+  const key = dockerPrefixCacheKey(connection, proxy);
+  const cached = dockerPrefixCache.get(key);
+  if (!forceRefresh && cached && Date.now() - cached.checkedAt < DOCKER_PREFIX_CACHE_TTL_MS) {
+    return { prefix: cached.prefix };
+  }
+
+  const direct = await execCommand(conn, 'docker info >/dev/null 2>&1', cwd);
+  if (direct.code === 0) {
+    dockerPrefixCache.set(key, { prefix: 'docker', checkedAt: Date.now() });
+    return { prefix: 'docker' };
+  }
+
+  const directOut = `${direct.stderr || ''}\n${direct.stdout || ''}`;
+  if (!dockerPermissionDenied(directOut)) {
+    dockerPrefixCache.set(key, { prefix: 'docker', checkedAt: Date.now() });
+    return { prefix: 'docker' };
+  }
+
+  const sudo = await execCommand(conn, 'sudo -n docker info >/dev/null 2>&1', cwd);
+  if (sudo.code === 0) {
+    dockerPrefixCache.set(key, { prefix: 'sudo -n docker', checkedAt: Date.now() });
+    return { prefix: 'sudo -n docker' };
+  }
+
+  const sudoOut = `${sudo.stderr || ''}\n${sudo.stdout || ''}`;
+  if (sudoNeedsPassword(sudoOut)) {
+    return {
+      prefix: 'docker',
+      error:
+        'Docker permission denied for this SSH user. Add the user to the docker group (`sudo usermod -aG docker $USER` then reconnect), or allow passwordless sudo for docker commands.',
+    };
+  }
+
+  return { prefix: 'docker' };
+}
+
+async function execDockerAwareCommand(conn, command, cwd, connection, proxy) {
+  const result = await execCommand(conn, command, cwd);
+  if (result.code === 0 || !commandMentionsDocker(command)) return result;
+
+  const combined = `${result.stderr || ''}\n${result.stdout || ''}`;
+  if (!dockerPermissionDenied(combined)) return result;
+
+  const resolved = await resolveDockerPrefix(conn, connection, proxy, cwd, true);
+  if (resolved.error) {
+    return { stdout: result.stdout || '', stderr: resolved.error, code: 1 };
+  }
+  if (resolved.prefix === 'docker') return result;
+
+  const retried = await execCommand(conn, withDockerPrefix(command, resolved.prefix), cwd);
+  if (retried.code === 0) return retried;
+  const retriedOut = `${retried.stderr || ''}\n${retried.stdout || ''}`;
+  if (sudoNeedsPassword(retriedOut)) {
+    return {
+      stdout: retried.stdout || '',
+      stderr:
+        'Docker command needs sudo password, but non-interactive SSH cannot prompt for it. Add the user to the docker group or configure passwordless sudo for docker.',
+      code: 1,
+    };
+  }
+  return retried;
+}
+
 const shells = new Map();
 
 function sendShellOutput(shellId, data) {
@@ -409,6 +578,16 @@ function registerShellHandlers() {
           stream.stderr.on('data', (data) => sendShellOutput(shellId, data.toString()));
           const cwd = connection.cwd || connection.projectPath;
           if (cwd) stream.write('cd "' + String(cwd).replace(/"/g, '\\"') + '" 2>/dev/null || true\n');
+          // Configure docker in-shell immediately so first command from UI does not race.
+          stream.write(
+            "if docker info >/dev/null 2>&1; then :; " +
+            "elif sudo -n docker info >/dev/null 2>&1; then " +
+            "alias docker='sudo -n docker'; " +
+            "echo '[Server Operator] Docker commands will use sudo -n in this shell.'; " +
+            "else " +
+            "echo '[Server Operator] Docker may fail for this SSH user (permission denied). Add user to docker group or allow passwordless sudo for docker.'; " +
+            "fi\n"
+          );
           resolve({ ok: true, shellId });
         });
       });
@@ -489,7 +668,7 @@ ipcMain.handle('server:run-command', async (_, { host, username, privateKeyPath,
     }
     if (connection && proxy !== undefined) {
       const conn = await getOrCreateConnection(connection, proxy);
-      const result = await execCommand(conn, command, cwd || connection.cwd);
+      const result = await execDockerAwareCommand(conn, command, cwd || connection.cwd, connection, proxy);
       return { ok: true, stdout: result.stdout, stderr: result.stderr, code: result.code };
     }
     const conn = await connectSSH(
@@ -497,7 +676,7 @@ ipcMain.handle('server:run-command', async (_, { host, username, privateKeyPath,
       undefined
     );
     try {
-      const result = await execCommand(conn, command, cwd);
+      const result = await execDockerAwareCommand(conn, command, cwd, { host, username, id: `${username}@${host}` }, undefined);
       return { ok: true, stdout: result.stdout, stderr: result.stderr, code: result.code };
     } finally {
       conn.end();
@@ -510,7 +689,10 @@ ipcMain.handle('server:run-command', async (_, { host, username, privateKeyPath,
 ipcMain.handle('server:get-docker-ps', async (_, { connection, proxy }) => {
   try {
     const conn = await getOrCreateConnection(connection, proxy);
-    const result = await execCommand(conn, 'docker ps -a --format "{{json .}}"', connection.cwd);
+    const result = await execDockerAwareCommand(conn, 'docker ps -a --format "{{json .}}"', connection.cwd, connection, proxy);
+    if (result.code !== 0) {
+      return { ok: false, error: result.stderr || result.stdout || 'Failed to fetch containers' };
+    }
     const lines = result.stdout.trim().split('\n').filter(Boolean);
     const containers = lines.map((line) => {
       try {
@@ -554,7 +736,7 @@ ipcMain.handle('server:get-docker-compose-services', async (_, { connection, com
         ? `docker compose -f '${pathEsc}' config --services`
         : `docker compose --project-directory '${pathEsc}' config --services`
       : 'docker compose config --services';
-    const result = await execCommand(conn, cmd, cwd);
+    const result = await execDockerAwareCommand(conn, cmd, cwd, connection, proxy);
     const out = (result.stdout + result.stderr).trim();
     if (result.code !== 0) {
       const friendly = /no configuration file|not found/i.test(out)
@@ -582,7 +764,7 @@ ipcMain.handle('server:get-docker-compose-logs', async (_, { connection, service
     const cmd = service
       ? `docker compose ${composeFlag}logs --tail=${tail || 500} ${service}`
       : `docker compose ${composeFlag}logs --tail=${tail || 500}`;
-    const result = await execCommand(conn, cmd, cwd);
+    const result = await execDockerAwareCommand(conn, cmd, cwd, connection, proxy);
     const out = (result.stdout + result.stderr).trim();
     if (result.code !== 0) {
       const friendly = /no configuration file|not found/i.test(out)
@@ -617,8 +799,16 @@ ipcMain.handle('server:start-compose-logs-stream', async (event, { streamId, con
         : `--project-directory '${pathEsc}' `
       : '';
     const servicePart = service ? ` ${service}` : '';
-    const fullCmd = cwd ? `cd "${String(cwd).replace(/"/g, '\\"')}" && docker compose ${composeFlag}logs -f --tail=${tail || 200}${servicePart}` : `docker compose ${composeFlag}logs -f --tail=${tail || 200}${servicePart}`;
     const conn = await connectSSH(connection, proxy);
+    const resolved = await resolveDockerPrefix(conn, connection, proxy, cwd);
+    if (resolved.error) {
+      conn.end();
+      return { ok: false, error: resolved.error };
+    }
+    const dockerPrefix = resolved.prefix || 'docker';
+    const fullCmd = cwd
+      ? `cd "${String(cwd).replace(/"/g, '\\"')}" && ${dockerPrefix} compose ${composeFlag}logs -f --tail=${tail || 200}${servicePart}`
+      : `${dockerPrefix} compose ${composeFlag}logs -f --tail=${tail || 200}${servicePart}`;
     return new Promise((resolve, reject) => {
       conn.exec(fullCmd, (err, stream) => {
         if (err) {
@@ -653,14 +843,18 @@ ipcMain.handle('server:stop-compose-logs-stream', async (_, { streamId }) => {
   }
 });
 
-ipcMain.handle('server:read-file', async (_, { connection, filePath, proxy }) => {
+ipcMain.handle('server:read-file', async (_, { connection, filePath, proxy, useSudo }) => {
   try {
     const conn = await getOrCreateConnection(connection, proxy);
     const pathEsc = filePath.replace(/"/g, '\\"');
     const cwd = connection.cwd || connection.projectPath;
     log('read-file', { filePath, cwd });
-    const result = await execCommand(conn, `cat "${pathEsc}"`, cwd);
+    const result = await execCommand(conn, useSudo ? `sudo -n cat "${pathEsc}"` : `cat "${pathEsc}"`, cwd);
     if (result.code !== 0) {
+      const out = `${result.stderr || ''}\n${result.stdout || ''}`;
+      if (useSudo && sudoNeedsPassword(out)) {
+        return { ok: false, error: sudoFilePermissionMessage('read') };
+      }
       log('read-file failed', { filePath, code: result.code, stderr: result.stderr });
       return { ok: false, error: result.stderr || result.stdout || 'Failed to read file' };
     }
@@ -676,7 +870,11 @@ function escapeSingleQuotes(s) {
   return s.replace(/'/g, "'\\''");
 }
 
-ipcMain.handle('server:write-file', async (_, { connection, filePath, content, proxy }) => {
+function sudoFilePermissionMessage(action) {
+  return `Need elevated permissions to ${action} this file. Run one of these on the server: add this SSH user to a group with access, or allow passwordless sudo for this user.`;
+}
+
+ipcMain.handle('server:write-file', async (_, { connection, filePath, content, proxy, useSudo }) => {
   try {
     if (isDummy(connection)) {
       ensureDummyRoot();
@@ -689,12 +887,21 @@ ipcMain.handle('server:write-file', async (_, { connection, filePath, content, p
     const conn = await getOrCreateConnection(connection, proxy);
     let result;
     if (content === '') {
-      result = await execCommand(conn, `touch '${pathEsc}'`, connection.cwd);
+      result = await execCommand(conn, useSudo ? `sudo -n touch '${pathEsc}'` : `touch '${pathEsc}'`, connection.cwd);
     } else {
       const b64 = Buffer.from(content, 'utf8').toString('base64');
       const delim = 'EOS' + Math.random().toString(36).slice(2);
       await execCommand(conn, `cat > /tmp/so-write.b64 << '${delim}'\n${b64}\n${delim}`, connection.cwd);
-      result = await execCommand(conn, `base64 -d /tmp/so-write.b64 > '${pathEsc}' && rm -f /tmp/so-write.b64`, connection.cwd);
+      if (useSudo) {
+        result = await execCommand(conn, `base64 -d /tmp/so-write.b64 | sudo -n tee '${pathEsc}' > /dev/null && rm -f /tmp/so-write.b64`, connection.cwd);
+      } else {
+        result = await execCommand(conn, `base64 -d /tmp/so-write.b64 > '${pathEsc}' && rm -f /tmp/so-write.b64`, connection.cwd);
+      }
+    }
+    const out = `${result.stderr || ''}\n${result.stdout || ''}`;
+    if (useSudo && sudoNeedsPassword(out)) {
+      await execCommand(conn, 'rm -f /tmp/so-write.b64', connection.cwd);
+      return { ok: false, error: sudoFilePermissionMessage('write') };
     }
     return result.code === 0 ? { ok: true } : { ok: false, error: result.stderr || 'Write failed' };
   } catch (e) {
@@ -748,7 +955,174 @@ ipcMain.handle('server:deletePath', async (_, { connection, filePath, proxy }) =
     return { ok: false, error: errMsg(e) };
   }
 });
-log('ipc handlers registered', { deletePath: true });
+
+function joinRemoteRelative(remoteDir, fileName) {
+  const dir = (remoteDir || '.').trim().replace(/\/+$/, '') || '.';
+  const base = String(fileName || '').replace(/^\/+/, '');
+  if (!base) return null;
+  return dir === '.' ? base : `${dir}/${base}`;
+}
+
+function openSftp(conn) {
+  return new Promise((resolve, reject) => {
+    conn.sftp((err, sftp) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(sftp);
+    });
+  });
+}
+
+function sftpFastPut(sftp, localPath, remotePath) {
+  return new Promise((resolve, reject) => {
+    sftp.fastPut(localPath, remotePath, (err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+function sftpRealpath(sftp, p) {
+  return new Promise((resolve, reject) => {
+    sftp.realpath(p, (err, absPath) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(absPath);
+    });
+  });
+}
+
+function sftpMkdir(sftp, p) {
+  return new Promise((resolve, reject) => {
+    sftp.mkdir(p, (err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+async function ensureRemoteDirSftp(sftp, dirPath) {
+  const normalized = path.posix.normalize(dirPath || '.');
+  const parts = normalized.split('/').filter(Boolean);
+  let current = normalized.startsWith('/') ? '/' : '';
+  for (const part of parts) {
+    current = current === '/' ? `/${part}` : (current ? `${current}/${part}` : part);
+    try {
+      await sftpMkdir(sftp, current);
+    } catch (e) {
+      const msg = errMsg(e);
+      if (!/failure|exists|file already exists/i.test(msg)) throw e;
+    }
+  }
+}
+
+ipcMain.handle('server:upload-local-file', async (_, { connection, proxy, remoteDir }) => {
+  try {
+    const win = BrowserWindow.getFocusedWindow() || mainWindow;
+    const picked = await dialog.showOpenDialog(win, {
+      title: 'Upload file to server',
+      properties: ['openFile'],
+    });
+    if (picked.canceled || !picked.filePaths?.[0]) {
+      return { ok: true, canceled: true };
+    }
+    const localPath = picked.filePaths[0];
+    const baseName = path.basename(localPath);
+    const remoteFile = joinRemoteRelative(remoteDir, baseName);
+    if (!remoteFile) {
+      return { ok: false, error: 'Invalid destination path' };
+    }
+    if (isDummy(connection)) {
+      ensureDummyRoot();
+      const resolved = resolveDummyPath(connection, remoteFile);
+      fs.mkdirSync(path.dirname(resolved), { recursive: true });
+      fs.copyFileSync(localPath, resolved);
+      return { ok: true, canceled: false, remotePath: remoteFile };
+    }
+    const conn = await getOrCreateConnection(connection, proxy);
+    const cwd = connection.cwd || connection.projectPath;
+    const sftp = await openSftp(conn);
+    try {
+      const base = cwd && String(cwd).trim() ? String(cwd).trim() : '.';
+      const remoteTarget = remoteFile.startsWith('/')
+        ? remoteFile
+        : path.posix.join(base, remoteFile);
+      const remoteAbs = await sftpRealpath(sftp, path.posix.dirname(remoteTarget))
+        .then((absParent) => path.posix.join(absParent, path.posix.basename(remoteTarget)))
+        .catch(async () => {
+          const home = await sftpRealpath(sftp, '.').catch(() => '.');
+          const candidate = remoteTarget.startsWith('/') ? remoteTarget : path.posix.join(home, remoteTarget);
+          await ensureRemoteDirSftp(sftp, path.posix.dirname(candidate));
+          return candidate;
+        });
+      await sftpFastPut(sftp, localPath, remoteAbs);
+    } finally {
+      try { sftp.end(); } catch (_) {}
+    }
+    return { ok: true, canceled: false, remotePath: remoteFile };
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
+});
+
+ipcMain.handle('server:download-remote-file', async (_, { connection, proxy, remoteFilePath }) => {
+  try {
+    const win = BrowserWindow.getFocusedWindow() || mainWindow;
+    const suggested =
+      String(remoteFilePath || '')
+        .replace(/\\/g, '/')
+        .split('/')
+        .filter(Boolean)
+        .pop() || 'download';
+    const save = await dialog.showSaveDialog(win, {
+      title: 'Save file from server',
+      defaultPath: suggested,
+    });
+    if (save.canceled || !save.filePath) {
+      return { ok: true, canceled: true };
+    }
+    const localOut = save.filePath;
+    if (isDummy(connection)) {
+      ensureDummyRoot();
+      const resolved = resolveDummyPath(connection, remoteFilePath);
+      if (!fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
+        return { ok: false, error: 'Remote file not found' };
+      }
+      fs.copyFileSync(resolved, localOut);
+      return { ok: true, canceled: false, savedTo: localOut };
+    }
+    const pathEsc = escapeSingleQuotes(remoteFilePath);
+    const conn = await getOrCreateConnection(connection, proxy);
+    const cwd = connection.cwd || connection.projectPath;
+    const result = await execCommand(conn, `base64 < '${pathEsc}' | tr -d '\n'`, cwd);
+    if (result.code !== 0) {
+      return { ok: false, error: result.stderr || result.stdout || 'Could not read remote file' };
+    }
+    const raw = (result.stdout || '').replace(/\s+/g, '');
+    let buf;
+    try {
+      buf = Buffer.from(raw, 'base64');
+    } catch {
+      return { ok: false, error: 'Invalid data from server' };
+    }
+    fs.writeFileSync(localOut, buf);
+    return { ok: true, canceled: false, savedTo: localOut };
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
+});
+
+log('ipc handlers registered', { deletePath: true, uploadLocalFile: true, downloadRemoteFile: true });
 
 ipcMain.handle('server:deploy', async (_, { connection, deployCommand, proxy, cwd }) => {
   try {
@@ -765,7 +1139,7 @@ ipcMain.handle('server:deploy', async (_, { connection, deployCommand, proxy, cw
     }
     const conn = await getOrCreateConnection(connection, proxy);
     const workDir = cwd && cwd.trim() ? cwd : (connection.cwd || connection.projectPath);
-    const result = await execCommand(conn, deployCommand, workDir);
+    const result = await execDockerAwareCommand(conn, deployCommand, workDir, connection, proxy);
     return { ok: true, stdout: result.stdout, stderr: result.stderr, code: result.code };
   } catch (e) {
     return { ok: false, error: errMsg(e) };

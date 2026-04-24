@@ -5,7 +5,8 @@ import { EditorArea } from './components/EditorArea';
 import { NoServerView } from './components/NoServerView';
 import { Panel } from './components/Panel';
 import { RepoSidebar } from './components/RepoSidebar';
-import type { ServerConnection, ViewId, ProxySettings, DockerContainer } from './types';
+import type { ServerConnection, ViewId, ProxySettings, DockerContainer, FileTreeClipboard } from './types';
+import { escapeShellSingleQuotes } from './utils/shellQuote';
 import type { ServerSysInfo } from './components/ServerOverview';
 import { parseLsLine } from './utils/parseLs';
 
@@ -189,11 +190,14 @@ export default function App() {
   const [openFolders, setOpenFolders] = useState<Set<string>>(() => new Set(['.']));
   const [loadingPaths, setLoadingPaths] = useState<Set<string>>(new Set());
   const [filesError, setFilesError] = useState<string | null>(null);
+  const [fileTransferBusy, setFileTransferBusy] = useState(false);
+  const [fileTreeClipboard, setFileTreeClipboard] = useState<FileTreeClipboard | null>(null);
   // Tabs: multiple open files; content and saved snapshot per path
   const [openTabs, setOpenTabs] = useState<string[]>([]);
   const [activeTabPath, setActiveTabPath] = useState<string | null>(null);
   const [contentByPath, setContentByPath] = useState<Record<string, string>>({});
   const [savedContentByPath, setSavedContentByPath] = useState<Record<string, string>>({});
+  const [tabSudoByPath, setTabSudoByPath] = useState<Record<string, boolean>>({});
   const [loadingPath, setLoadingPath] = useState<string | null>(null);
   const [fileLoadError, setFileLoadError] = useState<string | null>(null);
   const basePath = currentServer?.projectPath || currentServer?.cwd || '.';
@@ -219,12 +223,17 @@ export default function App() {
       setActiveTabPath(null);
       setContentByPath({});
       setSavedContentByPath({});
+      setTabSudoByPath({});
       setLoadingPath(null);
       setFileLoadError(null);
       setSelectedRepoPath(null);
       setRepoTreeListings({});
       setRepoOpenFolders({});
     }
+  }, [currentServer?.id]);
+
+  useEffect(() => {
+    setFileTreeClipboard(null);
   }, [currentServer?.id]);
 
   useEffect(() => {
@@ -417,6 +426,24 @@ export default function App() {
       });
   };
 
+  const refreshAllTreeDirs = () => {
+    if (!currentServer || !window.serverOperator) return;
+    const dirs = new Set<string>(['.']);
+    openFolders.forEach((d) => dirs.add(d));
+    dirs.add(currentPath || '.');
+    dirs.forEach((d) => loadDir(d, true));
+    const repoList = reposByServer[currentServer.id] ?? [];
+    repoList.forEach((repo) => {
+      loadRepoDir(repo, '.', true);
+      const opens = repoOpenFolders[repo];
+      if (opens) {
+        opens.forEach((rel) => {
+          if (rel && rel !== '.') loadRepoDir(repo, rel, true);
+        });
+      }
+    });
+  };
+
   const toggleRepoFolder = (repoPath: string, pathKey: string) => {
     setRepoOpenFolders((prev) => {
       const current = prev[repoPath] ?? new Set(['.']);
@@ -513,11 +540,14 @@ export default function App() {
       proxy,
     });
     const ok = res.ok && res.code === 0;
-    if (ok && selectedRepoPath && fullPath.startsWith(selectedRepoPath + '/')) {
-      const parentPath = fullPath.split('/').slice(0, -1).join('/');
-      const parentRelative = parentPath === selectedRepoPath ? '.' : parentPath.slice(selectedRepoPath.length + 1);
-      removeFromRepoDirListing(selectedRepoPath, parentRelative, fullPath);
-      if (openTabs.includes(fullPath)) closeTab(fullPath);
+    if (ok) {
+      if (selectedRepoPath && fullPath.startsWith(selectedRepoPath + '/')) {
+        const parentPath = fullPath.split('/').slice(0, -1).join('/');
+        const parentRelative = parentPath === selectedRepoPath ? '.' : parentPath.slice(selectedRepoPath.length + 1);
+        removeFromRepoDirListing(selectedRepoPath, parentRelative, fullPath);
+        if (openTabs.includes(fullPath)) closeTab(fullPath);
+      }
+      refreshAllTreeDirs();
     }
     return { ok, error: ok ? undefined : (res.error || res.stderr || 'Delete failed') };
   };
@@ -575,10 +605,19 @@ export default function App() {
     if (!treeListings[pathKey]) loadDir(pathKey, false);
   };
 
-  const openFile = (filePath: string) => {
+  const openFile = (filePath: string, opts?: { useSudo?: boolean }) => {
+    const useSudo = !!opts?.useSudo;
     setFileLoadError(null);
+    setTabSudoByPath((prev) => {
+      const current = !!prev[filePath];
+      if (current === useSudo) return prev;
+      return { ...prev, [filePath]: useSudo };
+    });
     if (openTabs.includes(filePath)) {
       setActiveTabPath(filePath);
+      if ((tabSudoByPath[filePath] ?? false) !== useSudo) {
+        setLoadingPath(filePath);
+      }
     } else {
       setOpenTabs((prev) => [...prev, filePath]);
       setActiveTabPath(filePath);
@@ -595,7 +634,7 @@ export default function App() {
     if (!loadingPath || !currentServer || !window.serverOperator) return;
     setFileLoadError(null);
     window.serverOperator
-      .readFile({ connection: currentServer, filePath: loadingPath, proxy })
+      .readFile({ connection: currentServer, filePath: loadingPath, proxy, useSudo: !!tabSudoByPath[loadingPath] })
       .then((res) => {
         const content = res.content ?? '';
         if (res.ok) {
@@ -615,12 +654,13 @@ export default function App() {
       .finally(() => {
         setLoadingPath(null);
       });
-  }, [loadingPath, currentServer?.id]);
+  }, [loadingPath, currentServer?.id, tabSudoByPath]);
 
-  const handleSaveFile = (filePath: string, content: string) => {
+  const handleSaveFile = (filePath: string, content: string, opts?: { useSudo?: boolean }) => {
     if (!currentServer || !window.serverOperator) return Promise.resolve({ ok: false, error: 'Not connected' });
+    const useSudo = opts?.useSudo ?? !!tabSudoByPath[filePath];
     return window.serverOperator
-      .writeFile({ connection: currentServer, filePath, content, proxy })
+      .writeFile({ connection: currentServer, filePath, content, proxy, useSudo })
       .then((res) => {
         if (res.ok) {
           setSavedContentByPath((prev) => ({ ...prev, [filePath]: content }));
@@ -668,25 +708,39 @@ export default function App() {
     setTreeListings((prev) => ({ ...prev, [pathKey]: newFileList }));
   };
 
-  const createFile = async (name: string): Promise<{ ok: boolean; error?: string }> => {
+  const createFileAtPath = async (filePath: string, opts?: { useSudo?: boolean }): Promise<{ ok: boolean; error?: string }> => {
     if (!currentServer || !window.serverOperator) return { ok: false, error: 'Not connected' };
+    const normalized = (filePath || '').trim().replace(/^\.\/+/, '');
+    if (!normalized) return { ok: false, error: 'Invalid path' };
+    const useSudo = !!opts?.useSudo;
+    const tabPath = normalized;
+    const res = await window.serverOperator.writeFile({
+      connection: currentServer,
+      filePath: normalized,
+      content: '',
+      proxy,
+      useSudo,
+    });
+    if (res.ok) {
+      const currentDir = (currentPath === '.' || currentPath === '' ? '' : currentPath).replace(/\/+$/, '');
+      const inCurrentDir = !tabPath.includes('/') || tabPath.slice(0, tabPath.lastIndexOf('/')) === currentDir;
+      if (inCurrentDir) {
+        appendToCurrentDirListing(tabPath.split('/').pop() || tabPath, false);
+      }
+      setOpenTabs((prev) => (prev.includes(tabPath) ? prev : [...prev, tabPath]));
+      setActiveTabPath(tabPath);
+      setTabSudoByPath((prev) => ({ ...prev, [tabPath]: useSudo }));
+      setContentByPath((prev) => ({ ...prev, [tabPath]: '' }));
+      setSavedContentByPath((prev) => ({ ...prev, [tabPath]: '' }));
+    }
+    return res;
+  };
+
+  const createFile = async (name: string): Promise<{ ok: boolean; error?: string }> => {
     const trimmed = name.trim();
     const filePath = buildPath(trimmed);
     if (!filePath) return { ok: false, error: 'Invalid name' };
-    const res = await window.serverOperator.writeFile({
-      connection: currentServer,
-      filePath,
-      content: '',
-      proxy,
-    });
-    if (res.ok) {
-      appendToCurrentDirListing(trimmed, false);
-      setOpenTabs((prev) => (prev.includes(filePath) ? prev : [...prev, filePath]));
-      setActiveTabPath(filePath);
-      setContentByPath((prev) => ({ ...prev, [filePath]: '' }));
-      setSavedContentByPath((prev) => ({ ...prev, [filePath]: '' }));
-    }
-    return res;
+    return createFileAtPath(filePath, { useSudo: false });
   };
 
   const createFolder = async (name: string): Promise<{ ok: boolean; error?: string }> => {
@@ -703,6 +757,47 @@ export default function App() {
     return res;
   };
 
+  const handleUploadLocalFile = async () => {
+    if (!currentServer) return;
+    const api = window.serverOperator;
+    if (!api?.uploadLocalFile) {
+      setFilesError('Upload needs the desktop app (Electron with preload).');
+      return;
+    }
+    setFilesError(null);
+    setFileTransferBusy(true);
+    try {
+      const res = await api.uploadLocalFile({
+        connection: currentServer,
+        proxy,
+        remoteDir: currentPath || '.',
+      });
+      if (res.canceled) return;
+      if (!res.ok) {
+        setFilesError(res.error || 'Upload failed');
+        return;
+      }
+      loadDir(currentPath || '.', true);
+    } finally {
+      setFileTransferBusy(false);
+    }
+  };
+
+  const handleDownloadRemoteFile = async (remoteFilePath: string) => {
+    if (!currentServer) {
+      return { ok: false, error: 'No server connected' };
+    }
+    const api = window.serverOperator;
+    if (!api?.downloadRemoteFile) {
+      return { ok: false, error: 'Download needs the desktop app (Electron with preload).' };
+    }
+    return api.downloadRemoteFile({
+      connection: currentServer,
+      proxy,
+      remoteFilePath,
+    });
+  };
+
   const deleteEntry = async (path: string): Promise<{ ok: boolean; error?: string }> => {
     if (!currentServer || !window.serverOperator) return { ok: false, error: 'Not connected' };
     const pathEsc = path.replace(/'/g, "'\\''");
@@ -716,11 +811,187 @@ export default function App() {
     if (ok) {
       removeFromCurrentDirListing(path);
       if (openTabs.includes(path)) closeTab(path);
+      refreshAllTreeDirs();
     }
     return {
       ok,
       error: ok ? undefined : (res.error || res.stderr || 'Delete failed'),
     };
+  };
+
+  const runProjectShell = (command: string) => {
+    if (!currentServer || !window.serverOperator) {
+      return Promise.resolve({
+        ok: false as const,
+        code: 1,
+        stdout: '',
+        stderr: 'Not connected',
+        error: 'Not connected',
+      });
+    }
+    return window.serverOperator.runCommand({
+      connection: currentServer,
+      command,
+      cwd: currentServer.cwd,
+      proxy,
+    });
+  };
+
+  const renamePathOnServer = async (oldPath: string, newName: string): Promise<{ ok: boolean; error?: string }> => {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed.includes('/') || trimmed === '..') {
+      return { ok: false, error: 'Invalid name' };
+    }
+    const slash = oldPath.lastIndexOf('/');
+    const parent = slash >= 0 ? oldPath.slice(0, slash) : '';
+    const newPath = parent ? `${parent}/${trimmed}` : trimmed;
+    if (newPath === oldPath) return { ok: true };
+
+    const newEsc = escapeShellSingleQuotes(newPath);
+    const check = await runProjectShell(`if test -e '${newEsc}'; then echo exists; fi`);
+    if (check.stdout?.includes('exists')) {
+      return { ok: false, error: 'A file or folder with that name already exists' };
+    }
+    const oldEsc = escapeShellSingleQuotes(oldPath);
+    const res = await runProjectShell(`mv '${oldEsc}' '${newEsc}'`);
+    if (!res.ok || res.code !== 0) {
+      return { ok: false, error: res.stderr || res.stdout || 'Rename failed' };
+    }
+
+    setOpenTabs((tabs) => tabs.map((p) => (p === oldPath ? newPath : p)));
+    setContentByPath((prev) => {
+      if (!(oldPath in prev)) return prev;
+      const next = { ...prev };
+      next[newPath] = next[oldPath];
+      delete next[oldPath];
+      return next;
+    });
+    setSavedContentByPath((prev) => {
+      if (!(oldPath in prev)) return prev;
+      const next = { ...prev };
+      next[newPath] = next[oldPath];
+      delete next[oldPath];
+      return next;
+    });
+    setTabSudoByPath((prev) => {
+      if (!(oldPath in prev)) return prev;
+      const next = { ...prev };
+      next[newPath] = next[oldPath];
+      delete next[oldPath];
+      return next;
+    });
+    setActiveTabPath((cur) => (cur === oldPath ? newPath : cur));
+    refreshAllTreeDirs();
+    return { ok: true };
+  };
+
+  const promptRenamePath = async (oldPath: string): Promise<{ ok: boolean; error?: string }> => {
+    const base = oldPath.split('/').pop() || oldPath;
+    const next = window.prompt('New name:', base);
+    if (next == null) return { ok: true };
+    const t = next.trim();
+    if (!t) return { ok: false, error: 'Empty name' };
+    if (t === base) return { ok: true };
+    return renamePathOnServer(oldPath, t);
+  };
+
+  const duplicatePathOnServer = async (path: string, isDir: boolean): Promise<{ ok: boolean; error?: string }> => {
+    const name = path.split('/').pop() || path;
+    const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
+    let dupName: string;
+    if (!isDir && name.includes('.') && name.lastIndexOf('.') > 0) {
+      const d = name.lastIndexOf('.');
+      dupName = `${name.slice(0, d)} (copy)${name.slice(d)}`;
+    } else {
+      dupName = `${name} (copy)`;
+    }
+    const newPath = parent ? `${parent}/${dupName}` : dupName;
+    const newEsc = escapeShellSingleQuotes(newPath);
+    const check = await runProjectShell(`if test -e '${newEsc}'; then echo exists; fi`);
+    if (check.stdout?.includes('exists')) {
+      return { ok: false, error: `"${dupName}" already exists. Rename or remove it first.` };
+    }
+    const pathEsc = escapeShellSingleQuotes(path);
+    const res = await runProjectShell(`cp -a '${pathEsc}' '${newEsc}'`);
+    if (!res.ok || res.code !== 0) {
+      return { ok: false, error: res.stderr || res.stdout || 'Duplicate failed' };
+    }
+    refreshAllTreeDirs();
+    return { ok: true };
+  };
+
+  const pasteIntoRemoteFolder = async (targetDir: string): Promise<{ ok: boolean; error?: string }> => {
+    if (!currentServer || !window.serverOperator) return { ok: false, error: 'Not connected' };
+    const clip = fileTreeClipboard;
+    if (!clip || clip.serverId !== currentServer.id) {
+      return { ok: false, error: 'Nothing to paste' };
+    }
+    const dir = (targetDir || '.').trim().replace(/\/+$/, '') || '.';
+    const paths = [...clip.paths];
+
+    for (const src of paths) {
+      const parts = src.split('/').filter(Boolean);
+      const base = parts.pop();
+      if (!base) continue;
+      const destRel = dir === '.' ? base : `${dir}/${base}`;
+
+      if (clip.action === 'cut') {
+        if (destRel === src) continue;
+        if (dir === src || dir.startsWith(src + '/')) {
+          return { ok: false, error: 'Cannot move a folder into itself or its subfolder' };
+        }
+      }
+
+      const destEsc = escapeShellSingleQuotes(destRel);
+      const chk = await runProjectShell(`if test -e '${destEsc}'; then echo exists; fi`);
+      const exists = Boolean(chk.stdout?.includes('exists'));
+      if (exists) {
+        const okReplace = window.confirm(`Replace existing "${destRel}"?`);
+        if (!okReplace) return { ok: false, error: 'Cancelled' };
+        const rm = await runProjectShell(`rm -rf '${destEsc}'`);
+        if (!rm.ok || rm.code !== 0) {
+          return { ok: false, error: rm.stderr || rm.stdout || 'Could not remove existing item' };
+        }
+      }
+
+      const srcEsc = escapeShellSingleQuotes(src);
+      const dirEsc = escapeShellSingleQuotes(dir === '.' ? '.' : dir);
+      const cmd = clip.action === 'copy' ? `cp -a '${srcEsc}' '${dirEsc}/'` : `mv '${srcEsc}' '${dirEsc}/'`;
+      const res = await runProjectShell(cmd);
+      if (!res.ok || res.code !== 0) {
+        return { ok: false, error: res.stderr || res.stdout || 'Paste failed' };
+      }
+
+      if (clip.action === 'cut') {
+        setOpenTabs((tabs) => tabs.map((p) => (p === src ? destRel : p)));
+        setContentByPath((prev) => {
+          if (!(src in prev)) return prev;
+          const next = { ...prev };
+          next[destRel] = next[src];
+          delete next[src];
+          return next;
+        });
+        setSavedContentByPath((prev) => {
+          if (!(src in prev)) return prev;
+          const next = { ...prev };
+          next[destRel] = next[src];
+          delete next[src];
+          return next;
+        });
+        setTabSudoByPath((prev) => {
+          if (!(src in prev)) return prev;
+          const next = { ...prev };
+          next[destRel] = next[src];
+          delete next[src];
+          return next;
+        });
+        setActiveTabPath((cur) => (cur === src ? destRel : cur));
+      }
+    }
+
+    if (clip.action === 'cut') setFileTreeClipboard(null);
+    refreshAllTreeDirs();
+    return { ok: true };
   };
 
   const closeTab = (path: string) => {
@@ -735,6 +1006,12 @@ export default function App() {
       return next;
     });
     setSavedContentByPath((prev) => {
+      const next = { ...prev };
+      delete next[path];
+      return next;
+    });
+    setTabSudoByPath((prev) => {
+      if (!(path in prev)) return prev;
       const next = { ...prev };
       delete next[path];
       return next;
@@ -891,6 +1168,19 @@ export default function App() {
               onMakeGitRepo={onMakeGitRepo}
               onAddAsProject={onAddAsProject}
               onAddToLogs={onAddToLogs}
+              onUploadLocalFile={handleUploadLocalFile}
+              uploadBusy={fileTransferBusy}
+              fileTreeClipboard={fileTreeClipboard}
+              onFileTreeCopyPaths={(paths) => {
+                if (currentServer) setFileTreeClipboard({ serverId: currentServer.id, action: 'copy', paths });
+              }}
+              onFileTreeCutPaths={(paths) => {
+                if (currentServer) setFileTreeClipboard({ serverId: currentServer.id, action: 'cut', paths });
+              }}
+              onFileTreePasteInto={pasteIntoRemoteFolder}
+              onFileTreeRenamePath={promptRenamePath}
+              onFileTreeDuplicatePath={duplicatePathOnServer}
+              onFileTreeActionMessage={setFilesError}
             />
           </div>
           <div
@@ -968,6 +1258,10 @@ export default function App() {
                 currentPath={currentPath}
                 basePath={basePath}
                 onSaveFile={handleSaveFile}
+                onOpenFileByPath={openFile}
+                onCreateFileByPath={createFileAtPath}
+                activeTabUsesSudo={activeTabPath ? !!tabSudoByPath[activeTabPath] : false}
+                onDownloadRemoteFile={handleDownloadRemoteFile}
                 onCloseTab={closeTab}
                 onSelectTab={(path: string) => {
                   setActiveTabPath(path);
@@ -1013,12 +1307,21 @@ export default function App() {
                 <RepoSidebar
                   repos={repos}
                   selectedRepoPath={selectedRepoPath}
+                  currentServer={currentServer}
                   onSelectRepo={setSelectedRepoPath}
                   onRemoveRepo={removeRepo}
                   repoTreeListings={repoTreeListings}
                   repoOpenFolders={repoOpenFolders}
                   repoLoadingPaths={repoLoadingPaths}
                   repoCurrentPath={selectedRepoPath ? (repoCurrentPathByRepo[selectedRepoPath] ?? '.') : '.'}
+                  repoBrowseDirForPaste={
+                    selectedRepoPath
+                      ? (() => {
+                          const rel = repoCurrentPathByRepo[selectedRepoPath] ?? '.';
+                          return rel === '.' ? selectedRepoPath : `${selectedRepoPath}/${rel}`;
+                        })()
+                      : '.'
+                  }
                   onToggleRepoFolder={toggleRepoFolder}
                   loadRepoDir={loadRepoDir}
                   onOpenFile={openFile}
@@ -1027,6 +1330,17 @@ export default function App() {
                   onDeleteEntry={deleteEntryInRepo}
                   onCollapseRepo={collapseRepo}
                   basePath={basePath}
+                  fileTreeClipboard={fileTreeClipboard}
+                  onFileTreeCopyPaths={(paths) => {
+                    if (currentServer) setFileTreeClipboard({ serverId: currentServer.id, action: 'copy', paths });
+                  }}
+                  onFileTreeCutPaths={(paths) => {
+                    if (currentServer) setFileTreeClipboard({ serverId: currentServer.id, action: 'cut', paths });
+                  }}
+                  onFileTreePasteInto={pasteIntoRemoteFolder}
+                  onFileTreeRenamePath={promptRenamePath}
+                  onFileTreeDuplicatePath={duplicatePathOnServer}
+                  onFileTreeActionMessage={setFilesError}
                 />
               </div>
             </>

@@ -3,6 +3,7 @@ import { Terminal as TerminalIcon, FileText, Loader2, RefreshCw, Plus, Trash2, X
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
+import { attachXtermClipboardKeys } from '../utils/xtermClipboardKeys';
 import type { ServerConnection, ProxySettings } from '../types';
 
 interface PanelProps {
@@ -136,6 +137,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
       });
       const fitAddon = new FitAddon();
       term.loadAddon(fitAddon);
+      attachXtermClipboardKeys(term);
       term.open(container);
       fitAddon.fit();
       const currentShellId = tab.shellId;

@@ -33,12 +33,12 @@ export interface ServerOperatorAPI {
     proxy?: ProxySettings;
   }) => Promise<{ ok: boolean; error?: string }>;
   stopComposeLogsStream: (opts: { streamId: string }) => Promise<void>;
-  readFile: (opts: { connection: ServerConnection; filePath: string; proxy?: ProxySettings }) => Promise<{
+  readFile: (opts: { connection: ServerConnection; filePath: string; proxy?: ProxySettings; useSudo?: boolean }) => Promise<{
     ok: boolean;
     content?: string;
     error?: string;
   }>;
-  writeFile: (opts: { connection: ServerConnection; filePath: string; content: string; proxy?: ProxySettings }) => Promise<{
+  writeFile: (opts: { connection: ServerConnection; filePath: string; content: string; proxy?: ProxySettings; useSudo?: boolean }) => Promise<{
     ok: boolean;
     error?: string;
   }>;
@@ -55,6 +55,17 @@ export interface ServerOperatorAPI {
     ok: boolean;
     error?: string;
   }>;
+  uploadLocalFile: (opts: {
+    connection: ServerConnection;
+    proxy?: ProxySettings;
+    /** Relative directory on the server (same as file tree), e.g. "." or "src/config". */
+    remoteDir: string;
+  }) => Promise<{ ok: boolean; canceled?: boolean; error?: string; remotePath?: string }>;
+  downloadRemoteFile: (opts: {
+    connection: ServerConnection;
+    proxy?: ProxySettings;
+    remoteFilePath: string;
+  }) => Promise<{ ok: boolean; canceled?: boolean; error?: string; savedTo?: string }>;
   deploy: (opts: { connection: ServerConnection; deployCommand: string; proxy?: ProxySettings; cwd?: string }) => Promise<{
     ok: boolean;
     stdout?: string;

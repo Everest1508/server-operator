@@ -1,6 +1,31 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronRight, Folder, FileCode, Loader2, FilePlus, FolderPlus, ChevronsUp, Trash2, X } from 'lucide-react';
+import {
+  ChevronRight,
+  Folder,
+  FileCode,
+  Loader2,
+  FilePlus,
+  FolderPlus,
+  ChevronsUp,
+  Trash2,
+  X,
+  Pencil,
+  Scissors,
+  Copy,
+  ClipboardPaste,
+  CopyPlus,
+} from 'lucide-react';
+import type { ServerConnection, FileTreeClipboard } from '../types';
 import { parseLsLine } from '../utils/parseLs';
+
+interface RepoFileTreeMenuState {
+  kind: 'entry' | 'background';
+  x: number;
+  y: number;
+  path?: string;
+  isDir?: boolean;
+  targetDir?: string;
+}
 
 function buildPath(prefix: string, name: string): string {
   const p = (prefix || '.').trim() || '.';
@@ -10,11 +35,14 @@ function buildPath(prefix: string, name: string): string {
 interface RepoSidebarProps {
   repos: string[];
   selectedRepoPath: string | null;
+  currentServer?: ServerConnection | null;
   onSelectRepo: (path: string | null) => void;
   repoTreeListings: Record<string, string>;
   repoOpenFolders: Record<string, Set<string>>;
   repoLoadingPaths: Set<string>;
   repoCurrentPath?: string;
+  /** Full server-relative path used as paste target for empty project tree area */
+  repoBrowseDirForPaste?: string;
   onToggleRepoFolder: (repoPath: string, pathKey: string) => void;
   loadRepoDir: (repoPath: string, relativePath: string, forceRefresh?: boolean) => void;
   onOpenFile?: (filePath: string) => void;
@@ -24,31 +52,68 @@ interface RepoSidebarProps {
   onCollapseRepo?: (repoPath: string) => void;
   onRemoveRepo?: (path: string) => void;
   basePath?: string;
+  fileTreeClipboard?: FileTreeClipboard | null;
+  onFileTreeCopyPaths?: (paths: string[]) => void;
+  onFileTreeCutPaths?: (paths: string[]) => void;
+  onFileTreePasteInto?: (targetDir: string) => Promise<{ ok: boolean; error?: string }>;
+  onFileTreeRenamePath?: (path: string) => Promise<{ ok: boolean; error?: string }>;
+  onFileTreeDuplicatePath?: (path: string, isDir: boolean) => Promise<{ ok: boolean; error?: string }>;
+  onFileTreeActionMessage?: (message: string | null) => void;
 }
 
 export function RepoSidebar({
   repos,
   selectedRepoPath,
+  currentServer = null,
   onSelectRepo,
   repoTreeListings,
   repoOpenFolders,
   repoLoadingPaths,
-  repoCurrentPath = '.',
+  repoCurrentPath: _repoCurrentPath = '.',
+  repoBrowseDirForPaste = '.',
   onToggleRepoFolder,
-  loadRepoDir,
+  loadRepoDir: _loadRepoDir,
   onOpenFile,
   onCreateFile,
   onCreateFolder,
   onDeleteEntry,
   onCollapseRepo,
   onRemoveRepo,
-  basePath = '.',
+  basePath: _basePath = '.',
+  fileTreeClipboard = null,
+  onFileTreeCopyPaths,
+  onFileTreeCutPaths,
+  onFileTreePasteInto,
+  onFileTreeRenamePath,
+  onFileTreeDuplicatePath,
+  onFileTreeActionMessage,
 }: RepoSidebarProps) {
   const [creatingType, setCreatingType] = useState<'file' | 'folder' | null>(null);
   const [creatingName, setCreatingName] = useState('');
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [fileTreeMenu, setFileTreeMenu] = useState<RepoFileTreeMenuState | null>(null);
+  const [contextMenuAction, setContextMenuAction] = useState<string | null>(null);
   const createInputRef = useRef<HTMLInputElement>(null);
+
+  const canPasteFiles =
+    Boolean(
+      fileTreeClipboard &&
+      currentServer &&
+      fileTreeClipboard.paths.length > 0 &&
+      fileTreeClipboard.serverId === currentServer.id
+    ) && Boolean(onFileTreePasteInto);
+
+  useEffect(() => {
+    if (!fileTreeMenu) return;
+    const close = () => setFileTreeMenu(null);
+    window.addEventListener('click', close);
+    window.addEventListener('scroll', close, true);
+    return () => {
+      window.removeEventListener('click', close);
+      window.removeEventListener('scroll', close, true);
+    };
+  }, [fileTreeMenu]);
 
   useEffect(() => {
     if (creatingType) {
@@ -124,7 +189,16 @@ export function RepoSidebar({
     return (
       <>
         {pathKey !== '.' && (
-          <div className="group flex items-center gap-0 rounded min-w-0 w-full">
+          <div
+            data-repo-tree-row
+            className="group flex items-center gap-0 rounded min-w-0 w-full"
+            onContextMenu={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const fullFolderPath = repoPath === '.' ? pathKey : `${repoPath}/${pathKey}`;
+              setFileTreeMenu({ kind: 'entry', x: e.clientX, y: e.clientY, path: fullFolderPath, isDir: true });
+            }}
+          >
             <button
               type="button"
               onClick={() => onToggleRepoFolder(repoPath, pathKey)}
@@ -178,7 +252,16 @@ export function RepoSidebar({
                 );
               }
               return (
-                <div key={`${repoPath}-${fullPath}`} className="group flex items-center gap-0 rounded min-w-0 w-full">
+                <div
+                  key={`${repoPath}-${fullPath}`}
+                  data-repo-tree-row
+                  className="group flex items-center gap-0 rounded min-w-0 w-full"
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setFileTreeMenu({ kind: 'entry', x: e.clientX, y: e.clientY, path: fullFilePath, isDir: false });
+                  }}
+                >
                   <button
                     type="button"
                     onClick={() => onOpenFile?.(fullFilePath)}
@@ -312,7 +395,22 @@ export function RepoSidebar({
       )}
       <div className="flex-1 overflow-y-auto py-2 px-2 font-mono text-sm min-h-0">
         {selectedRepoPath ? (
-          <div className="min-h-[120px]">
+          <div
+            className="min-h-[120px]"
+            onContextMenu={(e) => {
+              if ((e.target as HTMLElement).closest('[data-repo-tree-row]')) return;
+              if ((e.target as HTMLElement).closest('button')) return;
+              if ((e.target as HTMLElement).closest('input')) return;
+              if (!canPasteFiles) return;
+              e.preventDefault();
+              setFileTreeMenu({
+                kind: 'background',
+                x: e.clientX,
+                y: e.clientY,
+                targetDir: repoBrowseDirForPaste || selectedRepoPath,
+              });
+            }}
+          >
             {creatingType && (
               <div className="flex items-center gap-2 px-2 py-1.5 rounded bg-[var(--bg-tertiary)] mb-1">
                 {creatingType === 'folder' ? (
@@ -341,6 +439,176 @@ export function RepoSidebar({
           <div className="py-4 px-2 text-[var(--text-muted)] text-xs text-center">Select a project tab above.</div>
         )}
       </div>
+      {fileTreeMenu && selectedRepoPath && (
+        <div
+          className="fixed z-50 min-w-[200px] rounded-md border border-[var(--border)] bg-[var(--bg-secondary)] py-1 shadow-lg"
+          style={{ left: fileTreeMenu.x, top: fileTreeMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          {fileTreeMenu.kind === 'background' && canPasteFiles && fileTreeMenu.targetDir != null && (
+            <button
+              type="button"
+              disabled={!!contextMenuAction}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] disabled:opacity-50"
+              onClick={async () => {
+                setContextMenuAction('paste');
+                onFileTreeActionMessage?.(null);
+                try {
+                  const res = await onFileTreePasteInto!(fileTreeMenu.targetDir!);
+                  if (!res.ok && res.error && res.error !== 'Cancelled') {
+                    onFileTreeActionMessage?.(res.error);
+                  }
+                } finally {
+                  setContextMenuAction(null);
+                  setFileTreeMenu(null);
+                }
+              }}
+            >
+              <ClipboardPaste size={14} className="shrink-0" />
+              {contextMenuAction === 'paste' ? 'Pasting…' : 'Paste here'}
+            </button>
+          )}
+          {fileTreeMenu.kind === 'entry' && fileTreeMenu.path != null && (
+            <>
+              {!fileTreeMenu.isDir && onOpenFile && (
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
+                  onClick={() => {
+                    onOpenFile(fileTreeMenu.path!);
+                    setFileTreeMenu(null);
+                  }}
+                >
+                  <FileCode size={14} className="shrink-0" />
+                  Open
+                </button>
+              )}
+              {onFileTreeRenamePath && (
+                <button
+                  type="button"
+                  disabled={!!contextMenuAction}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] disabled:opacity-50"
+                  onClick={async () => {
+                    setContextMenuAction('rename');
+                    onFileTreeActionMessage?.(null);
+                    try {
+                      const res = await onFileTreeRenamePath(fileTreeMenu.path!);
+                      if (!res.ok && res.error) onFileTreeActionMessage?.(res.error);
+                    } finally {
+                      setContextMenuAction(null);
+                      setFileTreeMenu(null);
+                    }
+                  }}
+                >
+                  <Pencil size={14} className="shrink-0" />
+                  {contextMenuAction === 'rename' ? 'Renaming…' : 'Rename'}
+                </button>
+              )}
+              {onFileTreeCutPaths && (
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
+                  onClick={() => {
+                    onFileTreeCutPaths([fileTreeMenu.path!]);
+                    setFileTreeMenu(null);
+                  }}
+                >
+                  <Scissors size={14} className="shrink-0" />
+                  Cut
+                </button>
+              )}
+              {onFileTreeCopyPaths && (
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
+                  onClick={() => {
+                    onFileTreeCopyPaths([fileTreeMenu.path!]);
+                    setFileTreeMenu(null);
+                  }}
+                >
+                  <Copy size={14} className="shrink-0" />
+                  Copy
+                </button>
+              )}
+              {canPasteFiles && onFileTreePasteInto && (
+                <button
+                  type="button"
+                  disabled={!!contextMenuAction}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] disabled:opacity-50"
+                  onClick={async () => {
+                    const p = fileTreeMenu.path!;
+                    const parent = p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '.';
+                    const targetDir = fileTreeMenu.isDir ? p : parent;
+                    setContextMenuAction('paste');
+                    onFileTreeActionMessage?.(null);
+                    try {
+                      const res = await onFileTreePasteInto(targetDir);
+                      if (!res.ok && res.error && res.error !== 'Cancelled') {
+                        onFileTreeActionMessage?.(res.error);
+                      }
+                    } finally {
+                      setContextMenuAction(null);
+                      setFileTreeMenu(null);
+                    }
+                  }}
+                >
+                  <ClipboardPaste size={14} className="shrink-0" />
+                  {contextMenuAction === 'paste' ? 'Pasting…' : 'Paste into'}
+                </button>
+              )}
+              {onFileTreeDuplicatePath && (
+                <button
+                  type="button"
+                  disabled={!!contextMenuAction}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] disabled:opacity-50"
+                  onClick={async () => {
+                    setContextMenuAction('dup');
+                    onFileTreeActionMessage?.(null);
+                    try {
+                      const res = await onFileTreeDuplicatePath(fileTreeMenu.path!, Boolean(fileTreeMenu.isDir));
+                      if (!res.ok && res.error) onFileTreeActionMessage?.(res.error);
+                    } finally {
+                      setContextMenuAction(null);
+                      setFileTreeMenu(null);
+                    }
+                  }}
+                >
+                  <CopyPlus size={14} className="shrink-0" />
+                  {contextMenuAction === 'dup' ? 'Duplicating…' : 'Duplicate'}
+                </button>
+              )}
+              {onDeleteEntry && (
+                <button
+                  type="button"
+                  disabled={!!contextMenuAction}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--error)] hover:bg-[var(--error)]/15 disabled:opacity-50"
+                  onClick={async () => {
+                    const p = fileTreeMenu.path!;
+                    const label = p.split('/').pop() || p;
+                    if (!window.confirm(`Delete "${label}"?\n\nThis cannot be undone.`)) {
+                      setFileTreeMenu(null);
+                      return;
+                    }
+                    setContextMenuAction('del');
+                    onFileTreeActionMessage?.(null);
+                    try {
+                      const res = await onDeleteEntry(p);
+                      if (!res.ok && res.error) onFileTreeActionMessage?.(res.error);
+                    } finally {
+                      setContextMenuAction(null);
+                      setFileTreeMenu(null);
+                    }
+                  }}
+                >
+                  <Trash2 size={14} className="shrink-0" />
+                  {contextMenuAction === 'del' ? 'Deleting…' : 'Delete'}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
