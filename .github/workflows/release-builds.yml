@@ -20,15 +20,15 @@ jobs:
           - os: ubuntu-latest
             label: Linux
             artifact_name: linux
-            build_command: npm run electron:build:linux
+            build_command: npm run electron:build:linux -- --publish never
           - os: windows-latest
             label: Windows
             artifact_name: windows
-            build_command: npm run electron:build -- --win nsis
+            build_command: npm run electron:build -- --win nsis --publish never
           - os: macos-latest
             label: macOS
             artifact_name: macos
-            build_command: npm run electron:build -- --mac dmg zip
+            build_command: npm run electron:build -- --mac dmg zip --publish never
 
     steps:
       - name: Checkout
