@@ -74,19 +74,19 @@
           "arch": [
             "x64"
           ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
         }
       ]
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": true,
+      "allowElevation": true,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "${productName}-${version}-Setup.${ext}"
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Server Operator",
+      "uninstallDisplayName": "Server Operator",
+      "artifactName": "${productName}-${version}-Setup-${arch}.${ext}"
     },
     "directories": {
       "output": "release"

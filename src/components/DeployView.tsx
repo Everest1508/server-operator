@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Rocket, Loader2, Key, FileCode, FolderTree, Send, Sparkles, Play, ChevronDown, Server } from 'lucide-react';
 import type { ServerConnection, ProxySettings } from '../types';
 import { loadProjectContext } from '../utils/loadProjectContext';
+import { parseLsLine } from '../utils/parseLs';
 import { ConfigCreators } from './ConfigCreators';
 import { ProjectTerminal } from './ProjectTerminal';
 import { ServerToolsView } from './ServerToolsView';
@@ -60,6 +61,87 @@ Your task: convert the user's request into a single shell command that fits this
 - Use docker compose when relevant (restart service, logs, etc.). Use the project/working directory for compose files if needed.
 - Reply with ONLY the command: no markdown, no explanation, no extra quotes. One command; chain steps with && if needed.`;
   return sys;
+}
+
+interface SeropShortcut {
+  id: string;
+  name: string;
+  command: string;
+  sourceLine: number;
+}
+
+function joinRemotePath(base: string, next: string): string {
+  const normalizedBase = (base || '').trim().replace(/\/+$/, '');
+  const normalizedNext = (next || '').trim().replace(/^\/+/, '');
+  if (!normalizedNext) return normalizedBase || '.';
+  if (!normalizedBase || normalizedBase === '.') return normalizedNext;
+  return `${normalizedBase}/${normalizedNext}`;
+}
+
+function parseSeropShortcuts(content: string): { shortcuts: SeropShortcut[]; warning?: string } {
+  const lines = content.split(/\r?\n/);
+  const shortcuts: SeropShortcut[] = [];
+  let currentSectionName = '';
+  let currentSectionCommands: string[] = [];
+  let currentSectionLine = 1;
+
+  const flushSection = () => {
+    const commands = currentSectionCommands.map((line) => line.trim()).filter(Boolean);
+    if (!commands.length) return;
+    const index = shortcuts.length + 1;
+    shortcuts.push({
+      id: `shortcut-${index}-${currentSectionLine}`,
+      name: currentSectionName || `Shortcut ${index}`,
+      command: commands.join(' && '),
+      sourceLine: currentSectionLine,
+    });
+    currentSectionName = '';
+    currentSectionCommands = [];
+  };
+
+  lines.forEach((rawLine, i) => {
+    const lineNo = i + 1;
+    const trimmed = rawLine.trim();
+    if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) return;
+
+    const section = trimmed.match(/^\[([^\]]+)\]$/);
+    if (section) {
+      flushSection();
+      currentSectionName = section[1].trim();
+      currentSectionLine = lineNo;
+      return;
+    }
+
+    if (!currentSectionName && currentSectionCommands.length === 0) {
+      const inlinePair = trimmed.match(/^([^:=]+?)\s*[:=]\s*(.+)$/);
+      if (inlinePair) {
+        const index = shortcuts.length + 1;
+        shortcuts.push({
+          id: `shortcut-${index}-${lineNo}`,
+          name: inlinePair[1].trim(),
+          command: inlinePair[2].trim(),
+          sourceLine: lineNo,
+        });
+        return;
+      }
+    }
+
+    if (!currentSectionName && currentSectionCommands.length === 0) {
+      currentSectionLine = lineNo;
+      currentSectionName = `Shortcut ${shortcuts.length + 1}`;
+    }
+    currentSectionCommands.push(trimmed);
+  });
+
+  flushSection();
+  if (shortcuts.length === 0) {
+    return {
+      shortcuts: [],
+      warning:
+        'No shortcuts found. Use [Shortcut Name] sections followed by one or more command lines.',
+    };
+  }
+  return { shortcuts };
 }
 
 async function suggestCommandWithGroq(
@@ -134,6 +216,13 @@ export function DeployView({ currentServer, proxy, onOpenPanel: _onOpenPanel, cu
   const [aiRequest, setAiRequest] = useState('');
   const [aiSuggesting, setAiSuggesting] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [selectedShortcutsProjectPath, setSelectedShortcutsProjectPath] = useState('');
+  const [shortcutFiles, setShortcutFiles] = useState<string[]>([]);
+  const [selectedShortcutFile, setSelectedShortcutFile] = useState('');
+  const [shortcutsLoading, setShortcutsLoading] = useState(false);
+  const [shortcutsError, setShortcutsError] = useState<string | null>(null);
+  const [shortcutsWarning, setShortcutsWarning] = useState<string | null>(null);
+  const [seropShortcuts, setSeropShortcuts] = useState<SeropShortcut[]>([]);
 
   const handleSaveGroqKey = () => {
     saveGroqApiKey(groqApiKey);
@@ -204,12 +293,108 @@ export function DeployView({ currentServer, proxy, onOpenPanel: _onOpenPanel, cu
   };
 
   const runCwd = selectedDeployProjectPath?.trim() || currentServer.projectPath || currentServer.cwd || '';
+  const shortcutsProjectPath =
+    selectedShortcutsProjectPath.trim() ||
+    selectedDeployProjectPath.trim() ||
+    currentServer.projectPath ||
+    currentServer.cwd ||
+    '';
 
   const executeInLeftTerminal = (cmd?: string) => {
     const toRun = (cmd ?? command).trim();
     if (!toRun) return;
     runCommandInTerminalRef.current?.(toRun);
   };
+
+  const loadSeropFile = async (projectPath: string, fileName: string) => {
+    if (!window.serverOperator || !projectPath || !fileName) return;
+    setShortcutsLoading(true);
+    setShortcutsError(null);
+    setShortcutsWarning(null);
+    setSeropShortcuts([]);
+    try {
+      const folderPath = joinRemotePath(projectPath, '.server-operator');
+      const fullFilePath = joinRemotePath(folderPath, fileName);
+      const res = await window.serverOperator.readFile({
+        connection: currentServer,
+        filePath: fullFilePath,
+        proxy: proxy?.enabled ? proxy : undefined,
+      });
+      if (!res.ok) {
+        setShortcutsError(res.error || `Failed to read ${fileName}`);
+        return;
+      }
+      const parsed = parseSeropShortcuts(res.content || '');
+      setSeropShortcuts(parsed.shortcuts);
+      setShortcutsWarning(parsed.warning || null);
+    } finally {
+      setShortcutsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!window.serverOperator || !shortcutsProjectPath) {
+      setShortcutFiles([]);
+      setSelectedShortcutFile('');
+      setSeropShortcuts([]);
+      setShortcutsError(null);
+      setShortcutsWarning(null);
+      return;
+    }
+
+    let cancelled = false;
+    const loadSeropFiles = async () => {
+      setShortcutsLoading(true);
+      setShortcutsError(null);
+      setShortcutsWarning(null);
+      setSeropShortcuts([]);
+      try {
+        const folderPath = joinRemotePath(shortcutsProjectPath, '.server-operator');
+        const listRes = await window.serverOperator.listDir({
+          connection: currentServer,
+          dirPath: folderPath,
+          proxy: proxy?.enabled ? proxy : undefined,
+        });
+        if (cancelled) return;
+        if (!listRes.ok || !listRes.stdout) {
+          setShortcutFiles([]);
+          setSelectedShortcutFile('');
+          setShortcutsWarning(
+            `No shortcut folder found at ${folderPath}. Create it and add .serop files.`
+          );
+          return;
+        }
+
+        const files = listRes.stdout
+          .trim()
+          .split('\n')
+          .filter(Boolean)
+          .map((line) => parseLsLine(line))
+          .filter((entry): entry is { isDir: boolean; name: string } => !!entry && !entry.isDir)
+          .map((entry) => entry.name)
+          .filter((name) => name.toLowerCase().endsWith('.serop'))
+          .sort((a, b) => a.localeCompare(b));
+
+        setShortcutFiles(files);
+        if (!files.length) {
+          setSelectedShortcutFile('');
+          setShortcutsWarning('No .serop files found in .server-operator folder.');
+          return;
+        }
+
+        const preferred = files.includes(selectedShortcutFile) ? selectedShortcutFile : files[0];
+        setSelectedShortcutFile(preferred);
+        await loadSeropFile(shortcutsProjectPath, preferred);
+      } finally {
+        if (!cancelled) setShortcutsLoading(false);
+      }
+    };
+
+    void loadSeropFiles();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentServer.id, proxy?.enabled, proxy?.host, proxy?.port, shortcutsProjectPath]);
 
   useEffect(() => {
     if (!deployResizing) return;
@@ -422,6 +607,88 @@ export function DeployView({ currentServer, proxy, onOpenPanel: _onOpenPanel, cu
               </div>
 
               <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] flex flex-col min-h-0 flex-1">
+                <div className="p-3 border-b border-[var(--border)] space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">
+                      Project shortcuts (.serop)
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <select
+                      value={selectedShortcutsProjectPath}
+                      onChange={(e) => setSelectedShortcutsProjectPath(e.target.value)}
+                      disabled={shortcutsLoading}
+                      className="px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+                    >
+                      <option value="">Use current project path ({shortcutsProjectPath || 'not set'})</option>
+                      {projectRepos.map((path) => (
+                        <option key={`serop-${path}`} value={path}>
+                          {path}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={selectedShortcutFile}
+                      onChange={(e) => {
+                        const file = e.target.value;
+                        setSelectedShortcutFile(file);
+                        if (shortcutsProjectPath && file) void loadSeropFile(shortcutsProjectPath, file);
+                      }}
+                      disabled={shortcutsLoading || !shortcutFiles.length}
+                      className="px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+                    >
+                      <option value="">Select .serop file</option>
+                      {shortcutFiles.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="max-h-40 overflow-auto space-y-2 pr-1">
+                    {shortcutsLoading && (
+                      <p className="text-xs text-[var(--text-muted)] flex items-center gap-1.5">
+                        <Loader2 size={12} className="animate-spin" />
+                        Loading shortcuts...
+                      </p>
+                    )}
+                    {!shortcutsLoading && seropShortcuts.map((shortcut) => (
+                      <div
+                        key={shortcut.id}
+                        className="rounded border border-[var(--border)] bg-[var(--bg-primary)] p-2"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-[var(--text-primary)] flex-1">
+                            {shortcut.name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => executeInLeftTerminal(shortcut.command)}
+                            className="shrink-0 flex items-center gap-1 px-2 py-1 rounded text-xs bg-[var(--accent)]/20 text-[var(--accent)] hover:bg-[var(--accent)]/30"
+                          >
+                            <Play size={12} />
+                            Run
+                          </button>
+                        </div>
+                        <p className="mt-1 text-[10px] text-[var(--text-muted)] font-mono break-words">
+                          {shortcut.command}
+                        </p>
+                      </div>
+                    ))}
+                    {shortcutsError && <p className="text-xs text-[var(--error)]">{shortcutsError}</p>}
+                    {shortcutsWarning && !shortcutsError && (
+                      <p className="text-xs text-[var(--text-muted)]">{shortcutsWarning}</p>
+                    )}
+                    {!shortcutsLoading && !seropShortcuts.length && !shortcutsWarning && !shortcutsError && (
+                      <p className="text-xs text-[var(--text-muted)]">
+                        Add shortcuts in `project/.server-operator/deploy.serop`.
+                      </p>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-[var(--text-muted)]">
+                    Format: `[Deploy]` then command lines. Commands in one section run with `&&`.
+                  </p>
+                </div>
                 <div className="p-3 border-b border-[var(--border)] shrink-0">
                   <div className="flex items-center gap-2">
                     <Key size={14} className="text-[var(--text-secondary)] shrink-0" />

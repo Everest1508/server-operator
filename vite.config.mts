@@ -20,5 +20,16 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/monaco-editor')) return 'monaco';
+          if (id.includes('node_modules/@xterm')) return 'xterm';
+          if (id.includes('node_modules/lucide-react')) return 'icons';
+          return undefined;
+        },
+      },
+    },
   },
 });
