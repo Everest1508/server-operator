@@ -26,6 +26,7 @@
         <ul class="site-nav__links">
           <li><a href="#features">Features</a></li>
           <li><a href="#stack">Tech</a></li>
+          <li><a href="#shortcuts">Shortcuts</a></li>
           <li><a href="#downloads">Downloads</a></li>
           <li>
             <a class="btn btn--primary btn--sm" href="#downloads">Download</a>
@@ -48,7 +49,7 @@
               <a class="btn btn--primary" href="#downloads">Download</a>
               <a class="btn btn--secondary" href="#features">Explore features</a>
             </div>
-            <p class="hero__meta">Open source · Linux &amp; Windows builds</p>
+            <p class="hero__meta">Open source · macOS, Windows, Linux builds</p>
           </div>
           <div class="mock-ide" aria-hidden="true">
             <div class="mock-ide__activity">
@@ -223,14 +224,50 @@
         </div>
       </section>
 
-      <section class="section" id="downloads" aria-labelledby="downloads-heading">
+      <section class="section" id="shortcuts" aria-labelledby="shortcuts-heading">
+        <div class="section__inner">
+          <h2 class="section__title" id="shortcuts-heading">Project shortcuts for AI agents</h2>
+          <p class="section__subtitle">
+            Server Operator supports project-local command shortcuts in
+            <code class="mono">.server-operator/*.serop</code>. Use the initializer to scaffold this
+            folder, then let coding agents maintain these files in each repository.
+          </p>
+          <div class="feature-row">
+            <div>
+              <h3 class="section__title" style="font-size: 20px; margin-bottom: 12px">Initialize a project</h3>
+              <p style="color: var(--text-secondary); font-size: 15px; margin: 0 0 16px">
+                Creates <code class="mono">deploy.serop</code>, <code class="mono">ops.serop</code>,
+                <code class="mono">custom.serop</code>, and AI context files so humans and agents follow
+                the same structure.
+              </p>
+            </div>
+            <div class="code-block" aria-label="Project initializer commands">
+              <span class="prompt">$</span> curl -fsSL https://server-operator-zeta.vercel.app/init-server-operator.sh | sh<br />
+              <span class="prompt">PS&gt;</span> iwr https://server-operator-zeta.vercel.app/init-server-operator.ps1 -UseBasicParsing | iex<br />
+              <span class="prompt">$</span> npm run serop:init -- --path /path/to/project<br />
+              <span class="prompt">$</span> npx server-operator-init --interactive --path .<br />
+              <span class="prompt">$</span> npm i -D server-operator &amp;&amp; npx server-operator-init --path .<br />
+              <span class="prompt">#</span> Add/update shortcuts in .server-operator/*.serop
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section--alt" id="downloads" aria-labelledby="downloads-heading">
         <div class="section__inner">
           <h2 class="section__title" id="downloads-heading">Download</h2>
           <p class="section__subtitle">
-            Grab a build for your platform. Assets are published with each GitHub release (Windows
-            installer + portable, Linux .deb). Version numbers follow <code class="mono">package.json</code>.
+            Grab a build for your platform. Assets are published with each GitHub release (macOS dmg/zip,
+            Windows installer + portable, Linux .deb). Version numbers follow
+            <code class="mono">package.json</code>.
           </p>
           <div class="download-grid">
+            <div class="download-card">
+              <span class="download-card__platform">macOS · dmg / zip</span>
+              <h3>Apple Silicon &amp; Intel</h3>
+              <p>Download the latest DMG package (falls back to zip asset when available).</p>
+              <a class="btn btn--primary" id="dl-mac-dmg" href="https://github.com/everest1508/server-operator/releases/latest">Download for macOS</a>
+            </div>
             <div class="download-card">
               <span class="download-card__platform">Windows · x64</span>
               <h3>NSIS installer</h3>

@@ -489,7 +489,7 @@ code,
 
 @media (min-width: 960px) {
   .download-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Rocket, Loader2, Key, FileCode, FolderTree, Send, Sparkles, Play, ChevronDown, Server } from 'lucide-react';
+import { Rocket, Loader2, Key, FileCode, FolderTree, Send, Sparkles, Play, ChevronDown, Server, Copy, Wand2 } from 'lucide-react';
 import type { ServerConnection, ProxySettings } from '../types';
 import { loadProjectContext } from '../utils/loadProjectContext';
 import { parseLsLine } from '../utils/parseLs';
@@ -76,6 +76,57 @@ function joinRemotePath(base: string, next: string): string {
   if (!normalizedNext) return normalizedBase || '.';
   if (!normalizedBase || normalizedBase === '.') return normalizedNext;
   return `${normalizedBase}/${normalizedNext}`;
+}
+
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const STARTER_SEROP_FILES: Array<{ name: string; content: string }> = [
+  {
+    name: 'deploy.serop',
+    content: `[Deploy app]
+git pull
+docker compose up -d --build
+
+[Restart api]
+docker compose restart api
+
+Quick logs = docker compose logs --tail=100 api
+`,
+  },
+  {
+    name: 'ops.serop',
+    content: `[Health check]
+docker compose ps
+docker compose logs --tail=80
+
+[Restart all]
+docker compose restart
+`,
+  },
+];
+
+function buildSeropAgentPrompt(projectPath: string): string {
+  const safeProject = (projectPath || '.').trim() || '.';
+  return `Create shortcut files for Server Operator in this project path: ${safeProject}
+
+Requirements:
+- Create folder: ${safeProject}/.server-operator
+- Create/update these files exactly:
+
+1) ${safeProject}/.server-operator/deploy.serop
+${STARTER_SEROP_FILES[0].content.trim()}
+
+2) ${safeProject}/.server-operator/ops.serop
+${STARTER_SEROP_FILES[1].content.trim()}
+
+Use shell commands and keep file names ending in .serop.`;
 }
 
 function parseSeropShortcuts(content: string): { shortcuts: SeropShortcut[]; warning?: string } {
@@ -223,6 +274,10 @@ export function DeployView({ currentServer, proxy, onOpenPanel: _onOpenPanel, cu
   const [shortcutsError, setShortcutsError] = useState<string | null>(null);
   const [shortcutsWarning, setShortcutsWarning] = useState<string | null>(null);
   const [seropShortcuts, setSeropShortcuts] = useState<SeropShortcut[]>([]);
+  const [shortcutBootstrapBusy, setShortcutBootstrapBusy] = useState(false);
+  const [shortcutBootstrapMessage, setShortcutBootstrapMessage] = useState<string | null>(null);
+  const [shortcutBootstrapError, setShortcutBootstrapError] = useState<string | null>(null);
+  const [shortcutsRefreshToken, setShortcutsRefreshToken] = useState(0);
 
   const handleSaveGroqKey = () => {
     saveGroqApiKey(groqApiKey);
@@ -299,11 +354,64 @@ export function DeployView({ currentServer, proxy, onOpenPanel: _onOpenPanel, cu
     currentServer.projectPath ||
     currentServer.cwd ||
     '';
+  const seropFolderPath = joinRemotePath(shortcutsProjectPath || '.', '.server-operator');
 
   const executeInLeftTerminal = (cmd?: string) => {
     const toRun = (cmd ?? command).trim();
     if (!toRun) return;
     runCommandInTerminalRef.current?.(toRun);
+  };
+
+  const handleCopyShortcutBootstrapPrompt = async () => {
+    const prompt = buildSeropAgentPrompt(shortcutsProjectPath || '.');
+    const ok = await copyToClipboard(prompt);
+    if (ok) {
+      setShortcutBootstrapError(null);
+      setShortcutBootstrapMessage('AI setup prompt copied.');
+      setTimeout(() => setShortcutBootstrapMessage((msg) => (msg === 'AI setup prompt copied.' ? null : msg)), 2000);
+      return;
+    }
+    setShortcutBootstrapError('Failed to copy prompt to clipboard.');
+  };
+
+  const handleCreateStarterShortcuts = async () => {
+    if (!window.serverOperator) return;
+    if (!shortcutsProjectPath) {
+      setShortcutBootstrapError('Set a project path first so files can be created in the right folder.');
+      return;
+    }
+    setShortcutBootstrapBusy(true);
+    setShortcutBootstrapError(null);
+    setShortcutBootstrapMessage(null);
+    try {
+      const mkdirRes = await window.serverOperator.mkdir({
+        connection: currentServer,
+        dirPath: seropFolderPath,
+        proxy: proxy?.enabled ? proxy : undefined,
+      });
+      if (!mkdirRes.ok) {
+        setShortcutBootstrapError(mkdirRes.error || `Failed to create ${seropFolderPath}`);
+        return;
+      }
+
+      for (const file of STARTER_SEROP_FILES) {
+        const writeRes = await window.serverOperator.writeFile({
+          connection: currentServer,
+          filePath: joinRemotePath(seropFolderPath, file.name),
+          content: file.content,
+          proxy: proxy?.enabled ? proxy : undefined,
+        });
+        if (!writeRes.ok) {
+          setShortcutBootstrapError(writeRes.error || `Failed to write ${file.name}`);
+          return;
+        }
+      }
+
+      setShortcutBootstrapMessage(`Created ${STARTER_SEROP_FILES.length} starter .serop files in ${seropFolderPath}.`);
+      setShortcutsRefreshToken((n) => n + 1);
+    } finally {
+      setShortcutBootstrapBusy(false);
+    }
   };
 
   const loadSeropFile = async (projectPath: string, fileName: string) => {
@@ -394,7 +502,7 @@ export function DeployView({ currentServer, proxy, onOpenPanel: _onOpenPanel, cu
     return () => {
       cancelled = true;
     };
-  }, [currentServer.id, proxy?.enabled, proxy?.host, proxy?.port, shortcutsProjectPath]);
+  }, [currentServer.id, proxy?.enabled, proxy?.host, proxy?.port, shortcutsProjectPath, shortcutsRefreshToken]);
 
   useEffect(() => {
     if (!deployResizing) return;
@@ -685,6 +793,31 @@ export function DeployView({ currentServer, proxy, onOpenPanel: _onOpenPanel, cu
                       </p>
                     )}
                   </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={handleCopyShortcutBootstrapPrompt}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-[var(--border)] text-xs text-[var(--text-primary)] hover:border-[var(--accent)]/50"
+                    >
+                      <Copy size={12} />
+                      Copy AI setup prompt
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCreateStarterShortcuts}
+                      disabled={shortcutBootstrapBusy || !shortcutsProjectPath}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs bg-[var(--accent)]/20 text-[var(--accent)] hover:bg-[var(--accent)]/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {shortcutBootstrapBusy ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
+                      Create starter .serop files
+                    </button>
+                  </div>
+                  {shortcutBootstrapMessage && (
+                    <p className="text-xs text-[var(--text-secondary)]">{shortcutBootstrapMessage}</p>
+                  )}
+                  {shortcutBootstrapError && (
+                    <p className="text-xs text-[var(--error)]">{shortcutBootstrapError}</p>
+                  )}
                   <p className="text-[10px] text-[var(--text-muted)]">
                     Format: `[Deploy]` then command lines. Commands in one section run with `&&`.
                   </p>

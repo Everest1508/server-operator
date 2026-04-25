@@ -76,3 +76,62 @@ Notes:
 - `[Name]` starts a shortcut section; the lines below it are command steps.
 - Commands in the same section run together with `&&`.
 - `Name = command` (or `Name: command`) creates a one-line shortcut.
+
+## Bootstrap in Any Project (AI-Friendly)
+
+Server Operator now includes a project initializer you can use in any codebase.
+
+It creates:
+
+- `.server-operator/deploy.serop`
+- `.server-operator/ops.serop`
+- `.server-operator/custom.serop`
+- `.server-operator/AI_CONTEXT.md`
+- `.server-operator/INSTALLATION_CONTEXT.md`
+- `.server-operator/README.md`
+
+### Run initializer
+
+From this repository:
+
+```bash
+npm run serop:init -- --path /path/to/your/project
+```
+
+Interactive mode (asks Docker/Nginx/services/install-command questions):
+
+```bash
+npm run serop:init:interactive -- --path /path/to/your/project
+```
+
+If you install this package in another project (or publish the CLI), run:
+
+```bash
+npx server-operator-init --path .
+```
+
+Optional flags:
+
+- `--force` overwrite existing files
+- `--dry-run` preview without writing files
+- `--interactive` ask setup questions and generate context
+
+### Website bootstrap scripts
+
+If you host the `website/` folder on your domain, you can provide one-liners:
+
+macOS/Linux:
+
+```bash
+curl -fsSL https://server-operator-zeta.vercel.app/init-server-operator.sh | sh
+```
+
+Windows PowerShell:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://server-operator-zeta.vercel.app/init-server-operator.ps1 -UseBasicParsing | iex"
+```
+
+### How AI agents should use it
+
+In projects that use Server Operator, agents should read `.server-operator/AI_CONTEXT.md` and `.server-operator/INSTALLATION_CONTEXT.md`, then maintain `.serop` files inside `.server-operator/`.

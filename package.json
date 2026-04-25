@@ -8,6 +8,9 @@
   },
   "homepage": "https://github.com/everest1508",
   "main": "electron/main.js",
+  "bin": {
+    "server-operator-init": "scripts/server-operator-init.js"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && electron-builder",
@@ -15,10 +18,13 @@
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && ELECTRON_DEV=1 electron . --no-sandbox\"",
     "electron:build": "vite build && electron-builder",
     "electron:build:linux": "vite build && electron-builder --linux deb",
+    "electron:build:mac": "vite build && electron-builder --mac dmg zip",
     "electron:build:win": "vite build && electron-builder --win",
     "website:serve": "npx --yes serve website -l 8788",
     "postinstall": "mkdir -p public && cp -r node_modules/monaco-editor/min/vs public/ 2>/dev/null || true",
-    "ssh-connect": "node scripts/ssh-connect.js"
+    "ssh-connect": "node scripts/ssh-connect.js",
+    "serop:init": "node scripts/server-operator-init.js",
+    "serop:init:interactive": "node scripts/server-operator-init.js --interactive"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
@@ -76,6 +82,14 @@
           ]
         }
       ]
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.developer-tools",
+      "icon": "build/icons"
     },
     "nsis": {
       "oneClick": false,

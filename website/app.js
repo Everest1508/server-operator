@@ -17,7 +17,13 @@
         !/Setup\.exe$/i.test(a.name) &&
         !/blockmap/i.test(a.name)
     );
-    return { deb, setup, portable, names };
+    const macDmg =
+      assets.find((a) => /(darwin|mac|osx).*\.dmg$/i.test(a.name)) ||
+      assets.find((a) => /\.dmg$/i.test(a.name));
+    const macZip =
+      assets.find((a) => /(darwin|mac|osx).*\.zip$/i.test(a.name)) ||
+      assets.find((a) => /\.zip$/i.test(a.name));
+    return { deb, setup, portable, macDmg, macZip, names };
   }
 
   function setLink(id, asset) {
@@ -38,12 +44,13 @@
       if (!res.ok) throw new Error('GitHub API ' + res.status);
       const data = await res.json();
       const assets = Array.isArray(data.assets) ? data.assets : [];
-      const { deb, setup, portable } = pickAssets(assets);
+      const { deb, setup, portable, macDmg, macZip } = pickAssets(assets);
       setLink('dl-setup', setup);
       setLink('dl-portable', portable);
       setLink('dl-deb', deb);
+      setLink('dl-mac-dmg', macDmg || macZip);
     } catch (_) {
-      ['dl-setup', 'dl-portable', 'dl-deb'].forEach((id) => {
+      ['dl-setup', 'dl-portable', 'dl-deb', 'dl-mac-dmg'].forEach((id) => {
         const el = document.getElementById(id);
         if (el) {
           el.href = LATEST;
