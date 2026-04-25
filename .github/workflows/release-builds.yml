@@ -52,7 +52,15 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ matrix.artifact_name }}
-          path: release/**
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*-mac.zip
+            release/*.AppImage
+            release/*.deb
+            release/*.snap
+            release/*.7z
+            release/*.blockmap
           if-no-files-found: error
           retention-days: 14
 
