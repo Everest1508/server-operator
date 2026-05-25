@@ -17,7 +17,7 @@ interface ServerOverviewProps {
   onRefreshServerStatus?: () => void;
 }
 
-export function ServerOverview({ currentServer, proxy, onViewChange, serverSysInfo = null, serverStatusLoading = false, onRefreshServerStatus }: ServerOverviewProps) {
+export function ServerOverview({ currentServer, onViewChange, serverSysInfo = null, serverStatusLoading = false, onRefreshServerStatus }: ServerOverviewProps) {
   const sysInfo = serverSysInfo ?? { uptime: null, memory: null, disk: null, error: null };
   const loading = serverStatusLoading;
 

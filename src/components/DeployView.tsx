@@ -669,13 +669,13 @@ export function DeployView({ currentServer, proxy, onOpenPanel: _onOpenPanel, cu
                 {contextAccordionOpen && (
                   <div className="border-t border-[var(--border)] p-3 space-y-2">
                     <p className="text-xs text-[var(--text-primary)] break-words">{serverContextSummary}</p>
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex flex-col gap-1.5 w-full">
                       <label className="text-xs font-medium text-[var(--text-secondary)]">Project context</label>
                       <select
                         value={selectedDeployProjectPath}
                         onChange={(e) => onSelectDeployProjectForContext(e.target.value)}
                         disabled={loadingDeployContext || !projectRepos.length}
-                        className="px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+                        className="w-full max-w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)] truncate focus:outline-none focus:border-[var(--accent)]"
                       >
                         <option value="">Select project (tree + deployment files)</option>
                         {projectRepos.map((path) => (
@@ -684,10 +684,12 @@ export function DeployView({ currentServer, proxy, onOpenPanel: _onOpenPanel, cu
                           </option>
                         ))}
                       </select>
-                      {loadingDeployContext && <Loader2 size={14} className="animate-spin text-[var(--text-secondary)]" />}
-                      {!projectRepos.length && (
-                        <span className="text-xs text-[var(--text-muted)]">Right-click a folder → Add as project</span>
-                      )}
+                      <div className="flex items-center gap-2 mt-1">
+                        {loadingDeployContext && <Loader2 size={14} className="animate-spin text-[var(--text-secondary)]" />}
+                        {!projectRepos.length && (
+                          <span className="text-xs text-[var(--text-muted)]">Right-click a folder → Add as project</span>
+                        )}
+                      </div>
                     </div>
                     <button
                       type="button"
@@ -721,12 +723,12 @@ export function DeployView({ currentServer, proxy, onOpenPanel: _onOpenPanel, cu
                       Project shortcuts (.serop)
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex flex-col gap-2 w-full">
                     <select
                       value={selectedShortcutsProjectPath}
                       onChange={(e) => setSelectedShortcutsProjectPath(e.target.value)}
                       disabled={shortcutsLoading}
-                      className="px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+                      className="w-full max-w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)] truncate focus:outline-none focus:border-[var(--accent)]"
                     >
                       <option value="">Use current project path ({shortcutsProjectPath || 'not set'})</option>
                       {projectRepos.map((path) => (
@@ -743,7 +745,7 @@ export function DeployView({ currentServer, proxy, onOpenPanel: _onOpenPanel, cu
                         if (shortcutsProjectPath && file) void loadSeropFile(shortcutsProjectPath, file);
                       }}
                       disabled={shortcutsLoading || !shortcutFiles.length}
-                      className="px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+                      className="w-full max-w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)] truncate focus:outline-none focus:border-[var(--accent)]"
                     >
                       <option value="">Select .serop file</option>
                       {shortcutFiles.map((name) => (

@@ -254,7 +254,7 @@ export interface ConfigCreatorsProps {
   projectTreeListings?: Record<string, string>;
 }
 
-export function ConfigCreators({ currentServer: _currentServer = null, proxy: _proxy, projectRepos = [], projectTreeListings = {} }: ConfigCreatorsProps) {
+export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] }: ConfigCreatorsProps) {
   const [activeTab, setActiveTab] = useState<CreatorTabId>('compose');
   const [mode, setMode] = useState<CreatorMode>('form');
   const [copied, setCopied] = useState(false);
@@ -540,23 +540,25 @@ export function ConfigCreators({ currentServer: _currentServer = null, proxy: _p
                       className="flex-1 min-w-0 px-3 py-1.5 rounded-md bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)]"
                     />
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex flex-col gap-1.5 w-full">
                     <label className="text-xs font-medium text-[var(--text-secondary)]">Project context</label>
                     <select
                       value={selectedProjectPath}
                       onChange={(e) => onSelectProjectForContext(e.target.value)}
                       disabled={loadingContext || !projectRepos.length}
-                      className="px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+                      className="w-full max-w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)] truncate focus:outline-none focus:border-[var(--accent)]"
                     >
                       <option value="">Select project (tree + deployment files)</option>
                       {projectRepos.map((path) => (
                         <option key={path} value={path}>{path}</option>
                       ))}
                     </select>
-                    {loadingContext && <Loader2 size={14} className="animate-spin text-[var(--text-secondary)]" />}
-                    {!projectRepos.length && (
-                      <span className="text-xs text-[var(--text-muted)]">Right-click a folder → Add as project</span>
-                    )}
+                    <div className="flex items-center gap-2 mt-1">
+                      {loadingContext && <Loader2 size={14} className="animate-spin text-[var(--text-secondary)]" />}
+                      {!projectRepos.length && (
+                        <span className="text-xs text-[var(--text-muted)]">Right-click a folder → Add as project</span>
+                      )}
+                    </div>
                   </div>
                   <button
                     type="button"

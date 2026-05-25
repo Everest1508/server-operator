@@ -152,9 +152,6 @@ function createWindow() {
     icon: linuxIconPath || undefined,
     show: false,
   };
-  if (process.platform === 'darwin') {
-    windowOpts.titleBarStyle = 'hiddenInset';
-  }
   mainWindow = new BrowserWindow(windowOpts);
 
   // Set Chrome user agent before load to improve chance of Web Speech API (mic) working
