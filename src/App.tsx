@@ -1199,59 +1199,67 @@ export default function App() {
           setActiveViewAndRoute('servers');
         }}
       />
-      {sidebarOpen && (
-        <>
-          <div style={{ width: sidebarWidth }} className="flex flex-col shrink-0 bg-[var(--bg-secondary)]">
-            <Sidebar
-              activeView={activeView}
-              servers={servers}
-              currentServer={currentServer}
-              connectingTo={connectingTo}
-              connectionError={connectionError}
-              onSelectServer={handleSelectServer}
-              onRemoveServer={removeServer}
-              onDismissError={() => setConnectionError(null)}
-              treeListings={treeListings}
-              openFolders={openFolders}
-              loadingPaths={loadingPaths}
-              filesError={filesError}
-              currentPath={currentPath}
-              basePath={basePath}
-              onToggleFolder={toggleFolder}
-              onOpenFile={openFile}
-              onLoadDir={loadDir}
-              onCreateFile={createFile}
-              onCreateFolder={createFolder}
-              onDeleteEntry={deleteEntry}
-              onCollapseAll={collapseAll}
-              onMakeGitRepo={onMakeGitRepo}
-              onAddAsProject={onAddAsProject}
-              onAddToLogs={onAddToLogs}
-              onUploadLocalFile={handleUploadLocalFile}
-              uploadBusy={fileTransferBusy}
-              fileTreeClipboard={fileTreeClipboard}
-              onFileTreeCopyPaths={(paths) => {
-                if (currentServer) setFileTreeClipboard({ serverId: currentServer.id, action: 'copy', paths });
-              }}
-              onFileTreeCutPaths={(paths) => {
-                if (currentServer) setFileTreeClipboard({ serverId: currentServer.id, action: 'cut', paths });
-              }}
-              onFileTreePasteInto={pasteIntoRemoteFolder}
-              onFileTreeRenamePath={promptRenamePath}
-              onFileTreeDuplicatePath={duplicatePathOnServer}
-              onFileTreeActionMessage={setFilesError}
-            />
-          </div>
-          <div
-            role="separator"
-            className="w-1 shrink-0 cursor-col-resize bg-[var(--border)] hover:bg-[var(--accent)]/50 transition-colors"
-            onMouseDown={(e) => {
-              resizeStartRef.current = { x: e.clientX, y: 0, w: sidebarWidth, h: 0 };
-              setResizeDrag('sidebar');
-            }}
-          />
-        </>
-      )}
+      <div
+        style={{
+          width: sidebarOpen ? `${sidebarWidth}px` : '0px',
+          transition: resizeDrag === 'sidebar' ? 'none' : 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+        className="flex flex-col shrink-0 bg-[var(--bg-secondary)] overflow-hidden"
+      >
+        <Sidebar
+          activeView={activeView}
+          servers={servers}
+          currentServer={currentServer}
+          connectingTo={connectingTo}
+          connectionError={connectionError}
+          onSelectServer={handleSelectServer}
+          onRemoveServer={removeServer}
+          onDismissError={() => setConnectionError(null)}
+          treeListings={treeListings}
+          openFolders={openFolders}
+          loadingPaths={loadingPaths}
+          filesError={filesError}
+          currentPath={currentPath}
+          basePath={basePath}
+          onToggleFolder={toggleFolder}
+          onOpenFile={openFile}
+          onLoadDir={loadDir}
+          onCreateFile={createFile}
+          onCreateFolder={createFolder}
+          onDeleteEntry={deleteEntry}
+          onCollapseAll={collapseAll}
+          onMakeGitRepo={onMakeGitRepo}
+          onAddAsProject={onAddAsProject}
+          onAddToLogs={onAddToLogs}
+          onUploadLocalFile={handleUploadLocalFile}
+          uploadBusy={fileTransferBusy}
+          fileTreeClipboard={fileTreeClipboard}
+          onFileTreeCopyPaths={(paths) => {
+            if (currentServer) setFileTreeClipboard({ serverId: currentServer.id, action: 'copy', paths });
+          }}
+          onFileTreeCutPaths={(paths) => {
+            if (currentServer) setFileTreeClipboard({ serverId: currentServer.id, action: 'cut', paths });
+          }}
+          onFileTreePasteInto={pasteIntoRemoteFolder}
+          onFileTreeRenamePath={promptRenamePath}
+          onFileTreeDuplicatePath={duplicatePathOnServer}
+          onFileTreeActionMessage={setFilesError}
+        />
+      </div>
+      <div
+        role="separator"
+        style={{
+          opacity: sidebarOpen ? 1 : 0,
+          pointerEvents: sidebarOpen ? 'auto' : 'none',
+          width: sidebarOpen ? '1px' : '0px',
+          transition: resizeDrag === 'sidebar' ? 'none' : 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+        className="shrink-0 cursor-col-resize bg-[var(--border)] hover:bg-[var(--accent)]/50"
+        onMouseDown={(e) => {
+          resizeStartRef.current = { x: e.clientX, y: 0, w: sidebarWidth, h: 0 };
+          setResizeDrag('sidebar');
+        }}
+      />
       <div className="flex flex-1 flex-col min-w-0 min-h-0 relative">
         {connectingToServer && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[var(--bg-primary)]/95 backdrop-blur-sm">
