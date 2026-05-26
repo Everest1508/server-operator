@@ -146,7 +146,14 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
           window.serverOperator.shellWrite({ shellId: currentShellId, data });
         }
       });
-      const ro = new ResizeObserver(() => fitAddon.fit());
+      let rafId: number | null = null;
+      const ro = new ResizeObserver(() => {
+        if (rafId !== null) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          fitAddon.fit();
+        });
+      });
       ro.observe(container);
       xtermMap.set(tab.id, { term, fitAddon, ro });
     });

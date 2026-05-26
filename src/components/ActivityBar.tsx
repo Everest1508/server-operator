@@ -1,7 +1,7 @@
 import StackIcon from './icons/StackIcon';
 import FolderIcon from './icons/FolderIcon';
 import DockerIcon from './icons/DockerIcon';
-import RocketIcon from './icons/RocketIcon';
+import CloudUploadIcon from './icons/CloudUploadIcon';
 import FileDescriptionIcon from './icons/FileDescriptionIcon';
 import { PanelLeftClose, PanelBottomClose, LogOut } from 'lucide-react';
 import type { ViewId, ServerConnection } from '../types';
@@ -11,7 +11,7 @@ const items = [
   { id: 'servers' as const, icon: StackIcon, label: 'Servers' },
   { id: 'files' as const, icon: FolderIcon, label: 'Files' },
   { id: 'docker' as const, icon: DockerIcon, label: 'Docker' },
-  { id: 'deploy' as const, icon: RocketIcon, label: 'Deploy' },
+  { id: 'deploy' as const, icon: CloudUploadIcon, label: 'Deploy' },
   { id: 'notes' as const, icon: FileDescriptionIcon, label: 'Notes & Debug' },
 ];
 

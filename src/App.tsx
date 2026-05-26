@@ -1426,8 +1426,11 @@ export default function App() {
               />
             )}
             <div
-              style={{ height: panelOpen ? panelHeight : 0 }}
-              className="shrink-0 flex flex-col min-h-0 overflow-hidden transition-[height] duration-150"
+              style={{
+                height: panelOpen ? `${panelHeight}px` : '0px',
+                transition: resizeDrag === 'panel' ? 'none' : 'height 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
+              }}
+              className="shrink-0 flex flex-col min-h-0 overflow-hidden"
             >
               <Panel
                 currentServer={currentServer}

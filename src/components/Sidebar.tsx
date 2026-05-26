@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import type { ServerConnection, ViewId, FileTreeClipboard } from '../types';
 import { parseLsLine } from '../utils/parseLs';
+import { Tooltip } from './Tooltip';
 import { NotesSidebar } from './NotesSidebar';
 
 interface FileTreeMenuState {
@@ -325,62 +326,67 @@ export function Sidebar({
       </div>
       {showFileBrowser && (
         <div className="flex items-center gap-1 px-2 py-1.5 border-b border-[var(--border)] flex-wrap">
-          <button
-            type="button"
-            onClick={() => onLoadDir('.', true)}
-            disabled={rootLoading}
-            className="flex items-center gap-1 px-2 py-1 rounded text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] disabled:opacity-50"
-            title="Reload file tree from server"
-          >
-            <RefreshCw size={14} />
-          </button>
+          <Tooltip content="Reload file tree from server" position="bottom">
+            <button
+              type="button"
+              onClick={() => onLoadDir('.', true)}
+              disabled={rootLoading}
+              className="flex items-center gap-1 px-2 py-1 rounded text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] disabled:opacity-50"
+            >
+              <RefreshCw size={14} />
+            </button>
+          </Tooltip>
           <span className="text-[10px] text-[var(--text-muted)] truncate flex-1 min-w-0" title={pathDisplay}>{pathDisplay}</span>
         </div>
       )}
       {canCreate && (
         <div className="flex items-center gap-1 px-2 py-1.5 border-b border-[var(--border)]">
           {onCreateFile && (
-            <button
-              type="button"
-              onClick={() => setCreatingType('file')}
-              disabled={creating}
-              className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] disabled:opacity-50"
-              title="New File"
-            >
-              <FilePlus size={16} />
-            </button>
+            <Tooltip content="New File" position="top">
+              <button
+                type="button"
+                onClick={() => setCreatingType('file')}
+                disabled={creating}
+                className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] disabled:opacity-50"
+              >
+                <FilePlus size={16} />
+              </button>
+            </Tooltip>
           )}
           {onCreateFolder && (
-            <button
-              type="button"
-              onClick={() => setCreatingType('folder')}
-              disabled={creating}
-              className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] disabled:opacity-50"
-              title="New Folder"
-            >
-              <FolderPlus size={16} />
-            </button>
+            <Tooltip content="New Folder" position="top">
+              <button
+                type="button"
+                onClick={() => setCreatingType('folder')}
+                disabled={creating}
+                className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] disabled:opacity-50"
+              >
+                <FolderPlus size={16} />
+              </button>
+            </Tooltip>
           )}
           {onCollapseAll && (
-            <button
-              type="button"
-              onClick={onCollapseAll}
-              className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)]"
-              title="Collapse all"
-            >
-              <ChevronsUp size={16} />
-            </button>
+            <Tooltip content="Collapse all" position="top">
+              <button
+                type="button"
+                onClick={onCollapseAll}
+                className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)]"
+              >
+                <ChevronsUp size={16} />
+              </button>
+            </Tooltip>
           )}
           {onUploadLocalFile && (
-            <button
-              type="button"
-              onClick={() => void onUploadLocalFile()}
-              disabled={creating || uploadBusy}
-              className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] disabled:opacity-50"
-              title="Upload local file to this folder"
-            >
-              {uploadBusy ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-            </button>
+            <Tooltip content="Upload local file to this folder" position="top">
+              <button
+                type="button"
+                onClick={() => void onUploadLocalFile()}
+                disabled={creating || uploadBusy}
+                className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] disabled:opacity-50"
+              >
+                {uploadBusy ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+              </button>
+            </Tooltip>
           )}
         </div>
       )}

@@ -405,8 +405,13 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
     if (!nginxEditorOpen || nginxConfigLoading) return;
     const el = nginxEditorContainerRef.current;
     if (!el) return;
+    let rafId: number | null = null;
     const ro = new ResizeObserver(() => {
-      setNginxEditorHeight(el.clientHeight);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        setNginxEditorHeight(el.clientHeight);
+      });
     });
     ro.observe(el);
     setNginxEditorHeight(el.clientHeight);

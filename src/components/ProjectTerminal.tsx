@@ -107,7 +107,14 @@ export function ProjectTerminal({ currentServer, proxy, projectPath, onReady, on
         window.serverOperator.shellWrite({ shellId: sid, data });
       }
     });
-    const ro = new ResizeObserver(() => fitAddon.fit());
+    let rafId: number | null = null;
+    const ro = new ResizeObserver(() => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        fitAddon.fit();
+      });
+    });
     ro.observe(container);
     const handler = (e: CustomEvent<{ shellId: string; data: string }>) => {
       if (e.detail.shellId === sid) term.write(e.detail.data);
