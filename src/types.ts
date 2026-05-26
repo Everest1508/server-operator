@@ -6,7 +6,7 @@ export interface ProxySettings {
   port: number;
 }
 
-export type ConnectionType = 'ec2' | 'password';
+export type ConnectionType = 'ec2' | 'password' | 'cloudflare';
 
 export interface ServerConnection {
   id: string;

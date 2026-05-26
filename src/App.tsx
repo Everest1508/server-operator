@@ -61,7 +61,10 @@ function loadServers(): ServerConnection[] {
     const raw = localStorage.getItem(STORAGE_KEY_SERVERS);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
-    return Array.isArray(parsed) ? parsed : [];
+    if (Array.isArray(parsed)) {
+      return (parsed as ServerConnection[]).filter(s => s.id !== 'dummy' && s.host !== 'dummy');
+    }
+    return [];
   } catch {
     return [];
   }
@@ -1132,10 +1135,10 @@ export default function App() {
       setConnectionError('SSH username is required. Edit the server and set Username.');
       return;
     }
-    const isDummy = server.id === 'dummy' || host === 'dummy';
-    const usePassword = server.connectionType === 'password' || (server.password && server.password.length > 0);
-    const useKey = !usePassword && server.privateKeyPath?.trim();
-    if (!isDummy && !usePassword && !useKey) {
+    const isCloudflare = server.connectionType === 'cloudflare';
+    const usePassword = !isCloudflare && (server.connectionType === 'password' || (server.password && server.password.length > 0));
+    const useKey = !isCloudflare && !usePassword && server.privateKeyPath?.trim();
+    if (!isCloudflare && !usePassword && !useKey) {
       setConnectionError('Set either SSH key path (EC2) or password for this server.');
       return;
     }
@@ -1190,6 +1193,11 @@ export default function App() {
         onSidebarToggle={() => setSidebarOpen((o) => !o)}
         panelOpen={panelOpen}
         onPanelToggle={() => setPanelOpen((o) => !o)}
+        currentServer={currentServer}
+        onDisconnect={() => {
+          setCurrentServer(null);
+          setActiveViewAndRoute('servers');
+        }}
       />
       {sidebarOpen && (
         <>

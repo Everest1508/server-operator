@@ -9,32 +9,54 @@ interface TooltipProps {
 export function Tooltip({ content, children, position = 'top' }: TooltipProps) {
   const [active, setActive] = useState(false);
 
-  const showTooltip = () => setActive(true);
-  const hideTooltip = () => setActive(false);
+  const show = () => setActive(true);
+  const hide = () => setActive(false);
 
-  const positionClasses = {
-    top: 'bottom-full left-1/2 -translate-x-1/2 mb-1.5',
-    bottom: 'top-full left-1/2 -translate-x-1/2 mt-1.5',
-    left: 'right-full top-1/2 -translate-y-1/2 mr-1.5',
-    right: 'left-full top-1/2 -translate-y-1/2 ml-1.5',
+  // Tooltip bubble positions relative to trigger element
+  const bubble: Record<string, string> = {
+    top:    'bottom-full left-1/2 -translate-x-1/2 mb-2',
+    bottom: 'top-full left-1/2 -translate-x-1/2 mt-2',
+    left:   'right-full top-1/2 -translate-y-1/2 mr-2',
+    right:  'left-full top-1/2 -translate-y-1/2 ml-2',
+  };
+
+  // Rotated square arrows matching background, border, and position
+  const arrow: Record<string, string> = {
+    top:    'bottom-[-4px] left-1/2 -translate-x-1/2 border-r border-b',
+    bottom: 'top-[-4px] left-1/2 -translate-x-1/2 border-l border-t',
+    left:   'right-[-4px] top-1/2 -translate-y-1/2 border-r border-t',
+    right:  'left-[-4px] top-1/2 -translate-y-1/2 border-l border-b',
   };
 
   return (
     <div
-      className="relative flex items-center inline-block min-w-0"
-      onMouseEnter={showTooltip}
-      onMouseLeave={hideTooltip}
-      onFocus={showTooltip}
-      onBlur={hideTooltip}
+      className="relative flex items-center min-w-0"
+      onMouseEnter={show}
+      onMouseLeave={hide}
+      onFocus={show}
+      onBlur={hide}
     >
       {children}
       {active && (
         <div
-          className={`absolute ${positionClasses[position]} z-[100] w-max max-w-[200px] bg-[var(--bg-tertiary)] border border-[var(--border)] text-[var(--text-primary)] text-[10px] px-2 py-1 rounded shadow-xl pointer-events-none whitespace-normal break-words leading-tight animate-fade-in`}
+          className={`absolute ${bubble[position]} z-[200] pointer-events-none`}
+          style={{ animation: 'tooltip-fade-in 0.1s ease-out both' }}
         >
-          {content}
+          {/* Bubble */}
+          <div className="relative w-max max-w-[220px] px-2 py-1 rounded bg-[var(--bg-tertiary)] border border-[var(--border)] text-[10px] leading-tight text-[var(--text-primary)] shadow-xl font-sans whitespace-nowrap">
+            {content}
+            {/* Arrow */}
+            <div className={`absolute w-1.5 h-1.5 rotate-45 bg-[var(--bg-tertiary)] border-[var(--border)] ${arrow[position]}`} />
+          </div>
         </div>
       )}
+      <style>{`
+        @keyframes tooltip-fade-in {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }
+

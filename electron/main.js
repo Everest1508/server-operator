@@ -307,6 +307,79 @@ function connectSSH(connection, proxy) {
     }
     const { Client } = require('ssh2');
     const conn = new Client();
+
+    // ── Cloudflare Tunnel SSH ──────────────────────────────────────────────
+    if (connection.connectionType === 'cloudflare') {
+      const { spawn } = require('child_process');
+      // cloudflared access ssh --hostname <host> acts exactly like ProxyCommand
+      log('Cloudflare Tunnel connect', { host });
+      const cf = spawn('cloudflared', ['access', 'ssh', '--hostname', host], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      cf.on('error', (e) => {
+        const msg = errMsg(e);
+        log('cloudflared spawn error', { host, error: msg });
+        const hint = /ENOENT/.test(msg)
+          ? ' Make sure cloudflared is installed and in PATH (brew install cloudflare/cloudflare/cloudflared).'
+          : '';
+        reject(new Error('cloudflared: ' + msg + hint));
+      });
+      cf.stderr.on('data', (data) => {
+        log('cloudflared stderr', { host, data: String(data).trim() });
+      });
+
+      const config = {
+        username,
+        port: 22,
+        readyTimeout: 30000,
+        // Use the cloudflared subprocess as the transport socket.
+        sock: (() => {
+          const duplex = new (require('stream').Transform)({
+            transform(chunk, _enc, cb) { cb(null, chunk); },
+          });
+          duplex.pipe = (dest) => { cf.stdout.pipe(dest); return dest; };
+          duplex.write = (chunk, enc, cb) => cf.stdin.write(chunk, enc, cb);
+          duplex.end = (chunk, enc, cb) => cf.stdin.end(chunk, enc, cb);
+          cf.stdout.on('data', (d) => duplex.push(d));
+          cf.stdout.on('end', () => duplex.push(null));
+          cf.on('close', (code) => {
+            if (code !== 0 && code !== null) {
+              duplex.destroy(new Error(`cloudflared exited with code ${code}`));
+            }
+          });
+          return duplex;
+        })(),
+      };
+      // SSH auth layer on top of the cloudflared tunnel: password takes priority, then SSH key.
+      if (connection.password && connection.password.length > 0) {
+        config.password = connection.password;
+        config.tryKeyboard = true;
+      } else if (connection.privateKeyPath) {
+        try {
+          const keyPath = resolveKeyPath(connection.privateKeyPath);
+          if (fs.existsSync(keyPath)) config.privateKey = fs.readFileSync(keyPath, 'utf8');
+        } catch (_) {}
+      }
+      conn.on('ready', () => {
+        log('SSH (Cloudflare Tunnel) connected', { host });
+        resolve(conn);
+      }).on('error', (e) => {
+        const msg = errMsg(e);
+        log('SSH (Cloudflare Tunnel) error', { host, error: msg });
+        try { cf.kill(); } catch (_) {}
+        reject(new Error(msg));
+      });
+      if (connection.password && connection.password.length > 0) {
+        conn.on('keyboard-interactive', (_name, _inst, _lang, prompts, finish) => {
+          finish([connection.password]);
+        });
+      }
+      conn.connect(config);
+      return;
+    }
+
+
+    // ── Standard SSH (password / EC2 key) ─────────────────────────────────
     const usePassword = (connection.connectionType === 'password' || connection.password) && typeof connection.password === 'string' && connection.password.length > 0;
     const viaProxy = useProxy(connection, proxy);
     const config = {
@@ -557,6 +630,18 @@ function registerShellHandlers() {
         return { ok: false, error: 'Shell is not available for Dummy (local) server. Use your system terminal in the dummy-root folder to run commands.' };
       }
       const conn = await connectSSH(connection, proxy);
+
+      // Check docker permissions via a silent non-PTY exec BEFORE opening the PTY shell,
+      // so nothing pollutes the terminal display.
+      const dockerAlias = await new Promise((resolve) => {
+        conn.exec('docker info >/dev/null 2>&1 || sudo -n docker info >/dev/null 2>&1 && echo __sudo__', (err, s) => {
+          if (err || !s) { resolve(''); return; }
+          let out = '';
+          s.stdout.on('data', (d) => { out += d.toString(); });
+          s.on('close', () => resolve(out.includes('__sudo__') ? "alias docker='sudo -n docker'" : ''));
+        });
+      });
+
       return new Promise((resolve, reject) => {
         conn.shell((err, stream) => {
           if (err) {
@@ -574,17 +659,13 @@ function registerShellHandlers() {
           });
           stream.stderr.on('data', (data) => sendShellOutput(shellId, data.toString()));
           const cwd = connection.cwd || connection.projectPath;
-          if (cwd) stream.write('cd "' + String(cwd).replace(/"/g, '\\"') + '" 2>/dev/null || true\n');
-          // Configure docker in-shell immediately so first command from UI does not race.
-          stream.write(
-            "if docker info >/dev/null 2>&1; then :; " +
-            "elif sudo -n docker info >/dev/null 2>&1; then " +
-            "alias docker='sudo -n docker'; " +
-            "echo '[Server Operator] Docker commands will use sudo -n in this shell.'; " +
-            "else " +
-            "echo '[Server Operator] Docker may fail for this SSH user (permission denied). Add user to docker group or allow passwordless sudo for docker.'; " +
-            "fi\n"
-          );
+          // Build a single silent init line: cd + optional alias, then clear.
+          // 'clear' is the only thing the PTY echoes, and it immediately wipes itself.
+          const parts = [];
+          if (cwd) parts.push('cd "' + String(cwd).replace(/"/g, '\\"') + '" 2>/dev/null || true');
+          if (dockerAlias) parts.push(dockerAlias);
+          parts.push('clear');
+          stream.write(parts.join('; ') + '\n');
           resolve({ ok: true, shellId });
         });
       });
