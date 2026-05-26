@@ -634,7 +634,7 @@ function registerShellHandlers() {
       // Check docker permissions via a silent non-PTY exec BEFORE opening the PTY shell,
       // so nothing pollutes the terminal display.
       const dockerAlias = await new Promise((resolve) => {
-        conn.exec('docker info >/dev/null 2>&1 || sudo -n docker info >/dev/null 2>&1 && echo __sudo__', (err, s) => {
+        conn.exec('if ! docker info >/dev/null 2>&1 && sudo -n docker info >/dev/null 2>&1; then echo __sudo__; fi', (err, s) => {
           if (err || !s) { resolve(''); return; }
           let out = '';
           s.stdout.on('data', (d) => { out += d.toString(); });
