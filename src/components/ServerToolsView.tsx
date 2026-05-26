@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { Loader2, RefreshCw, Shield, Server, Calendar, ChevronDown, RotateCw, FileEdit, X, Save, Play, Square, CircleCheck, CircleX, Plus } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 import type { ServerConnection, ProxySettings } from '../types';
+import { Select } from './Select';
 
 const NGINX_MAIN_CONFIG = '/etc/nginx/nginx.conf';
 const NGINX_DEFAULT_NEW_PATH = '/etc/nginx/sites-available/new-site.conf';
@@ -765,18 +766,15 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
                 <Loader2 size={14} className="animate-spin text-[var(--text-muted)]" />
               ) : (
                 <>
-                  <select
+                  <Select
                     value={nginxConfigIsNew ? '__new__' : nginxConfigSelectedPath}
-                    onChange={(e) => handleSelectNginxConfig(e.target.value)}
-                    className="px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm font-mono text-[var(--text-primary)] min-w-[200px]"
-                  >
-                    <option value="__new__">+ Create new config</option>
-                    {nginxConfigPaths.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={handleSelectNginxConfig}
+                    className="min-w-[200px]"
+                    options={[
+                      { value: '__new__', label: '+ Create new config' },
+                      ...nginxConfigPaths.map((p) => ({ value: p, label: p })),
+                    ]}
+                  />
                   {nginxConfigIsNew && (
                     <input
                       type="text"

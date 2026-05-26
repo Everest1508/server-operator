@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Copy, Plus, Trash2, FileCode, Box, Server, Shield, Sparkles, Key, Loader2, Mic, Square, FolderTree, Send } from 'lucide-react';
 import type { ServerConnection, ProxySettings } from '../types';
+import { Select } from './Select';
 import { loadProjectContext } from '../utils/loadProjectContext';
 
 const GROQ_API_KEY_STORAGE = 'server-operator:groq-api-key';
@@ -542,17 +543,15 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                   </div>
                   <div className="flex flex-col gap-1.5 w-full">
                     <label className="text-xs font-medium text-[var(--text-secondary)]">Project context</label>
-                    <select
+                    <Select
                       value={selectedProjectPath}
-                      onChange={(e) => onSelectProjectForContext(e.target.value)}
+                      onChange={onSelectProjectForContext}
                       disabled={loadingContext || !projectRepos.length}
-                      className="w-full max-w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)] truncate focus:outline-none focus:border-[var(--accent)]"
-                    >
-                      <option value="">Select project (tree + deployment files)</option>
-                      {projectRepos.map((path) => (
-                        <option key={path} value={path}>{path}</option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: '', label: 'Select project (tree + deployment files)' },
+                        ...projectRepos.map((path) => ({ value: path, label: path })),
+                      ]}
+                    />
                     <div className="flex items-center gap-2 mt-1">
                       {loadingContext && <Loader2 size={14} className="animate-spin text-[var(--text-secondary)]" />}
                       {!projectRepos.length && (
@@ -667,14 +666,14 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
               <>
                 <div>
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Compose version</label>
-                  <select
+                  <Select
                     value={composeVersion}
-                    onChange={(e) => setComposeVersion(e.target.value)}
-                    className="w-full px-3 py-2 rounded-md bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
-                  >
-                    <option value="3.8">3.8</option>
-                    <option value="3">3</option>
-                  </select>
+                    onChange={setComposeVersion}
+                    options={[
+                      { value: '3.8', label: '3.8' },
+                      { value: '3', label: '3' },
+                    ]}
+                  />
                 </div>
                 {composeServices.map((s, i) => (
                   <div key={i} className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-3 space-y-2">
@@ -766,22 +765,22 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                       }
                       className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
                     />
-                    <select
-                      value={s.restart}
-                      onChange={(e) =>
+                    <Select
+                      value={s.restart || 'no'}
+                      onChange={(val) =>
                         setComposeServices((prev) => {
                           const next = [...prev];
-                          next[i] = { ...next[i], restart: e.target.value };
+                          next[i] = { ...next[i], restart: val };
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
-                    >
-                      <option value="no">no</option>
-                      <option value="always">always</option>
-                      <option value="unless-stopped">unless-stopped</option>
-                      <option value="on-failure">on-failure</option>
-                    </select>
+                      options={[
+                        { value: 'no', label: 'no' },
+                        { value: 'always', label: 'always' },
+                        { value: 'unless-stopped', label: 'unless-stopped' },
+                        { value: 'on-failure', label: 'on-failure' },
+                      ]}
+                    />
                   </div>
                 ))}
                 <button
@@ -799,23 +798,18 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
               <>
                 {dockerfileSteps.map((step, i) => (
                   <div key={i} className="flex gap-2 items-start">
-                    <select
+                    <Select
                       value={step.type}
-                      onChange={(e) =>
+                      onChange={(val) =>
                         setDockerfileSteps((prev) => {
                           const next = [...prev];
-                          next[i] = { ...next[i], type: e.target.value as DockerfileStep['type'] };
+                          next[i] = { ...next[i], type: val as DockerfileStep['type'] };
                           return next;
                         })
                       }
-                      className="w-28 shrink-0 px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
-                    >
-                      {['FROM', 'WORKDIR', 'COPY', 'ADD', 'RUN', 'ENV', 'EXPOSE', 'CMD', 'ENTRYPOINT'].map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
-                    </select>
+                      className="w-28 shrink-0"
+                      options={['FROM', 'WORKDIR', 'COPY', 'ADD', 'RUN', 'ENV', 'EXPOSE', 'CMD', 'ENTRYPOINT'].map((t) => ({ value: t, label: t }))}
+                    />
                     <input
                       type="text"
                       value={step.value}
@@ -865,20 +859,20 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                         <Trash2 size={14} />
                       </button>
                     </div>
-                    <select
+                    <Select
                       value={s.type}
-                      onChange={(e) =>
+                      onChange={(val) =>
                         setNginxServers((prev) => {
                           const next = [...prev];
-                          next[i] = { ...next[i], type: e.target.value as 'http' | 'https', port: e.target.value === 'https' ? '443' : '80' };
+                          next[i] = { ...next[i], type: val as 'http' | 'https', port: val === 'https' ? '443' : '80' };
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
-                    >
-                      <option value="http">HTTP</option>
-                      <option value="https">HTTPS</option>
-                    </select>
+                      options={[
+                        { value: 'http', label: 'HTTP' },
+                        { value: 'https', label: 'HTTPS' },
+                      ]}
+                    />
                     <input
                       type="text"
                       placeholder="server_name"
@@ -995,24 +989,24 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                         <Trash2 size={14} />
                       </button>
                     </div>
-                    <select
+                    <Select
                       value={v.type}
-                      onChange={(e) =>
+                      onChange={(val) =>
                         setApacheVhosts((prev) => {
                           const next = [...prev];
                           next[i] = {
                             ...next[i],
-                            type: e.target.value as 'http' | 'https',
-                            port: e.target.value === 'https' ? '443' : '80',
+                            type: val as 'http' | 'https',
+                            port: val === 'https' ? '443' : '80',
                           };
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
-                    >
-                      <option value="http">HTTP (80)</option>
-                      <option value="https">HTTPS (443)</option>
-                    </select>
+                      options={[
+                        { value: 'http', label: 'HTTP (80)' },
+                        { value: 'https', label: 'HTTPS (443)' },
+                      ]}
+                    />
                     <input
                       type="text"
                       placeholder="ServerName"

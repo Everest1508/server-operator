@@ -6,6 +6,7 @@ import { parseLsLine } from '../utils/parseLs';
 import { ConfigCreators } from './ConfigCreators';
 import { ProjectTerminal } from './ProjectTerminal';
 import { ServerToolsView } from './ServerToolsView';
+import { Select } from './Select';
 
 const GROQ_API_KEY_STORAGE = 'server-operator:groq-api-key';
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
@@ -666,54 +667,52 @@ export function DeployView({ currentServer, proxy, onOpenPanel: _onOpenPanel, cu
                     className={`text-[var(--text-secondary)] shrink-0 transition-transform duration-200 ${contextAccordionOpen ? 'rotate-0' : '-rotate-90'}`}
                   />
                 </button>
-                {contextAccordionOpen && (
-                  <div className="border-t border-[var(--border)] p-3 space-y-2">
-                    <p className="text-xs text-[var(--text-primary)] break-words">{serverContextSummary}</p>
-                    <div className="flex flex-col gap-1.5 w-full">
-                      <label className="text-xs font-medium text-[var(--text-secondary)]">Project context</label>
-                      <select
-                        value={selectedDeployProjectPath}
-                        onChange={(e) => onSelectDeployProjectForContext(e.target.value)}
-                        disabled={loadingDeployContext || !projectRepos.length}
-                        className="w-full max-w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)] truncate focus:outline-none focus:border-[var(--accent)]"
-                      >
-                        <option value="">Select project (tree + deployment files)</option>
-                        {projectRepos.map((path) => (
-                          <option key={path} value={path}>
-                            {path}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="flex items-center gap-2 mt-1">
-                        {loadingDeployContext && <Loader2 size={14} className="animate-spin text-[var(--text-secondary)]" />}
-                        {!projectRepos.length && (
-                          <span className="text-xs text-[var(--text-muted)]">Right-click a folder → Add as project</span>
-                        )}
+                <div className={`accordion-wrapper ${contextAccordionOpen ? 'open' : ''}`}>
+                  <div className="overflow-hidden">
+                    <div className="border-t border-[var(--border)] p-3 space-y-2">
+                      <p className="text-xs text-[var(--text-primary)] break-words">{serverContextSummary}</p>
+                      <div className="flex flex-col gap-1.5 w-full">
+                        <label className="text-xs font-medium text-[var(--text-secondary)]">Project context</label>
+                        <Select
+                          value={selectedDeployProjectPath}
+                          onChange={onSelectDeployProjectForContext}
+                          disabled={loadingDeployContext || !projectRepos.length}
+                          options={[
+                            { value: '', label: 'Select project (tree + deployment files)' },
+                            ...projectRepos.map((path) => ({ value: path, label: path })),
+                          ]}
+                        />
+                        <div className="flex items-center gap-2 mt-1">
+                          {loadingDeployContext && <Loader2 size={14} className="animate-spin text-[var(--text-secondary)]" />}
+                          {!projectRepos.length && (
+                            <span className="text-xs text-[var(--text-muted)]">Right-click a folder → Add as project</span>
+                          )}
+                        </div>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => setDeployContextCollapsed((c) => !c)}
+                        className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                      >
+                        <FolderTree size={14} />
+                        {deployContextCollapsed ? 'Show context' : 'Hide context'}
+                        {deployContextText.trim() ? ` (${deployContextText.split('\n').filter(Boolean).length} lines)` : ''}
+                      </button>
+                      {!deployContextCollapsed && (
+                        <textarea
+                          value={deployContextText}
+                          onChange={(e) => {
+                            setDeployContextText(e.target.value);
+                            setAiError(null);
+                          }}
+                          placeholder="Select a project above to load tree (level 3) + Dockerfile, compose, .env, etc. Or paste your own context."
+                          rows={3}
+                          className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-xs font-mono text-[var(--text-primary)] placeholder-[var(--text-muted)] resize-y"
+                        />
+                      )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setDeployContextCollapsed((c) => !c)}
-                      className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                    >
-                      <FolderTree size={14} />
-                      {deployContextCollapsed ? 'Show context' : 'Hide context'}
-                      {deployContextText.trim() ? ` (${deployContextText.split('\n').filter(Boolean).length} lines)` : ''}
-                    </button>
-                    {!deployContextCollapsed && (
-                      <textarea
-                        value={deployContextText}
-                        onChange={(e) => {
-                          setDeployContextText(e.target.value);
-                          setAiError(null);
-                        }}
-                        placeholder="Select a project above to load tree (level 3) + Dockerfile, compose, .env, etc. Or paste your own context."
-                        rows={3}
-                        className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-xs font-mono text-[var(--text-primary)] placeholder-[var(--text-muted)] resize-y"
-                      />
-                    )}
                   </div>
-                )}
+                </div>
               </div>
 
               <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] flex flex-col min-h-0 flex-1">
@@ -724,36 +723,27 @@ export function DeployView({ currentServer, proxy, onOpenPanel: _onOpenPanel, cu
                     </p>
                   </div>
                   <div className="flex flex-col gap-2 w-full">
-                    <select
+                    <Select
                       value={selectedShortcutsProjectPath}
-                      onChange={(e) => setSelectedShortcutsProjectPath(e.target.value)}
+                      onChange={setSelectedShortcutsProjectPath}
                       disabled={shortcutsLoading}
-                      className="w-full max-w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)] truncate focus:outline-none focus:border-[var(--accent)]"
-                    >
-                      <option value="">Use current project path ({shortcutsProjectPath || 'not set'})</option>
-                      {projectRepos.map((path) => (
-                        <option key={`serop-${path}`} value={path}>
-                          {path}
-                        </option>
-                      ))}
-                    </select>
-                    <select
+                      options={[
+                        { value: '', label: `Use current project path (${shortcutsProjectPath || 'not set'})` },
+                        ...projectRepos.map((path) => ({ value: path, label: path })),
+                      ]}
+                    />
+                    <Select
                       value={selectedShortcutFile}
-                      onChange={(e) => {
-                        const file = e.target.value;
+                      onChange={(file) => {
                         setSelectedShortcutFile(file);
                         if (shortcutsProjectPath && file) void loadSeropFile(shortcutsProjectPath, file);
                       }}
                       disabled={shortcutsLoading || !shortcutFiles.length}
-                      className="w-full max-w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)] truncate focus:outline-none focus:border-[var(--accent)]"
-                    >
-                      <option value="">Select .serop file</option>
-                      {shortcutFiles.map((name) => (
-                        <option key={name} value={name}>
-                          {name}
-                        </option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: '', label: 'Select .serop file' },
+                        ...shortcutFiles.map((name) => ({ value: name, label: name })),
+                      ]}
+                    />
                   </div>
                   <div className="max-h-40 overflow-auto space-y-2 pr-1">
                     {shortcutsLoading && (

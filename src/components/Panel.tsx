@@ -37,7 +37,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
   const [activeLogTabId, setActiveLogTabId] = useState<string | null>(null);
   const [logContentByTabId, setLogContentByTabId] = useState<Record<string, string>>({});
   const logPreRef = useRef<HTMLPreElement>(null);
-  const [tail, setTail] = useState(200);
+  const [tail, setTail] = useState<number | ''>(200);
 
   const [terminalTabs, setTerminalTabs] = useState<TerminalTab[]>([]);
   const [activeTerminalTabId, setActiveTerminalTabId] = useState<string | null>(null);
@@ -309,7 +309,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
           connection: currentServer,
           composePath,
           service: service || undefined,
-          tail,
+          tail: tail === '' ? 200 : tail,
           proxy,
         })
         .then((res) => {
@@ -421,8 +421,21 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
             <input
               type="number"
               value={tail}
-              onChange={(e) => setTail(Math.max(0, Number(e.target.value) || 200))}
-              className="w-14 px-2 py-1 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === '') {
+                  setTail('');
+                } else {
+                  const num = parseInt(val, 10);
+                  setTail(isNaN(num) ? '' : Math.max(0, num));
+                }
+              }}
+              onBlur={() => {
+                if (tail === '') {
+                  setTail(200);
+                }
+              }}
+              className="w-16 px-2 py-1 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
               title="Tail lines for new streams"
             />
           </div>
