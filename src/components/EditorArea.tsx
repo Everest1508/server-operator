@@ -7,6 +7,7 @@ import { DeployView } from './DeployView';
 import { ServerOverview } from './ServerOverview';
 
 function languageFromPath(path: string): string {
+  if (path.startsWith('notes://')) return 'markdown';
   const ext = path.split('.').pop()?.toLowerCase() ?? '';
   const map: Record<string, string> = {
     js: 'javascript', ts: 'typescript', jsx: 'javascript', tsx: 'typescript',
@@ -59,6 +60,8 @@ interface EditorAreaProps {
 }
 
 function basename(path: string): string {
+  if (path === 'notes://general') return 'General Notes';
+  if (path === 'notes://server') return 'Server Notes';
   const i = path.lastIndexOf('/');
   return i >= 0 ? path.slice(i + 1) : path;
 }
@@ -496,7 +499,7 @@ export function EditorArea({
           )}
         </div>
       )}
-      {activeView === 'servers' && (
+      {(activeView === 'servers' || activeView === 'notes') && (
         <ServerOverview
           currentServer={currentServer}
           proxy={proxy}

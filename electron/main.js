@@ -1142,3 +1142,56 @@ ipcMain.handle('server:deploy', async (_, { connection, deployCommand, proxy, cw
     return { ok: false, error: errMsg(e) };
   }
 });
+
+ipcMain.handle('app:open-devtools', async () => {
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.openDevTools();
+      return { ok: true };
+    }
+    return { ok: false, error: 'Main window is not available' };
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
+});
+
+ipcMain.handle('app:get-log-file-path', async () => {
+  try {
+    return getLogPath();
+  } catch (e) {
+    return '';
+  }
+});
+
+ipcMain.handle('app:read-log-file', async () => {
+  try {
+    const logPath = getLogPath();
+    if (fs.existsSync(logPath)) {
+      const stats = fs.statSync(logPath);
+      const maxSize = 256 * 1024; // 256KB limit to keep it fast
+      if (stats.size > maxSize) {
+        const fd = fs.openSync(logPath, 'r');
+        const buffer = Buffer.alloc(maxSize);
+        fs.readSync(fd, buffer, 0, maxSize, stats.size - maxSize);
+        fs.closeSync(fd);
+        return { ok: true, content: '... [Truncated due to size, showing last 256KB] ...\n' + buffer.toString('utf8') };
+      }
+      return { ok: true, content: fs.readFileSync(logPath, 'utf8') };
+    }
+    return { ok: true, content: 'No log file found.' };
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
+});
+
+ipcMain.handle('app:clear-log-file', async () => {
+  try {
+    const logPath = getLogPath();
+    fs.writeFileSync(logPath, '', 'utf8');
+    log('Log file cleared');
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
+});
+

@@ -1,4 +1,4 @@
-import { Server, FolderOpen, Box, Rocket, PanelLeftClose, PanelBottomClose } from 'lucide-react';
+import { Server, FolderOpen, Box, Rocket, PanelLeftClose, PanelBottomClose, StickyNote } from 'lucide-react';
 import type { ViewId } from '../types';
 
 const items: { id: ViewId; icon: typeof Server; label: string }[] = [
@@ -6,6 +6,7 @@ const items: { id: ViewId; icon: typeof Server; label: string }[] = [
   { id: 'files', icon: FolderOpen, label: 'Files' },
   { id: 'docker', icon: Box, label: 'Docker' },
   { id: 'deploy', icon: Rocket, label: 'Deploy' },
+  { id: 'notes', icon: StickyNote, label: 'Notes & Debug' },
 ];
 
 interface ActivityBarProps {

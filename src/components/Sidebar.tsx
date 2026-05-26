@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import type { ServerConnection, ViewId, FileTreeClipboard } from '../types';
 import { parseLsLine } from '../utils/parseLs';
+import { NotesSidebar } from './NotesSidebar';
 
 interface FileTreeMenuState {
   kind: 'entry' | 'background';
@@ -310,7 +311,11 @@ export function Sidebar({
 
   return (
     <div className="w-full h-full bg-[var(--bg-secondary)] border-r border-[var(--border)] flex flex-col min-w-0">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border)]">
+      {activeView === 'notes' ? (
+        <NotesSidebar currentServer={currentServer} onOpenFile={onOpenFile} />
+      ) : (
+        <>
+          <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border)]">
         <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
           {activeView === 'servers' && 'Servers'}
           {activeView === 'files' && 'Files'}
@@ -757,6 +762,8 @@ export function Sidebar({
             </>
           )}
         </div>
+      )}
+        </>
       )}
     </div>
   );

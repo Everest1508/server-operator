@@ -29,4 +29,8 @@ contextBridge.exposeInMainWorld('serverOperator', {
   openShell: (opts) => ipcRenderer.invoke('server:open-shell', opts),
   closeShell: (opts) => ipcRenderer.invoke('server:close-shell', opts),
   shellWrite: (opts) => ipcRenderer.invoke('server:shell-write', opts),
+  openDevTools: () => ipcRenderer.invoke('app:open-devtools'),
+  getLogFilePath: () => ipcRenderer.invoke('app:get-log-file-path'),
+  readLogFile: () => ipcRenderer.invoke('app:read-log-file'),
+  clearLogFile: () => ipcRenderer.invoke('app:clear-log-file'),
 });

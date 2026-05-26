@@ -1,4 +1,4 @@
-export type ViewId = 'servers' | 'files' | 'docker' | 'deploy';
+export type ViewId = 'servers' | 'files' | 'docker' | 'deploy' | 'notes';
 
 export interface ProxySettings {
   enabled: boolean;

@@ -37,7 +37,7 @@ function loadComposePathsByServer(): Record<string, string[]> {
   }
 }
 
-const VIEW_IDS: ViewId[] = ['servers', 'files', 'docker', 'deploy'];
+const VIEW_IDS: ViewId[] = ['servers', 'files', 'docker', 'deploy', 'notes'];
 const HASH_PREFIX = '#/';
 
 function viewFromHash(): ViewId {
@@ -241,6 +241,23 @@ export default function App() {
       loadRepoDir(selectedRepoPath, '.', false);
     }
   }, [selectedRepoPath, currentServer?.id]);
+
+  useEffect(() => {
+    const syncNotes = (e: Event) => {
+      const customEvent = e as CustomEvent<{ type: 'general' | 'server'; content: string }>;
+      const path = customEvent.detail.type === 'general' ? 'notes://general' : 'notes://server';
+      setContentByPath((prev) => {
+        if (prev[path] === customEvent.detail.content) return prev;
+        return { ...prev, [path]: customEvent.detail.content };
+      });
+      setSavedContentByPath((prev) => {
+        if (prev[path] === customEvent.detail.content) return prev;
+        return { ...prev, [path]: customEvent.detail.content };
+      });
+    };
+    window.addEventListener('notes-updated', syncNotes as EventListener);
+    return () => window.removeEventListener('notes-updated', syncNotes as EventListener);
+  }, []);
 
   useEffect(() => {
     try {
@@ -631,7 +648,26 @@ export default function App() {
 
   // Load file when a new tab is opened (loadingPath set)
   useEffect(() => {
-    if (!loadingPath || !currentServer || !window.serverOperator) return;
+    if (!loadingPath) return;
+    if (loadingPath === 'notes://general') {
+      const content = localStorage.getItem('server-operator:general-notes') ?? '';
+      setContentByPath((prev) => ({ ...prev, [loadingPath]: content }));
+      setSavedContentByPath((prev) => ({ ...prev, [loadingPath]: content }));
+      setFileLoadError(null);
+      setLoadingPath(null);
+      return;
+    }
+    if (loadingPath === 'notes://server') {
+      const serverId = currentServer?.id || '';
+      const content = serverId ? (localStorage.getItem(`server-operator:server-notes:${serverId}`) ?? '') : '';
+      setContentByPath((prev) => ({ ...prev, [loadingPath]: content }));
+      setSavedContentByPath((prev) => ({ ...prev, [loadingPath]: content }));
+      setFileLoadError(null);
+      setLoadingPath(null);
+      return;
+    }
+
+    if (!currentServer || !window.serverOperator) return;
     setFileLoadError(null);
     window.serverOperator
       .readFile({ connection: currentServer, filePath: loadingPath, proxy, useSudo: !!tabSudoByPath[loadingPath] })
@@ -657,6 +693,21 @@ export default function App() {
   }, [loadingPath, currentServer?.id, tabSudoByPath]);
 
   const handleSaveFile = (filePath: string, content: string, opts?: { useSudo?: boolean }) => {
+    if (filePath === 'notes://general') {
+      localStorage.setItem('server-operator:general-notes', content);
+      setSavedContentByPath((prev) => ({ ...prev, [filePath]: content }));
+      window.dispatchEvent(new CustomEvent('notes-updated', { detail: { type: 'general', content } }));
+      return Promise.resolve({ ok: true });
+    }
+    if (filePath === 'notes://server') {
+      const serverId = currentServer?.id;
+      if (!serverId) return Promise.resolve({ ok: false, error: 'No server connected' });
+      localStorage.setItem(`server-operator:server-notes:${serverId}`, content);
+      setSavedContentByPath((prev) => ({ ...prev, [filePath]: content }));
+      window.dispatchEvent(new CustomEvent('notes-updated', { detail: { type: 'server', content } }));
+      return Promise.resolve({ ok: true });
+    }
+
     if (!currentServer || !window.serverOperator) return Promise.resolve({ ok: false, error: 'Not connected' });
     const useSudo = opts?.useSudo ?? !!tabSudoByPath[filePath];
     return window.serverOperator

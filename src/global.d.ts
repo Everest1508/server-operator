@@ -76,6 +76,10 @@ export interface ServerOperatorAPI {
   openShell: (opts: { connection: ServerConnection; proxy?: ProxySettings }) => Promise<{ ok: boolean; shellId?: string; error?: string }>;
   closeShell: (opts: { shellId: string }) => Promise<void>;
   shellWrite: (opts: { shellId: string; data: string }) => Promise<void>;
+  openDevTools?: () => Promise<{ ok: boolean; error?: string }>;
+  getLogFilePath?: () => Promise<string>;
+  readLogFile?: () => Promise<{ ok: boolean; content?: string; error?: string }>;
+  clearLogFile?: () => Promise<{ ok: boolean; error?: string }>;
 }
 
 declare global {
