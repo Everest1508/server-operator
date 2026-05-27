@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
+const { startUpdateChecker, runUpdateCheck } = require('./updateChecker');
 const path = require('path');
 const fs = require('fs');
 const { execSync, spawn } = require('child_process');
@@ -274,6 +275,20 @@ function installApplicationMenu() {
             submenu: [{ role: 'minimize' }, { role: 'close' }],
           },
         ]),
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'Check for Updates…',
+          click: () => runUpdateCheck(() => mainWindow, true),
+        },
+        { type: 'separator' },
+        {
+          label: 'View on GitHub',
+          click: () => shell.openExternal('https://github.com/everest1508/server-operator'),
+        },
+      ],
+    },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
@@ -315,9 +330,27 @@ function createWindow() {
 
 app.whenReady().then(() => {
   log('started', { logFile: getLogPath() });
+
+  // Set macOS Dock icon (works in both dev and packaged)
+  if (process.platform === 'darwin' && app.dock) {
+    const iconCandidates = [
+      path.join(process.cwd(), 'build/icons/512x512.png'),
+      path.join(process.cwd(), 'build/icons/256x256.png'),
+      path.join(app.getAppPath(), 'build/icons/512x512.png'),
+      path.join(__dirname, '../build/icons/512x512.png'),
+    ];
+    for (const candidate of iconCandidates) {
+      if (fs.existsSync(candidate)) {
+        try { app.dock.setIcon(candidate); } catch (_) {}
+        break;
+      }
+    }
+  }
+
   installApplicationMenu();
   createWindow();
   registerShellHandlers();
+  startUpdateChecker(() => mainWindow);
 });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });

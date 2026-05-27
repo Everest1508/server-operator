@@ -6,6 +6,7 @@ import { NoServerView } from './components/NoServerView';
 import { Panel } from './components/Panel';
 import { RepoSidebar } from './components/RepoSidebar';
 import { SettingsView } from './components/SettingsView';
+import { UpdateBanner } from './components/UpdateBanner';
 import type { ServerConnection, ViewId, ProxySettings, DockerContainer, FileTreeClipboard } from './types';
 import { escapeShellSingleQuotes } from './utils/shellQuote';
 import type { ServerSysInfo } from './components/ServerOverview';
@@ -1202,6 +1203,7 @@ export default function App() {
 
   return (
     <div className={`flex h-full bg-[var(--bg-primary)] text-[var(--text-primary)] ${resizeDrag ? 'select-none' : ''}`}>
+      <UpdateBanner />
       <ActivityBar
         activeView={activeView}
         onViewChange={setActiveViewAndRoute}

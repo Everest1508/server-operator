@@ -17,18 +17,18 @@ export interface FeatureFlags {
 }
 
 export const DEFAULT_FLAGS: FeatureFlags = {
-  deployModule: true,
-  servers: true,
-  files: true,
-  docker: true,
-  aiAssistant: true,
-  shortcuts: true,
-  serverAdmin: true,
-  configCreators: true,
-  notes: true,
-  deployPipeline: true,
-  deployHistory: true,
-  snippetLibrary: true,
+  deployModule: false,
+  servers: false,
+  files: false,
+  docker: false,
+  aiAssistant: false,
+  shortcuts: false,
+  serverAdmin: false,
+  configCreators: false,
+  notes: false,
+  deployPipeline: false,
+  deployHistory: false,
+  snippetLibrary: false,
   sidebarUx: 'hidden',
 };
 

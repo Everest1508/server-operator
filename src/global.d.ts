@@ -183,6 +183,9 @@ export interface ServerOperatorAPI {
   deleteSnippet: (opts: { id: number }) => Promise<{ ok: boolean; error?: string }>;
   loadFeaturesConfig: () => Promise<any>;
   saveFeaturesConfig: (config: any) => Promise<{ ok: boolean; error?: string }>;
+  // Updates
+  checkForUpdates?: () => Promise<{ ok: boolean }>;
+  openReleasePage?: (url: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
 declare global {

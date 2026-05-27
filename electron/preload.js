@@ -13,6 +13,14 @@ ipcRenderer.on('monitored-servers-status-updated', (_event, payload) => {
   window.dispatchEvent(new CustomEvent('monitored-servers-status-updated', { detail: payload }));
 });
 
+// ── Update checker events ──────────────────────────────────────────────────
+ipcRenderer.on('update-available', (_event, payload) => {
+  window.dispatchEvent(new CustomEvent('update-available', { detail: payload }));
+});
+ipcRenderer.on('update-check-result', (_event, payload) => {
+  window.dispatchEvent(new CustomEvent('update-check-result', { detail: payload }));
+});
+
 contextBridge.exposeInMainWorld('serverOperator', {
   testConnection: (opts) => ipcRenderer.invoke('server:test-connection', opts),
   runCommand: (opts) => ipcRenderer.invoke('server:run-command', opts),
@@ -57,4 +65,7 @@ contextBridge.exposeInMainWorld('serverOperator', {
   deleteSnippet: (opts) => ipcRenderer.invoke('snippets:delete', opts),
   loadFeaturesConfig: () => ipcRenderer.invoke('features:load'),
   saveFeaturesConfig: (config) => ipcRenderer.invoke('features:save', config),
+  // ── Updates ───────────────────────────────────────────────────────────────
+  checkForUpdates: () => ipcRenderer.invoke('updates:check'),
+  openReleasePage: (url) => ipcRenderer.invoke('updates:open-release', url),
 });

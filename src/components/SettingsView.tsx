@@ -52,11 +52,40 @@ interface ChangelogVersion {
 const CHANGELOG: ChangelogVersion[] = [
   {
     version: '1.0.0',
-    codename: 'Iron Forge',
+    codename: 'Cobalt Catalyst',
     date: '2026-05-27',
     summary:
-      'The first full release of Serop — a desktop server management suite built on Electron, React, and SSH. Iron Forge ships every foundational module, from live SSH terminals to AI-assisted diagnostics.',
+      'The first full release of Serop — a desktop server management suite built on Electron, React, and SSH. Cobalt Catalyst introduces an auto-updating notification system, a custom app logo icon, and a default-disabled feature toggling mechanism.',
     groups: [
+      {
+        label: 'Auto-Update System',
+        icon: Sparkles,
+        color: '#a7f3d0',
+        items: [
+          { type: 'feat', text: 'GitHub Releases API silent check to automatically check for new versions on launch' },
+          { type: 'feat', text: 'Non-intrusive floating toast alerts for new release tags with an expandable changelog body' },
+          { type: 'feat', text: 'Persistent version dismissals stored in local storage to prevent duplicate alerts' },
+          { type: 'feat', text: 'Check for Updates option inside the application Help menu' },
+        ],
+      },
+      {
+        label: 'Visual Identity & Custom Icon',
+        icon: Sliders,
+        color: '#f0abfc',
+        items: [
+          { type: 'feat', text: 'New custom-designed squircle brand logo mark deployed at all standard system icon sizes' },
+          { type: 'feat', text: 'Support for dynamic Dock icon loading at runtime during macOS development' },
+        ],
+      },
+      {
+        label: 'Disabled-by-Default Feature Suite',
+        icon: Sliders,
+        color: '#fb923c',
+        items: [
+          { type: 'feat', text: 'All optional server and deployment modules disabled by default on clean installations' },
+          { type: 'feat', text: 'On-demand opt-in control panel allowing users to only turn on features they require' },
+        ],
+      },
       {
         label: 'SQL Query Runner',
         icon: Database,
@@ -103,21 +132,6 @@ const CHANGELOG: ChangelogVersion[] = [
           { type: 'feat', text: 'Variable placeholder support: {{domain}}, {{port}}, etc. — prompts for values before pasting' },
           { type: 'feat', text: 'Copy-to-clipboard button on every snippet card' },
           { type: 'feat', text: 'Seed snippets included out of the box (nginx reload, pm2 status, docker prune, etc.)' },
-        ],
-      },
-      {
-        label: 'Feature Settings & Module Toggles',
-        icon: Sliders,
-        color: '#fb923c',
-        items: [
-          { type: 'feat', text: 'Dedicated Feature Modules Settings screen accessible from the activity bar' },
-          { type: 'feat', text: 'Every major feature individually toggleable with live hot-swap (no restart required)' },
-          { type: 'feat', text: 'Hierarchical flag logic: disabling the Deploy Suite auto-disables all sub-features' },
-          { type: 'feat', text: 'Activity bar behavior setting: hide disabled icons OR gray them out with a padlock' },
-          { type: 'feat', text: 'Full-text search across all module names and descriptions' },
-          { type: 'feat', text: 'Progress bar showing percentage of active modules' },
-          { type: 'feat', text: 'Flags persisted to features.json in Electron userData — survive restarts' },
-          { type: 'feat', text: 'Sidebar auto-hides when Settings is the active view for a clean full-width layout' },
         ],
       },
       {
