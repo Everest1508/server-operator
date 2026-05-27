@@ -140,6 +140,12 @@ export function ActivityBar({
             <Settings size={20} strokeWidth={1.8} />
           </button>
         </Tooltip>
+
+        {/* Forged branding and copyright */}
+        <div className="flex flex-col items-center justify-center pt-2 mt-1 border-t border-[var(--border)] w-full select-none pointer-events-none opacity-40">
+          <span className="text-[7px] font-bold tracking-widest text-[var(--text-secondary)] uppercase scale-90 origin-center leading-none">Forged</span>
+          <span className="text-[7px] font-extrabold text-[var(--accent)] tracking-wider leading-none mt-0.5">BeForth</span>
+        </div>
       </div>
     </div>
   );
