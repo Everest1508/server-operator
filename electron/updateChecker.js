@@ -89,7 +89,7 @@ async function runUpdateCheck(getWindow, userTriggered = false) {
     if (!win || win.isDestroyed()) return;
 
     if (!release) {
-      // API failed
+      console.log('[Update Checker] Failed to fetch latest release from GitHub API.');
       if (userTriggered) {
         win.webContents.send('update-check-result', { ok: false });
       }
@@ -97,7 +97,10 @@ async function runUpdateCheck(getWindow, userTriggered = false) {
     }
 
     const localVersion = app.getVersion();
-    if (isNewer(localVersion, release.version)) {
+    const hasNewer = isNewer(localVersion, release.version);
+    console.log(`[Update Checker] Comparison: Local=${localVersion}, Remote=${release.version}. Newer available? ${hasNewer}`);
+    
+    if (hasNewer) {
       win.webContents.send('update-available', {
         version: release.version,
         releaseUrl: release.releaseUrl,
@@ -107,8 +110,8 @@ async function runUpdateCheck(getWindow, userTriggered = false) {
       // Already on latest — tell the renderer to show a toast
       win.webContents.send('update-check-result', { ok: true, upToDate: true });
     }
-  } catch (_) {
-    // Never propagate
+  } catch (err) {
+    console.error('[Update Checker] Error during runUpdateCheck:', err);
   }
 }
 
@@ -119,7 +122,11 @@ async function runUpdateCheck(getWindow, userTriggered = false) {
  */
 function startUpdateChecker(getWindow) {
   // First check shortly after launch (give renderer time to mount)
-  const initialDelay = setTimeout(() => runUpdateCheck(getWindow), 8000);
+  console.log('[Update Checker] Starting check in 2 seconds...');
+  const initialDelay = setTimeout(() => {
+    console.log('[Update Checker] Running initial startup check...');
+    runUpdateCheck(getWindow);
+  }, 2000);
 
   // Then every 4 hours
   const interval = setInterval(() => runUpdateCheck(getWindow), CHECK_INTERVAL_MS);

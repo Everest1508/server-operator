@@ -1,6 +1,6 @@
 {
   "name": "server-operator",
-  "version": "1.0.0",
+  "version": "0.9.0",
   "description": "Premium server manager - deploy code, manage Docker, view logs",
   "author": {
     "name": "Ritesh Mahale",

@@ -71,95 +71,86 @@ function UpdateBannerInner({
 
   return (
     <div
-      className="flex flex-col w-full rounded-xl shadow-2xl border overflow-hidden"
+      className="flex flex-col w-full rounded-lg shadow-xl border overflow-hidden"
       style={{
-        background: 'linear-gradient(135deg, rgba(16,24,40,0.97) 0%, rgba(20,28,48,0.97) 100%)',
-        borderColor: 'rgba(99,102,241,0.35)',
-        backdropFilter: 'blur(14px)',
-        animation: 'slideDown 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+        background: 'var(--bg-secondary)',
+        borderColor: 'var(--border)',
+        fontFamily: 'var(--font-sans)',
       }}
     >
       {/* Accent glow strip */}
       <div
         className="h-[2px] w-full shrink-0"
-        style={{ background: 'linear-gradient(90deg, #6366f1 0%, #818cf8 50%, #a5b4fc 100%)' }}
+        style={{ background: 'var(--accent)' }}
       />
 
       {/* Main row */}
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="flex items-start gap-2.5 p-3">
         {/* Icon */}
         <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-          style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8' }}
+          className="w-7 h-7 rounded flex items-center justify-center shrink-0 mt-0.5"
+          style={{ background: 'rgba(0,120,212,0.15)', color: 'var(--accent)' }}
         >
-          <Sparkles size={16} />
+          <Sparkles size={14} />
         </div>
 
         {/* Text */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold" style={{ color: '#e2e8f0' }}>
-            New version{' '}
-            <span style={{ color: '#a5b4fc' }}>{info.version}</span>{' '}
-            is available
+          <p className="text-xs font-semibold leading-normal text-[var(--text-primary)]">
+            Update Available:{' '}
+            <span className="font-bold text-[var(--accent)]">{info.version}</span>
           </p>
-          <p className="text-xs mt-0.5" style={{ color: '#94a3b8' }}>
-            Update Server Operator to get the latest features and fixes.
+          <p className="text-[10px] mt-1 leading-normal text-[var(--text-secondary)]">
+            A new release has been published to GitHub.
           </p>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-2 shrink-0">
-          {info.releaseNotes && (
-            <button
-              onClick={() => setNotesOpen((o) => !o)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors"
-              style={{ color: '#94a3b8', background: 'rgba(255,255,255,0.05)' }}
-              title="What's new"
-            >
-              What&apos;s new
-              {notesOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-            </button>
-          )}
+        {/* Dismiss Button */}
+        <button
+          onClick={handleDismiss}
+          className="shrink-0 p-1 rounded hover:bg-[var(--bg-tertiary)] transition-colors text-[var(--text-secondary)]"
+          title="Dismiss"
+        >
+          <X size={14} />
+        </button>
+      </div>
 
+      {/* Action Buttons */}
+      <div className="flex items-center gap-1.5 px-3 pb-3 border-t border-[var(--border)] pt-2.5 bg-[var(--bg-secondary)]/40">
+        {info.releaseNotes && (
           <button
-            onClick={handleDownload}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 hover:scale-105 active:scale-95"
-            style={{
-              background: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)',
-              color: '#fff',
-              boxShadow: '0 2px 12px rgba(99,102,241,0.4)',
-            }}
+            onClick={() => setNotesOpen((o) => !o)}
+            className="flex items-center gap-0.5 px-2 py-1 rounded text-[10px] font-semibold transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
           >
-            <Download size={13} />
-            Download
+            Changelog
+            {notesOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
           </button>
+        )}
 
-          <button
-            onClick={handleDismiss}
-            className="p-1.5 rounded-lg transition-colors hover:bg-white/10"
-            style={{ color: '#64748b' }}
-            title="Dismiss"
-          >
-            <X size={15} />
-          </button>
-        </div>
+        <div className="flex-1" />
+
+        <button
+          onClick={handleDownload}
+          className="flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-bold transition-all duration-100 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white"
+        >
+          <Download size={11} />
+          Download
+        </button>
       </div>
 
       {/* Expandable release notes */}
       {notesOpen && info.releaseNotes && (
         <div
-          className="px-4 pb-3 border-t"
-          style={{ borderColor: 'rgba(99,102,241,0.15)' }}
+          className="px-3 pb-3 border-t border-[var(--border)] bg-black/15"
         >
-          <p className="text-xs font-semibold mt-2 mb-1.5" style={{ color: '#94a3b8' }}>
-            Release Notes
-          </p>
           <pre
-            className="text-xs leading-relaxed whitespace-pre-wrap max-h-40 overflow-y-auto rounded-lg p-3"
+            className="text-[10px] leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto rounded p-2 mt-2"
             style={{
-              color: '#cbd5e1',
-              background: 'rgba(0,0,0,0.25)',
-              fontFamily: 'inherit',
+              color: 'var(--text-primary)',
+              background: 'var(--bg-primary)',
+              borderColor: 'var(--border)',
+              borderWidth: '1px',
+              fontFamily: 'var(--font-sans)',
             }}
           >
             {info.releaseNotes}
@@ -184,15 +175,22 @@ export function UpdateBanner() {
   useEffect(() => {
     const onUpdateAvailable = (e: Event) => {
       const info = (e as CustomEvent<UpdateInfo>).detail;
+      console.log('[Update Banner] Received update-available event with info:', info);
       if (!info?.version) return;
       // Don't re-show a version the user already dismissed
-      if (getDismissedVersion() === info.version) return;
+      const dismissedVer = getDismissedVersion();
+      console.log(`[Update Banner] Dismissed version currently in storage: "${dismissedVer}"`);
+      if (dismissedVer === info.version) {
+        console.log('[Update Banner] Version is dismissed. Suppressing banner.');
+        return;
+      }
       setDismissed(false);
       setUpdateInfo(info);
     };
 
     const onCheckResult = (e: Event) => {
       const result = (e as CustomEvent<{ ok: boolean; upToDate?: boolean }>).detail;
+      console.log('[Update Banner] Received update-check-result event:', result);
       if (result?.upToDate) {
         setShowUpToDate(true);
       }
@@ -219,7 +217,7 @@ export function UpdateBanner() {
       `}</style>
 
       <div
-        className="fixed top-12 right-4 z-[9999] w-[420px] max-w-[calc(100vw-2rem)] pointer-events-auto"
+        className="fixed top-12 right-4 z-[9999] w-[280px] max-w-[calc(100vw-2rem)] pointer-events-auto"
         style={{ filter: 'drop-shadow(0 8px 32px rgba(0,0,0,0.5))' }}
       >
         {showUpToDate && !updateInfo && (
