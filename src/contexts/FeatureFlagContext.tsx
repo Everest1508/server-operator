@@ -44,6 +44,9 @@ export const FeatureFlagProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const toggleFlag = (key: keyof FeatureFlags) => {
     if (key === 'sidebarUx') return;
+    const CORE_KEYS: string[] = ['servers', 'files', 'docker', 'deployModule', 'notes', 'aiAssistant', 'configCreators', 'serverAdmin', 'database', 'deployPipeline', 'deployHistory'];
+    if (CORE_KEYS.includes(key)) return; // Core features cannot be turned off
+
     const currentVal = flags[key] as boolean;
     const nextVal = !currentVal;
 
@@ -53,11 +56,10 @@ export const FeatureFlagProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (key === 'deployModule' && !nextVal) {
       nextFlags.deployPipeline = false;
       nextFlags.deployHistory = false;
-      nextFlags.snippetLibrary = false;
     }
 
     // Hierarchical rule 2: If a sub-feature is enabled, ensure its parent module is enabled
-    if (nextVal && (key === 'deployPipeline' || key === 'deployHistory' || key === 'snippetLibrary')) {
+    if (nextVal && (key === 'deployPipeline' || key === 'deployHistory')) {
       nextFlags.deployModule = true;
     }
 

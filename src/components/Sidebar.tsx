@@ -27,7 +27,6 @@ import type { ServerConnection, ViewId, FileTreeClipboard } from '../types';
 import { parseLsLine } from '../utils/parseLs';
 import { Tooltip } from './Tooltip';
 import { NotesSidebar } from './NotesSidebar';
-import { SnippetsSidebar } from './SnippetsSidebar';
 
 interface FileTreeMenuState {
   kind: 'entry' | 'background';
@@ -75,8 +74,8 @@ interface SidebarProps {
   onFileTreeRenamePath?: (path: string) => Promise<{ ok: boolean; error?: string }>;
   onFileTreeDuplicatePath?: (path: string, isDir: boolean) => Promise<{ ok: boolean; error?: string }>;
   onFileTreeActionMessage?: (message: string | null) => void;
-  selectedSnippet?: any;
-  onSelectSnippet?: (snippet: any) => void;
+  selectedGuideId?: string;
+  onSelectGuideId?: (id: string) => void;
 }
 
 function buildPath(prefix: string, name: string): string {
@@ -118,8 +117,8 @@ export function Sidebar({
   onFileTreeRenamePath,
   onFileTreeDuplicatePath,
   onFileTreeActionMessage,
-  selectedSnippet,
-  onSelectSnippet,
+  selectedGuideId,
+  onSelectGuideId,
 }: SidebarProps) {
   const [creatingType, setCreatingType] = useState<'file' | 'folder' | null>(null);
   const [creatingName, setCreatingName] = useState('');
@@ -357,13 +356,43 @@ export function Sidebar({
 
   return (
     <div className="w-full h-full bg-[var(--bg-secondary)] border-r border-[var(--border)] flex flex-col min-w-0">
-      {activeView === 'notes' ? (
+      {activeView === 'guide' ? (
+        <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-secondary)] select-none">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border)] shrink-0">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Feature Guide</span>
+          </div>
+          <div className="flex-1 overflow-y-auto py-3 px-2 space-y-1 bg-[var(--bg-secondary)]">
+            {[
+              { id: 'database', title: 'Database Manager', desc: 'Secure SSH tunneled SQL runner' },
+              { id: 'pipeline', title: 'Deployment Pipeline', desc: 'One-click Git pulls & builds' },
+              { id: 'history', title: 'History & Rollbacks', desc: 'SQLite audit logging & rollbacks' },
+              { id: 'updates', title: 'Auto-Update System', desc: 'GitHub release checking & alerts' },
+            ].map((item) => {
+              const isSelected = selectedGuideId === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onSelectGuideId?.(item.id)}
+                  className={`w-full flex flex-col items-start gap-1 p-3 rounded-lg text-left transition-all border ${
+                    isSelected
+                      ? 'bg-[var(--bg-primary)] border-[var(--border)] text-[var(--accent)] shadow-sm'
+                      : 'bg-transparent border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-primary)]/40 hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  <span className={`text-xs font-bold ${isSelected ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>
+                    {item.title}
+                  </span>
+                  <span className="text-[10px] text-[var(--text-secondary)] truncate w-full leading-normal">
+                    {item.desc}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : activeView === 'notes' ? (
         <NotesSidebar currentServer={currentServer} onOpenFile={onOpenFile} />
-      ) : activeView === 'snippets' ? (
-        <SnippetsSidebar
-          selectedSnippet={selectedSnippet}
-          onSelectSnippet={onSelectSnippet || (() => {})}
-        />
       ) : (
         <>
           <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border)]">
@@ -372,7 +401,7 @@ export function Sidebar({
           {activeView === 'files' && 'Files'}
           {activeView === 'docker' && 'Docker'}
           {activeView === 'deploy' && 'Deploy'}
-          {activeView === 'monitoring' && 'Monitoring'}
+          {activeView === 'database' && 'Database'}
         </span>
       </div>
       {showFileBrowser && (
@@ -457,7 +486,7 @@ export function Sidebar({
         </div>
       )}
       <div className="flex-1 overflow-y-auto py-2 min-h-0">
-        {(activeView === 'servers' || activeView === 'docker' || activeView === 'deploy' || activeView === 'monitoring') && (
+        {(activeView === 'servers' || activeView === 'docker' || activeView === 'deploy') && (
           <ul className="space-y-0.5 px-2">
             {servers.length === 0 && (
               <li className="px-3 py-4 text-sm text-[var(--text-secondary)] text-center">
@@ -590,27 +619,55 @@ export function Sidebar({
           </div>
         )}
         {activeView === 'deploy' && (
-          <div className="px-3 pt-2">
+          <div className="px-3 pt-2 space-y-3">
             <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] p-3 text-sm">
               {!currentServer ? (
-                <p className="text-[var(--text-secondary)]">Select a server above to run deploy commands.</p>
+                <div className="flex flex-col gap-3">
+                  <p className="text-[var(--text-secondary)]">Select a server above to run deploy commands.</p>
+                  <div className="border-t border-[var(--border)] pt-2.5 mt-1 flex flex-col gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Relevant Guides</span>
+                    <button
+                      type="button"
+                      onClick={() => onSelectGuideId?.('pipeline')}
+                      className="text-xs text-[var(--accent)] hover:underline text-left cursor-pointer"
+                    >
+                      Deployment Pipeline Guide ↗
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onSelectGuideId?.('history')}
+                      className="text-xs text-[var(--accent)] hover:underline text-left cursor-pointer"
+                    >
+                      History & Rollbacks Guide ↗
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <p className="text-[var(--accent)] text-xs">Viewing: {currentServer.name}</p>
               )}
             </div>
           </div>
         )}
-        {activeView === 'monitoring' && (
+        {activeView === 'database' && !currentServer && (
           <div className="px-3 pt-2">
             <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] p-3 text-sm">
-              {!currentServer ? (
-                <p className="text-[var(--text-secondary)]">Select a server above to view real-time charts.</p>
-              ) : (
-                <p className="text-[var(--accent)] text-xs">Monitoring: {currentServer.name}</p>
-              )}
+              <div className="flex flex-col gap-3">
+                <p className="text-[var(--text-secondary)]">Select a server above to manage databases.</p>
+                <div className="border-t border-[var(--border)] pt-2.5 mt-1 flex flex-col gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Relevant Guide</span>
+                  <button
+                    type="button"
+                    onClick={() => onSelectGuideId?.('database')}
+                    className="text-xs text-[var(--accent)] hover:underline text-left cursor-pointer"
+                  >
+                    Database Manager Guide ↗
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
+
       </div>
       {fileTreeMenu && showFileBrowser && (
         <div

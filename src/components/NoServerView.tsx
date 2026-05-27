@@ -19,6 +19,7 @@ interface NoServerViewProps {
   onSelectServer: (s: ServerConnection) => void;
   onProxyChange: (p: ProxySettings) => void;
   onDismissError: () => void;
+  onViewGuide?: (guideId: string) => void;
 }
 
 export function NoServerView({
@@ -32,6 +33,7 @@ export function NoServerView({
   onSelectServer,
   onProxyChange,
   onDismissError,
+  onViewGuide,
 }: NoServerViewProps) {
   const [activeTab, setActiveTab] = useState<TabId>('servers');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -439,6 +441,23 @@ export function NoServerView({
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* Offline Guide banner */}
+            <div className="mt-6 p-5 rounded-lg border border-dashed border-[var(--border)] bg-[var(--bg-secondary)] flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h4 className="text-sm font-semibold text-[var(--text-primary)]">Offline Feature Guides</h4>
+                <p className="text-xs text-[var(--text-secondary)] mt-1">
+                  Learn how the Database Manager, Git Pipeline, SQLite Rollbacks, and Auto-Updates work under the hood. No server connection is required to browse our detailed documentation.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onViewGuide?.('database')}
+                className="px-4 py-2 rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--border)] text-[var(--text-primary)] text-xs font-semibold shrink-0 transition-colors cursor-pointer"
+              >
+                Read Feature Guides ↗
+              </button>
             </div>
           </div>
         )}

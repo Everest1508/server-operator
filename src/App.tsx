@@ -38,7 +38,7 @@ function loadComposePathsByServer(): Record<string, string[]> {
   }
 }
 
-const VIEW_IDS: ViewId[] = ['servers', 'files', 'docker', 'deploy', 'notes', 'monitoring', 'database', 'snippets', 'settings'];
+const VIEW_IDS: ViewId[] = ['servers', 'files', 'docker', 'deploy', 'notes', 'database', 'guide', 'settings'];
 const HASH_PREFIX = '#/';
 
 function viewFromHash(): ViewId {
@@ -163,7 +163,7 @@ export default function App() {
   const [connectingToServer, setConnectingToServer] = useState<ServerConnection | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const connectCancelRef = useRef(false);
-  const [selectedSnippet, setSelectedSnippet] = useState<any | null>(null);
+  const [selectedGuideId, setSelectedGuideId] = useState<string>('database');
   const [resizeDrag, setResizeDrag] = useState<'sidebar' | 'panel' | null>(null);
   const resizeStartRef = useRef({ x: 0, y: 0, w: 0, h: 0 });
 
@@ -1093,6 +1093,13 @@ export default function App() {
     window.location.hash = hashFromView(view);
   };
 
+  const handleSelectGuideId = (id: string) => {
+    setSelectedGuideId(id);
+    if (activeView !== 'guide') {
+      setActiveViewAndRoute('guide');
+    }
+  };
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_SERVERS, JSON.stringify(servers));
   }, [servers]);
@@ -1229,9 +1236,9 @@ export default function App() {
           connectionError={connectionError}
           onSelectServer={handleSelectServer}
           onRemoveServer={removeServer}
-          selectedSnippet={selectedSnippet}
-          onSelectSnippet={setSelectedSnippet}
           onDismissError={() => setConnectionError(null)}
+          selectedGuideId={selectedGuideId}
+          onSelectGuideId={handleSelectGuideId}
           treeListings={treeListings}
           openFolders={openFolders}
           loadingPaths={loadingPaths}
@@ -1319,15 +1326,14 @@ export default function App() {
           <div className="flex-1 flex flex-col min-h-0 min-w-0">
             {activeView === 'settings' ? (
               <SettingsView />
-            ) : currentServer ? (
+            ) : (activeView === 'guide' || currentServer) ? (
               <EditorArea
                 currentServer={currentServer}
                 servers={servers}
                 onSelectServer={setCurrentServer}
                 activeView={activeView}
                 proxy={proxy}
-                selectedSnippet={selectedSnippet}
-                onSelectSnippet={setSelectedSnippet}
+                selectedGuideId={selectedGuideId}
                 onPanelTab={setPanelTab}
                 onPanelOpen={() => setPanelOpen(true)}
                 onOpenTerminalAndRun={openTerminalAndRun}
@@ -1381,6 +1387,7 @@ export default function App() {
                 onSelectServer={handleSelectServer}
                 onProxyChange={setProxyAndRef}
                 onDismissError={() => setConnectionError(null)}
+                onViewGuide={handleSelectGuideId}
               />
             )}
           </div>

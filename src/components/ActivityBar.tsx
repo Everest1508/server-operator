@@ -3,7 +3,7 @@ import FolderIcon from './icons/FolderIcon';
 import DockerIcon from './icons/DockerIcon';
 import CloudUploadIcon from './icons/CloudUploadIcon';
 import FileDescriptionIcon from './icons/FileDescriptionIcon';
-import { PanelLeftClose, PanelBottomClose, LogOut, Activity, Database, Terminal, Lock, Settings } from 'lucide-react';
+import { PanelLeftClose, PanelBottomClose, LogOut, Activity, Database, Terminal, Lock, Settings, BookOpen } from 'lucide-react';
 import type { ViewId, ServerConnection, FeatureFlags } from '../types';
 import { Tooltip } from './Tooltip';
 import { useFeatureFlags } from '../contexts/FeatureFlagContext';
@@ -14,9 +14,8 @@ const items = [
   { id: 'docker' as const, icon: DockerIcon, label: 'Docker' },
   { id: 'database' as const, icon: Database, label: 'Database' },
   { id: 'deploy' as const, icon: CloudUploadIcon, label: 'Deploy' },
-  { id: 'monitoring' as const, icon: Activity, label: 'Monitoring' },
   { id: 'notes' as const, icon: FileDescriptionIcon, label: 'Notes & Debug' },
-  { id: 'snippets' as const, icon: Terminal, label: 'Snippets Library' },
+  { id: 'guide' as const, icon: BookOpen, label: 'Feature Guide' },
 ];
 
 const flagMapping: Record<string, keyof FeatureFlags> = {
@@ -25,9 +24,7 @@ const flagMapping: Record<string, keyof FeatureFlags> = {
   docker: 'docker',
   database: 'database',
   deploy: 'deployModule',
-  monitoring: 'serverAdmin',
   notes: 'notes',
-  snippets: 'snippetLibrary',
 };
 
 interface ActivityBarProps {

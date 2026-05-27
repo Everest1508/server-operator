@@ -22,6 +22,8 @@ import {
   ChevronUp,
   Bug,
   Trash2,
+  BookOpen,
+  Database,
 } from 'lucide-react';
 
 import { CHANGELOG, ChangeEntry } from './changelogData';
@@ -84,7 +86,7 @@ const ALL_FEATURES: FeatureItem[] = [
   {
     key: 'serverAdmin',
     title: 'Server Admin Tools',
-    description: 'Deep operating system manager, service status controller, performance monitoring history charts, and alerts dashboard.',
+    description: 'Deep operating system manager, service status controller, process supervisor, and automated server maintenance tasks.',
     category: 'advanced',
     icon: Cpu,
   },
@@ -132,21 +134,13 @@ const ALL_FEATURES: FeatureItem[] = [
     icon: History,
     isSubFeature: true,
   },
-  {
-    key: 'snippetLibrary',
-    title: 'Snippet Library',
-    description: 'Library to save, search, and paste reusable commands. Prompts dynamically for variable parameters like {{domain}}.',
-    category: 'deploy',
-    icon: Terminal,
-    isSubFeature: true,
-  },
 ];
 
 const CATEGORIES = {
   core: { name: 'Core Modules', desc: 'Essential connection and tree operations' },
   advanced: { name: 'Advanced Operations', desc: 'Enhanced container, config, and system monitors' },
   integrations: { name: 'Integrations', desc: 'Intelligent assistants and notes engines' },
-  deploy: { name: 'Deploy & Server Tools', desc: 'Pipelines, history rollbacks, and snippet triggers' },
+  deploy: { name: 'Deploy & Server Tools', desc: 'Pipelines and deployment history audit logs with rollbacks' },
 };
 
 /* ─────────────────────────────────────────────
@@ -387,79 +381,146 @@ function ModulesView() {
       </div>
 
       {/* Feature Grid */}
+      {/* Feature Grid */}
       <div className="p-6 pt-2 space-y-8 flex-1 overflow-y-auto">
-        {(Object.keys(CATEGORIES) as Array<keyof typeof CATEGORIES>).map((catKey) => {
-          const catFeatures = filteredFeatures.filter((f) => f.category === catKey);
-          if (catFeatures.length === 0) return null;
-          return (
-            <div key={catKey} className="space-y-4">
-              <div>
-                <h2 className="text-sm font-bold tracking-wide uppercase text-[var(--accent)]">{CATEGORIES[catKey].name}</h2>
-                <p className="text-xs text-[var(--text-secondary)] mt-0.5">{CATEGORIES[catKey].desc}</p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {catFeatures.map((item) => {
-                  const Icon = item.icon;
-                  const isChecked = !!flags[item.key];
-                  const isParentSuiteDisabled = item.isSubFeature && !flags.deployModule;
-                  const isDisabled = isParentSuiteDisabled;
-                  return (
-                    <div
-                      key={item.key}
-                      className={`relative flex gap-3 p-4 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] transition-all duration-150 ${
-                        item.isSubFeature ? 'ml-6 border-dashed border-l-2' : ''
-                      } ${isDisabled ? 'opacity-40' : 'hover:border-[var(--text-muted)]/40 hover:bg-[var(--bg-secondary)]/60'}`}
-                    >
-                      {item.isSubFeature && (
-                        <div className="absolute left-[-16px] top-[50%] w-4 h-[1px] border-t border-dashed border-[var(--border)] pointer-events-none" />
-                      )}
-                      <div className={`p-2 rounded-md shrink-0 flex items-center justify-center ${
-                        isChecked && !isDisabled ? 'bg-[var(--accent)]/10 text-[var(--accent)]' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'
-                      }`}>
-                        <Icon size={18} />
-                      </div>
-                      <div className="flex-1 min-w-0 pr-1">
-                        <div className="flex items-center gap-1.5">
-                          <h3 className="text-sm font-semibold truncate text-[var(--text-primary)]">{item.title}</h3>
-                          {isDisabled && (
-                            <span className="flex items-center gap-0.5 text-[10px] bg-[var(--bg-tertiary)] text-[var(--text-secondary)] px-1 py-0.5 rounded border border-[var(--border)]">
-                              <Lock size={8} /> Parent Off
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-[var(--text-secondary)] leading-relaxed mt-1">{item.description}</p>
-                      </div>
-                      <div className="shrink-0 flex items-center">
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={isChecked && !isDisabled}
-                          disabled={isDisabled}
-                          onClick={() => handleToggle(item.key, item.isSubFeature)}
-                          style={{
-                            background: isChecked && !isDisabled ? 'var(--accent)' : 'var(--bg-tertiary)',
-                            border: isChecked && !isDisabled ? '1px solid transparent' : '1px solid var(--border)',
-                          }}
-                          className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
-                            isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
-                          }`}
-                        >
-                          <span
-                            aria-hidden="true"
-                            style={{
-                              transform: isChecked && !isDisabled ? 'translateX(20px)' : 'translateX(2px)',
-                            }}
-                            className="pointer-events-none absolute top-[2px] inline-block h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out"
-                          />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+        {/* Core Features (Always Enabled) */}
+        {searchQuery === '' && (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-sm font-bold tracking-wide uppercase text-[var(--success)] flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)] animate-pulse" />
+                Core Application Modules
+              </h2>
+              <p className="text-xs text-[var(--text-secondary)] mt-0.5">Essential built-in features that are locked on and always active.</p>
             </div>
-          );
-        })}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {ALL_FEATURES.filter((f) => ['servers', 'files', 'docker', 'deployModule', 'notes', 'aiAssistant', 'configCreators', 'serverAdmin'].includes(f.key)).map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div
+                    key={item.key}
+                    className="relative flex gap-3 p-4 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] opacity-95 hover:border-[var(--accent)]/30 hover:bg-[var(--bg-secondary)]/80 transition-all"
+                  >
+                    <div className="p-2 rounded-md shrink-0 flex items-center justify-center bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/20 shadow-sm">
+                      <Icon size={18} />
+                    </div>
+                    <div className="flex-1 min-w-0 pr-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h3 className="text-sm font-semibold truncate text-[var(--text-primary)]">{item.title}</h3>
+                        <span className="text-[8px] font-extrabold bg-[var(--success)]/10 text-[var(--success)] px-1.5 py-0.5 rounded border border-[var(--success)]/20 uppercase tracking-widest">
+                          Always Enabled
+                        </span>
+                      </div>
+                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed mt-1">{item.description}</p>
+                    </div>
+                    <div className="shrink-0 flex items-center">
+                      <button
+                        type="button"
+                        disabled
+                        aria-checked="true"
+                        style={{
+                          background: 'var(--accent)',
+                        }}
+                        className="relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ease-in-out cursor-not-allowed opacity-60"
+                      >
+                        <span
+                          style={{
+                            transform: 'translateX(20px)',
+                          }}
+                          className="pointer-events-none absolute top-[2px] inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out"
+                        />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Optional Toggles Section */}
+        <div className="space-y-8 pt-2">
+          {searchQuery === '' && (
+            <div className="border-t border-[var(--border)] pt-6">
+              <h2 className="text-sm font-bold tracking-wide uppercase text-[var(--text-primary)]">Optional Feature Add-ons</h2>
+              <p className="text-xs text-[var(--text-secondary)] mt-0.5">Toggle advanced capabilities, integrations, and deployment subsystems.</p>
+            </div>
+          )}
+          {(Object.keys(CATEGORIES) as Array<keyof typeof CATEGORIES>).map((catKey) => {
+            const catFeatures = filteredFeatures.filter(
+              (f) => f.category === catKey && !['servers', 'files', 'docker', 'deployModule', 'notes', 'aiAssistant', 'configCreators', 'serverAdmin'].includes(f.key)
+            );
+            if (catFeatures.length === 0) return null;
+            return (
+              <div key={catKey} className="space-y-4">
+                <div>
+                  <h2 className="text-sm font-bold tracking-wide uppercase text-[var(--accent)]">{CATEGORIES[catKey].name}</h2>
+                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">{CATEGORIES[catKey].desc}</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {catFeatures.map((item) => {
+                    const Icon = item.icon;
+                    const isChecked = !!flags[item.key];
+                    const isParentSuiteDisabled = item.isSubFeature && !flags.deployModule;
+                    const isDisabled = isParentSuiteDisabled;
+                    return (
+                      <div
+                        key={item.key}
+                        className={`relative flex gap-3 p-4 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] transition-all duration-150 ${
+                          item.isSubFeature ? 'ml-6 border-dashed border-l-2' : ''
+                        } ${isDisabled ? 'opacity-40' : 'hover:border-[var(--text-muted)]/40 hover:bg-[var(--bg-secondary)]/60'}`}
+                      >
+                        {item.isSubFeature && (
+                          <div className="absolute left-[-16px] top-[50%] w-4 h-[1px] border-t border-dashed border-[var(--border)] pointer-events-none" />
+                        )}
+                        <div className={`p-2 rounded-md shrink-0 flex items-center justify-center ${
+                          isChecked && !isDisabled ? 'bg-[var(--accent)]/10 text-[var(--accent)]' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'
+                        }`}>
+                          <Icon size={18} />
+                        </div>
+                        <div className="flex-1 min-w-0 pr-1">
+                          <div className="flex items-center gap-1.5">
+                            <h3 className="text-sm font-semibold truncate text-[var(--text-primary)]">{item.title}</h3>
+                            {isDisabled && (
+                              <span className="flex items-center gap-0.5 text-[10px] bg-[var(--bg-tertiary)] text-[var(--text-secondary)] px-1 py-0.5 rounded border border-[var(--border)]">
+                                <Lock size={8} /> Parent Off
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-[var(--text-secondary)] leading-relaxed mt-1">{item.description}</p>
+                        </div>
+                        <div className="shrink-0 flex items-center">
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={isChecked && !isDisabled}
+                            disabled={isDisabled}
+                            onClick={() => handleToggle(item.key, item.isSubFeature)}
+                            style={{
+                              background: isChecked && !isDisabled ? 'var(--accent)' : 'var(--bg-tertiary)',
+                              border: isChecked && !isDisabled ? '1px solid transparent' : '1px solid var(--border)',
+                            }}
+                            className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+                              isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
+                            }`}
+                          >
+                            <span
+                              aria-hidden="true"
+                              style={{
+                                transform: isChecked && !isDisabled ? 'translateX(20px)' : 'translateX(2px)',
+                              }}
+                              className="pointer-events-none absolute top-[2px] inline-block h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out"
+                            />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
 
         {filteredFeatures.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 text-[var(--text-secondary)] bg-[var(--bg-secondary)]/30 rounded-lg border border-[var(--border)] border-dashed">
@@ -567,9 +628,7 @@ function ModulesView() {
       </div>
     </>
   );
-}
-
-/* ─────────────────────────────────────────────
+}/* ─────────────────────────────────────────────
    MAIN SETTINGS VIEW  (tab shell)
 ───────────────────────────────────────────── */
 type SettingsTab = 'modules' | 'changelog';
@@ -579,7 +638,7 @@ export function SettingsView() {
 
   const tabs: { id: SettingsTab; label: string; icon: React.ComponentType<any> }[] = [
     { id: 'modules',   label: 'Feature Modules', icon: Sliders },
-    { id: 'changelog', label: 'Changelog',        icon: ScrollText },
+    { id: 'changelog', label: 'Changelog',       icon: ScrollText },
   ];
 
   return (
@@ -641,3 +700,4 @@ export function SettingsView() {
     </div>
   );
 }
+

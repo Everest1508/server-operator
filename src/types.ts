@@ -1,4 +1,4 @@
-export type ViewId = 'servers' | 'files' | 'docker' | 'deploy' | 'notes' | 'monitoring' | 'database' | 'snippets' | 'settings';
+export type ViewId = 'servers' | 'files' | 'docker' | 'deploy' | 'notes' | 'database' | 'guide' | 'settings';
 
 export interface FeatureFlags {
   deployModule: boolean;
@@ -13,7 +13,6 @@ export interface FeatureFlags {
   notes: boolean;
   deployPipeline: boolean;
   deployHistory: boolean;
-  snippetLibrary: boolean;
   sidebarUx: 'hidden' | 'disabled';
 }
 
@@ -22,15 +21,14 @@ export const DEFAULT_FLAGS: FeatureFlags = {
   servers: true,
   files: true,
   docker: true,
-  database: false,
-  aiAssistant: false,
-  shortcuts: false,
-  serverAdmin: false,
-  configCreators: false,
+  database: true,
+  aiAssistant: true,
+  shortcuts: true,
+  serverAdmin: true,
+  configCreators: true,
   notes: true,
-  deployPipeline: false,
-  deployHistory: false,
-  snippetLibrary: false,
+  deployPipeline: true,
+  deployHistory: true,
   sidebarUx: 'hidden',
 };
 
