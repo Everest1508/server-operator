@@ -189,6 +189,64 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
     return () => window.removeEventListener('shell-output', handler as EventListener);
   }, [terminalTabs]);
 
+  // Listen for paste snippet requests
+  useEffect(() => {
+    const handlePaste = (e: Event) => {
+      const customEvent = e as CustomEvent<{ command: string }>;
+      const cmdText = customEvent.detail.command;
+      if (!cmdText) return;
+
+      const activeTab = terminalTabs.find((t) => t.id === activeTerminalTabId);
+      if (activeTab && activeTab.shellId) {
+        // Paste into active terminal PTY
+        window.serverOperator?.shellWrite({ shellId: activeTab.shellId, data: cmdText });
+      } else {
+        // No active terminal tab, spawn a new one with the command
+        if (!currentServer || !window.serverOperator) return;
+        const id = `term-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const tab: TerminalTab = {
+          id,
+          shellId: null,
+          serverId: currentServer.id,
+          label: 'Shell',
+          connecting: true,
+          error: null,
+          pendingCommand: cmdText,
+        };
+        setTerminalTabs((prev) => [...prev, tab]);
+        setActiveTerminalTabId(id);
+        window.serverOperator
+          .openShell({ connection: currentServer, proxy })
+          .then((res) => {
+            if (res.ok && res.shellId) {
+              setTerminalTabs((prev) =>
+                prev.map((t) => (t.id === id ? { ...t, shellId: res.shellId!, connecting: false } : t))
+              );
+              // Wait slightly for connection to stabilize before writing command
+              setTimeout(() => {
+                window.serverOperator?.shellWrite({ shellId: res.shellId!, data: cmdText });
+              }, 400);
+            } else {
+              setTerminalTabs((prev) =>
+                prev.map((t) => (t.id === id ? { ...t, connecting: false, error: res.error || 'Failed to open shell' } : t))
+              );
+            }
+          })
+          .catch((err) => {
+            const msg = err && typeof err === 'object' && 'message' in err ? String(err.message) : String(err);
+            setTerminalTabs((prev) =>
+              prev.map((t) => (t.id === id ? { ...t, connecting: false, error: msg } : t))
+            );
+          });
+      }
+    };
+
+    window.addEventListener('paste-to-active-terminal', handlePaste as EventListener);
+    return () => {
+      window.removeEventListener('paste-to-active-terminal', handlePaste as EventListener);
+    };
+  }, [terminalTabs, activeTerminalTabId, currentServer, proxy]);
+
   const closeTerminalTab = useCallback((tabId: string) => {
     const tab = terminalTabs.find((t) => t.id === tabId);
     if (tab?.shellId) window.serverOperator?.closeShell({ shellId: tab.shellId });

@@ -5,6 +5,8 @@ import type { ServerConnection, ViewId, ProxySettings } from '../types';
 import { DockerView } from './DockerView';
 import { DeployView } from './DeployView';
 import { ServerOverview } from './ServerOverview';
+import { ServerMonitoringView } from './ServerMonitoringView';
+import { DatabaseView } from './DatabaseView';
 
 function languageFromPath(path: string): string {
   if (path.startsWith('notes://')) return 'markdown';
@@ -21,6 +23,7 @@ function languageFromPath(path: string): string {
 interface EditorAreaProps {
   currentServer: ServerConnection | null;
   servers: ServerConnection[];
+  onSelectServer?: (server: ServerConnection) => void;
   activeView: ViewId;
   proxy: ProxySettings;
   onPanelTab: (tab: 'logs' | 'terminal') => void;
@@ -68,6 +71,8 @@ function basename(path: string): string {
 
 export function EditorArea({
   currentServer,
+  servers,
+  onSelectServer,
   activeView,
   proxy,
   onPanelTab: _onPanelTab,
@@ -226,6 +231,8 @@ export function EditorArea({
         >
           <DeployView
             currentServer={currentServer}
+            servers={servers}
+            onSelectServer={onSelectServer}
             proxy={proxy}
             onOpenPanel={onPanelOpen}
             currentPath={_currentPath}
@@ -252,6 +259,22 @@ export function EditorArea({
             servicesByPath={dockerServicesByPath}
             servicesLoading={dockerServicesLoading}
             onRefresh={onRefreshDocker}
+          />
+        </div>
+      )}
+      {activeView === 'monitoring' && (
+        <div className="flex-1 flex flex-col min-h-0">
+          <ServerMonitoringView
+            currentServer={currentServer}
+            proxy={proxy}
+          />
+        </div>
+      )}
+      {activeView === 'database' && (
+        <div className="flex-1 flex flex-col min-h-0">
+          <DatabaseView
+            currentServer={currentServer}
+            proxy={proxy}
           />
         </div>
       )}

@@ -48,6 +48,151 @@ function setupCrashLogging() {
 }
 setupCrashLogging();
 
+// ----- Initialize SQLite Database for Alert History -----
+let db;
+try {
+  const sqlite3 = require('sqlite3').verbose();
+  const dbPath = path.join(app.getPath('userData'), 'alerts.db');
+  db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+      log('SQLite connection error', { error: err.message });
+    } else {
+      log('SQLite database opened successfully', { path: dbPath });
+    }
+  });
+
+  db.serialize(() => {
+    db.run(`
+      CREATE TABLE IF NOT EXISTS alerts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        serverId TEXT,
+        serverName TEXT,
+        metricType TEXT,
+        metricValue REAL,
+        thresholdValue REAL,
+        message TEXT,
+        timestamp TEXT
+      )
+    `, (err) => {
+      if (err) {
+        log('SQLite table create error', { error: err.message });
+      } else {
+        log('SQLite alerts table initialized');
+      }
+    });
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS historical_metrics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        serverId TEXT,
+        cpu REAL,
+        ram REAL,
+        disk REAL,
+        timestamp TEXT
+      )
+    `, (err) => {
+      if (err) {
+        log('SQLite table historical_metrics create error', { error: err.message });
+      } else {
+        log('SQLite historical_metrics table initialized');
+      }
+    });
+
+    db.run(`
+      CREATE INDEX IF NOT EXISTS idx_historical_metrics_server_time 
+      ON historical_metrics (serverId, timestamp)
+    `, (err) => {
+      if (err) {
+        log('SQLite index creation error', { error: err.message });
+      } else {
+        log('SQLite historical_metrics index initialized');
+      }
+    });
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS deployment_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        serverId TEXT NOT NULL,
+        serverName TEXT NOT NULL,
+        projectDir TEXT NOT NULL,
+        branch TEXT NOT NULL,
+        commitHash TEXT,
+        triggeredCommand TEXT NOT NULL,
+        status TEXT NOT NULL,
+        output TEXT,
+        timestamp TEXT NOT NULL
+      )
+    `, (err) => {
+      if (err) {
+        log('SQLite deployment_history table create error', { error: err.message });
+      } else {
+        log('SQLite deployment_history table initialized');
+      }
+    });
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS terminal_snippets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        description TEXT,
+        command TEXT NOT NULL,
+        timestamp TEXT NOT NULL
+      )
+    `, (err) => {
+      if (err) {
+        log('SQLite terminal_snippets table create error', { error: err.message });
+      } else {
+        log('SQLite terminal_snippets table initialized');
+        db.get('SELECT COUNT(*) as count FROM terminal_snippets', (err, row) => {
+          if (!err && row && row.count === 0) {
+            const defaultSnippets = [
+              {
+                title: 'Docker Logs',
+                description: 'Tail the last 100 lines of logs for a compose service',
+                command: 'docker compose logs -f --tail=100 {{service_name}}'
+              },
+              {
+                title: 'Reload Nginx Service',
+                description: 'Safely test and reload Nginx configurations',
+                command: 'sudo nginx -t && sudo systemctl reload nginx'
+              },
+              {
+                title: 'Check Disk Space',
+                description: 'Show mounted filesystems disk space usage',
+                command: 'df -h'
+              },
+              {
+                title: 'Process Check by Port',
+                description: 'Find processes listening on a specific port',
+                command: 'sudo netstat -tulpn | grep {{port}}'
+              },
+              {
+                title: 'Memory Usage Info',
+                description: 'Show system memory (RAM) usage in human-readable format',
+                command: 'free -h'
+              },
+              {
+                title: 'Docker System Prune',
+                description: 'Remove all unused containers, networks, and images',
+                command: 'docker system prune -a --volumes -f'
+              }
+            ];
+            const stmt = db.prepare('INSERT INTO terminal_snippets (title, description, command, timestamp) VALUES (?, ?, ?, ?)');
+            const ts = new Date().toISOString();
+            defaultSnippets.forEach(s => {
+              stmt.run(s.title, s.description, s.command, ts);
+            });
+            stmt.finalize();
+            log('Seeded terminal snippets table with defaults');
+          }
+        });
+      }
+    });
+  });
+} catch (e) {
+  log('SQLite module load error', { error: String(e) });
+}
+
 // Allow running on Linux without SUID chrome-sandbox (e.g. when not installed as root)
 if (process.platform === 'linux') {
   app.commandLine.appendSwitch('no-sandbox');
@@ -1200,6 +1345,64 @@ ipcMain.handle('server:download-remote-file', async (_, { connection, proxy, rem
   }
 });
 
+function execCommandStream(conn, command, cwd, onData) {
+  return new Promise((resolve) => {
+    const fullCmd = cwd ? `cd "${String(cwd).replace(/"/g, '\\"')}" && ${command}` : command;
+    conn.exec(fullCmd, (err, stream) => {
+      if (err) {
+        onData(`Error: ${err.message}\r\n`);
+        resolve({ code: 1, output: err.message });
+        return;
+      }
+      let output = '';
+      stream.on('data', (data) => {
+        const str = data.toString();
+        output += str;
+        onData(str);
+      });
+      stream.stderr.on('data', (data) => {
+        const str = data.toString();
+        output += str;
+        onData(str);
+      });
+      stream.on('close', (code) => {
+        resolve({ code: code ?? 0, output });
+      });
+    });
+  });
+}
+
+function execLocalCommandStream(command, cwd, onData) {
+  return new Promise((resolve) => {
+    const shell = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh';
+    const args = process.platform === 'win32' ? ['/d', '/s', '/c', command] : ['-c', command];
+    
+    const proc = spawn(shell, args, { cwd, shell: true });
+    let output = '';
+    
+    proc.stdout.on('data', (data) => {
+      const str = data.toString();
+      output += str;
+      onData(str);
+    });
+    
+    proc.stderr.on('data', (data) => {
+      const str = data.toString();
+      output += str;
+      onData(str);
+    });
+    
+    proc.on('close', (code) => {
+      resolve({ code: code ?? 0, output });
+    });
+    
+    proc.on('error', (err) => {
+      onData(`Local execute error: ${err.message}\r\n`);
+      resolve({ code: 1, output: err.message });
+    });
+  });
+}
+
 log('ipc handlers registered', { deletePath: true, uploadLocalFile: true, downloadRemoteFile: true });
 
 ipcMain.handle('server:deploy', async (_, { connection, deployCommand, proxy, cwd }) => {
@@ -1222,6 +1425,250 @@ ipcMain.handle('server:deploy', async (_, { connection, deployCommand, proxy, cw
   } catch (e) {
     return { ok: false, error: errMsg(e) };
   }
+});
+
+ipcMain.handle('server:run-deploy-pipeline', async (_, { connection, shellId, projectDir, branch, depType, migType, restartType, serviceName, proxy }) => {
+  const serverId = connection.id;
+  const serverName = connection.name;
+  
+  const cmds = [];
+  cmds.push(`echo "🚀 Starting Git-based deployment pipeline..."`);
+  cmds.push(`git pull origin "${branch || 'main'}"`);
+  
+  if (depType === 'auto') {
+    cmds.push(`if [ -f package.json ]; then echo "↳ Found package.json. Running npm install..." && npm install; elif [ -f requirements.txt ]; then echo "↳ Found requirements.txt. Running pip install..." && pip install -r requirements.txt; else echo "↳ No package.json or requirements.txt found. Skipping dependencies."; fi`);
+  } else if (depType === 'npm') {
+    cmds.push(`npm install`);
+  } else if (depType === 'pip') {
+    cmds.push(`pip install -r requirements.txt`);
+  }
+  
+  if (migType === 'auto') {
+    cmds.push(`if [ -f package.json ] && grep -q '"migrate"' package.json; then echo "↳ Found 'migrate' script. Running npm run migrate..." && npm run migrate; elif [ -f manage.py ]; then echo "↳ Found manage.py. Running python manage.py migrate..." && python manage.py migrate; else echo "↳ No migration scripts detected."; fi`);
+  } else if (migType === 'npm') {
+    cmds.push(`npm run migrate`);
+  } else if (migType === 'pip') {
+    cmds.push(`python manage.py migrate`);
+  }
+  
+  if (restartType === 'pm2') {
+    cmds.push(`pm2 restart "${serviceName || 'app'}"`);
+  } else if (restartType === 'systemd') {
+    cmds.push(`sudo systemctl restart "${serviceName || 'app'}" || systemctl restart "${serviceName || 'app'}"`);
+  }
+  
+  const fullCommand = cmds.join(' && ');
+  const timestamp = new Date().toISOString();
+  
+  const onData = (data) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('shell-output', { shellId, data: data.replace(/\r?\n/g, '\r\n') });
+    }
+  };
+  
+  try {
+    let result;
+    let workDir = projectDir;
+    
+    if (isDummy(connection)) {
+      ensureDummyRoot();
+      const root = getDummyRoot();
+      workDir = projectDir && projectDir.trim() && projectDir !== '.' ? path.join(root, projectDir.replace(/^dummy-root\/?/, '')) : root;
+      result = await execLocalCommandStream(fullCommand, workDir, onData);
+    } else {
+      const conn = await getOrCreateConnection(connection, proxy);
+      result = await execCommandStream(conn, fullCommand, projectDir, onData);
+    }
+    
+    let commitHash = '';
+    const status = result.code === 0 ? 'success' : 'failure';
+    
+    if (result.code === 0) {
+      try {
+        let gitRes;
+        if (isDummy(connection)) {
+          gitRes = await execLocalCommandStream('git rev-parse HEAD', workDir, () => {});
+        } else {
+          const conn = await getOrCreateConnection(connection, proxy);
+          gitRes = await execCommandStream(conn, 'git rev-parse HEAD', projectDir, () => {});
+        }
+        commitHash = gitRes.output.trim();
+      } catch (e) {
+        log('Error getting git commit hash', { error: String(e) });
+      }
+    }
+    
+    db.run(`
+      INSERT INTO deployment_history (serverId, serverName, projectDir, branch, commitHash, triggeredCommand, status, output, timestamp)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [serverId, serverName, projectDir, branch, commitHash, fullCommand, status, result.output, timestamp], (err) => {
+      if (err) {
+        log('SQLite save deployment_history error', { error: err.message });
+      }
+    });
+    
+    if (result.code === 0) {
+      onData(`\r\n✨ Deployment completed successfully! Commit: ${commitHash || 'Unknown'}\r\n`);
+      return { ok: true, commitHash, output: result.output };
+    } else {
+      onData(`\r\n❌ Deployment failed with exit code ${result.code}.\r\n`);
+      return { ok: false, error: `Command chain exited with code ${result.code}`, output: result.output };
+    }
+  } catch (e) {
+    onData(`\r\n❌ Deployment exception: ${errMsg(e)}\r\n`);
+    return { ok: false, error: errMsg(e) };
+  }
+});
+
+ipcMain.handle('server:rollback-deploy', async (_, { connection, shellId, projectDir, commitHash, restartType, serviceName, proxy }) => {
+  const serverId = connection.id;
+  const serverName = connection.name;
+  
+  const cmds = [];
+  cmds.push(`echo "🔄 Starting rollback process..."`);
+  cmds.push(`git checkout "${commitHash}"`);
+  
+  if (restartType === 'pm2') {
+    cmds.push(`pm2 restart "${serviceName || 'app'}"`);
+  } else if (restartType === 'systemd') {
+    cmds.push(`sudo systemctl restart "${serviceName || 'app'}" || systemctl restart "${serviceName || 'app'}"`);
+  }
+  
+  const fullCommand = cmds.join(' && ');
+  const timestamp = new Date().toISOString();
+  
+  const onData = (data) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('shell-output', { shellId, data: data.replace(/\r?\n/g, '\r\n') });
+    }
+  };
+  
+  try {
+    let result;
+    let workDir = projectDir;
+    
+    if (isDummy(connection)) {
+      ensureDummyRoot();
+      const root = getDummyRoot();
+      workDir = projectDir && projectDir.trim() && projectDir !== '.' ? path.join(root, projectDir.replace(/^dummy-root\/?/, '')) : root;
+      result = await execLocalCommandStream(fullCommand, workDir, onData);
+    } else {
+      const conn = await getOrCreateConnection(connection, proxy);
+      result = await execCommandStream(conn, fullCommand, projectDir, onData);
+    }
+    
+    const status = result.code === 0 ? 'success' : 'failure';
+    const triggeredCommand = `Rollback to ${commitHash}`;
+    
+    db.run(`
+      INSERT INTO deployment_history (serverId, serverName, projectDir, branch, commitHash, triggeredCommand, status, output, timestamp)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [serverId, serverName, projectDir, 'rollback', commitHash, triggeredCommand, status, result.output, timestamp], (err) => {
+      if (err) {
+        log('SQLite save deployment_history rollback error', { error: err.message });
+      }
+    });
+    
+    if (result.code === 0) {
+      onData(`\r\n✨ Rollback successful! Switched to commit: ${commitHash}\r\n`);
+      return { ok: true };
+    } else {
+      onData(`\r\n❌ Rollback failed with exit code ${result.code}.\r\n`);
+      return { ok: false, error: `Rollback command exited with code ${result.code}` };
+    }
+  } catch (e) {
+    onData(`\r\n❌ Rollback exception: ${errMsg(e)}\r\n`);
+    return { ok: false, error: errMsg(e) };
+  }
+});
+
+ipcMain.handle('server:get-deploy-history', async (_, { serverId, projectDir }) => {
+  return new Promise((resolve) => {
+    db.all(`
+      SELECT * FROM deployment_history 
+      WHERE serverId = ? AND projectDir = ? 
+      ORDER BY id DESC 
+      LIMIT 100
+    `, [serverId, projectDir], (err, rows) => {
+      if (err) {
+        log('SQLite select deployment_history error', { error: err.message });
+        resolve([]);
+      } else {
+        resolve(rows || []);
+      }
+    });
+  });
+});
+
+ipcMain.handle('snippets:get', async () => {
+  return new Promise((resolve) => {
+    if (!db) {
+      resolve([]);
+      return;
+    }
+    db.all('SELECT * FROM terminal_snippets ORDER BY title ASC', (err, rows) => {
+      if (err) {
+        log('SQLite select terminal_snippets error', { error: err.message });
+        resolve([]);
+      } else {
+        resolve(rows || []);
+      }
+    });
+  });
+});
+
+ipcMain.handle('snippets:save', async (_, { id, title, description, command }) => {
+  const timestamp = new Date().toISOString();
+  return new Promise((resolve) => {
+    if (!db) {
+      resolve({ ok: false, error: 'Database not initialized' });
+      return;
+    }
+    if (id) {
+      db.run(
+        'UPDATE terminal_snippets SET title = ?, description = ?, command = ?, timestamp = ? WHERE id = ?',
+        [title, description, command, timestamp, id],
+        function (err) {
+          if (err) {
+            log('SQLite update snippet error', { error: err.message });
+            resolve({ ok: false, error: err.message });
+          } else {
+            resolve({ ok: true, id });
+          }
+        }
+      );
+    } else {
+      db.run(
+        'INSERT INTO terminal_snippets (title, description, command, timestamp) VALUES (?, ?, ?, ?)',
+        [title, description, command, timestamp],
+        function (err) {
+          if (err) {
+            log('SQLite insert snippet error', { error: err.message });
+            resolve({ ok: false, error: err.message });
+          } else {
+            resolve({ ok: true, id: this.lastID });
+          }
+        }
+      );
+    }
+  });
+});
+
+ipcMain.handle('snippets:delete', async (_, { id }) => {
+  return new Promise((resolve) => {
+    if (!db) {
+      resolve({ ok: false, error: 'Database not initialized' });
+      return;
+    }
+    db.run('DELETE FROM terminal_snippets WHERE id = ?', [id], function (err) {
+      if (err) {
+        log('SQLite delete snippet error', { error: err.message });
+        resolve({ ok: false, error: err.message });
+      } else {
+        resolve({ ok: true });
+      }
+    });
+  });
 });
 
 ipcMain.handle('app:open-devtools', async () => {
@@ -1275,4 +1722,692 @@ ipcMain.handle('app:clear-log-file', async () => {
     return { ok: false, error: errMsg(e) };
   }
 });
+
+// ── Alerting System IPC Handlers ─────────────────────────────────────
+ipcMain.handle('alerts:save', async (_, alert) => {
+  return new Promise((resolve) => {
+    if (!db) {
+      resolve({ ok: false, error: 'Database not initialized' });
+      return;
+    }
+    const stmt = db.prepare(`
+      INSERT INTO alerts (serverId, serverName, metricType, metricValue, thresholdValue, message, timestamp)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(
+      alert.serverId,
+      alert.serverName,
+      alert.metricType,
+      alert.metricValue,
+      alert.thresholdValue,
+      alert.message,
+      alert.timestamp || new Date().toISOString(),
+      function(err) {
+        if (err) {
+          log('SQLite save error', { error: err.message });
+          resolve({ ok: false, error: err.message });
+        } else {
+          resolve({ ok: true, id: this.lastID });
+        }
+      }
+    );
+    stmt.finalize();
+  });
+});
+
+ipcMain.handle('alerts:get-history', async (_, { serverId }) => {
+  return new Promise((resolve) => {
+    if (!db) {
+      resolve([]);
+      return;
+    }
+    let sql = 'SELECT * FROM alerts';
+    const params = [];
+    if (serverId) {
+      sql += ' WHERE serverId = ?';
+      params.push(serverId);
+    }
+    sql += ' ORDER BY id DESC LIMIT 200';
+    db.all(sql, params, (err, rows) => {
+      if (err) {
+        log('SQLite get error', { error: err.message });
+        resolve([]);
+      } else {
+        resolve(rows || []);
+      }
+    });
+  });
+});
+
+ipcMain.handle('alerts:clear-history', async (_, { serverId }) => {
+  return new Promise((resolve) => {
+    if (!db) {
+      resolve({ ok: false, error: 'Database not initialized' });
+      return;
+    }
+    let sql = 'DELETE FROM alerts';
+    const params = [];
+    if (serverId) {
+      sql += ' WHERE serverId = ?';
+      params.push(serverId);
+    }
+    db.run(sql, params, (err) => {
+      if (err) {
+        log('SQLite delete error', { error: err.message });
+        resolve({ ok: false, error: err.message });
+      } else {
+        resolve({ ok: true });
+      }
+    });
+  });
+});
+
+ipcMain.handle('alerts:trigger-notification', (_, { title, body }) => {
+  const { Notification } = require('electron');
+  try {
+    if (Notification.isSupported()) {
+      new Notification({ title, body }).show();
+      return { ok: true };
+    }
+    return { ok: false, error: 'Notifications not supported' };
+  } catch (e) {
+    log('Notification error', { error: String(e) });
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('alerts:send-webhook', async (_, { url, payload }) => {
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    return { ok: response.ok, status: response.status };
+  } catch (e) {
+    log('Webhook error', { error: String(e) });
+    return { ok: false, error: String(e) };
+  }
+});
+
+// ── Uptime Monitoring System IPC Handlers & Logic ───────────────────
+let monitoredServers = [];
+let monitoringProxy = null;
+const serverStatuses = new Map();
+let monitoringIntervalId = null;
+
+function broadcastStatuses() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    const list = Array.from(serverStatuses.values());
+    mainWindow.webContents.send('monitored-servers-status-updated', list);
+  }
+}
+
+async function checkServerUptime(server) {
+  const start = Date.now();
+  let conn;
+  try {
+    if (isDummy(server)) {
+      const latency = Math.round(15 + Math.random() * 20);
+      const rand = Math.random();
+      const status = rand > 0.95 ? 'red' : rand > 0.8 ? 'yellow' : 'green';
+      const services = {
+        nginx: status === 'red' ? 'down' : 'up',
+        postgresql: status === 'red' ? 'down' : (rand > 0.85 ? 'down' : 'up'),
+        docker: status === 'red' ? 'down' : 'up',
+        redis: status === 'red' ? 'down' : 'up',
+      };
+      const cpu = Math.round(30 + Math.random() * 40);
+      const ram = Math.round(50 + Math.random() * 25);
+      const disk = Math.round(45 + Math.random() * 5);
+      return {
+        serverId: server.id,
+        status,
+        latency,
+        lastChecked: new Date().toISOString(),
+        services,
+        cpu,
+        ram,
+        disk
+      };
+    }
+
+    conn = await connectSSH(server, monitoringProxy);
+    
+    const cmd = `
+      services=("nginx" "postgresql" "postgres" "docker" "mysql" "redis-server" "redis" "apache2" "mongodb" "mongod")
+      results=""
+      for svc in "\${services[@]}"; do
+        status="down"
+        if command -v systemctl >/dev/null 2>&1; then
+          if systemctl is-active --quiet "$svc" 2>/dev/null; then
+            status="up"
+          fi
+        fi
+        if [ "$status" = "down" ]; then
+          if pgrep -x "$svc" >/dev/null 2>&1 || pgrep -f "$svc" >/dev/null 2>&1; then
+            status="up"
+          fi
+        fi
+        
+        # Check if service exists
+        exists=0
+        if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files "$svc.service" >/dev/null 2>&1; then
+          exists=1
+        elif pgrep -x "$svc" >/dev/null 2>&1 || pgrep -f "$svc" >/dev/null 2>&1; then
+          exists=1
+        fi
+        
+        if [ $exists -eq 1 ]; then
+          results="$results$svc:$status,"
+        fi
+      done
+      echo "===SERVICES===$results"
+
+      # CPU check
+      echo "===CPU==="
+      if command -v top >/dev/null 2>&1; then
+        top -bn1 | grep -i "cpu(s)" | head -n 1
+      fi
+
+      # FREE check
+      echo "===FREE==="
+      if command -v free >/dev/null 2>&1; then
+        free -b
+      else
+        cat /proc/meminfo 2>/dev/null
+      fi
+
+      # DF check
+      echo "===DF==="
+      df -h . 2>/dev/null | tail -n 1
+    `.trim();
+
+    const result = await execCommand(conn, cmd, undefined);
+    const latency = Date.now() - start;
+
+    let services = {};
+    let hasDown = false;
+    let cpu = 0;
+    let ram = 0;
+    let disk = 0;
+
+    if (result.code === 0) {
+      const stdout = result.stdout || '';
+      const sections = {};
+      const markerRegex = /===([A-Z0-9_]+)===\n([\s\S]*?)(?=(?:===[A-Z0-9_]+===|$))/g;
+      let m;
+      while ((m = markerRegex.exec(stdout)) !== null) {
+        sections[m[1]] = m[2];
+      }
+
+      if (sections.SERVICES) {
+        const parts = sections.SERVICES.split(',').filter(Boolean);
+        for (const part of parts) {
+          const [name, state] = part.split(':');
+          services[name] = state;
+          if (state === 'down') hasDown = true;
+        }
+      }
+
+      // Parse CPU
+      if (sections.CPU) {
+        const idleMatch = sections.CPU.match(/(\d+(?:[\.,]\d+)?)\s*id/i);
+        if (idleMatch) {
+          cpu = 100 - parseFloat(idleMatch[1].replace(',', '.'));
+        }
+      }
+      cpu = Math.max(0, Math.min(100, Math.round(cpu * 10) / 10));
+
+      // Parse RAM
+      let memTotal = 0;
+      let memUsed = 0;
+      if (sections.FREE) {
+        const lines = sections.FREE.trim().split('\n');
+        const memLine = lines.find(l => l.startsWith('Mem:'));
+        if (memLine) {
+          const parts = memLine.trim().split(/\s+/);
+          if (parts.length >= 4) {
+            memTotal = parseInt(parts[1], 10) || 0;
+            memUsed = parseInt(parts[2], 10) || 0;
+          }
+        } else {
+          let totalKB = 0;
+          let availKB = 0;
+          for (const line of lines) {
+            if (line.startsWith('MemTotal:')) totalKB = parseInt(line.replace(/[^0-9]/g, ''), 10) || 0;
+            else if (line.startsWith('MemAvailable:')) availKB = parseInt(line.replace(/[^0-9]/g, ''), 10) || 0;
+          }
+          if (totalKB > 0) {
+            memTotal = totalKB * 1024;
+            const avail = availKB > 0 ? availKB * 1024 : 0;
+            memUsed = memTotal - avail;
+          }
+        }
+      }
+      ram = memTotal > 0 ? Math.round(((memUsed / memTotal) * 100) * 10) / 10 : 0;
+
+      // Parse Disk
+      if (sections.DF) {
+        const dfMatch = sections.DF.match(/(\d+)%/);
+        if (dfMatch) {
+          disk = parseInt(dfMatch[1], 10) || 0;
+        }
+      }
+    }
+
+    let status = 'green';
+    if (hasDown) status = 'yellow';
+
+    return {
+      serverId: server.id,
+      status,
+      latency,
+      lastChecked: new Date().toISOString(),
+      services,
+      cpu,
+      ram,
+      disk
+    };
+  } catch (err) {
+    return {
+      serverId: server.id,
+      status: 'red',
+      latency: -1,
+      lastChecked: new Date().toISOString(),
+      services: {},
+      cpu: 0,
+      ram: 0,
+      disk: 0,
+      error: err.message || String(err),
+    };
+  } finally {
+    if (conn) {
+      try { conn.end(); } catch (_) {}
+    }
+  }
+}
+
+async function runMonitoringCycle() {
+  log('Running periodic uptime checks', { count: monitoredServers.length });
+  for (const server of monitoredServers) {
+    const statusData = await checkServerUptime(server);
+    const existing = serverStatuses.get(server.id) || { latencyHistory: [] };
+    const history = [...(existing.latencyHistory || [])];
+    if (statusData.latency >= 0) {
+      history.push({
+        timestamp: statusData.lastChecked,
+        latency: statusData.latency
+      });
+    }
+    statusData.latencyHistory = history.slice(-30);
+    serverStatuses.set(server.id, statusData);
+
+    // Save historical metric to SQLite table (if successfully checked)
+    if (statusData.status !== 'red' && db) {
+      const stmt = db.prepare(`
+        INSERT INTO historical_metrics (serverId, cpu, ram, disk, timestamp)
+        VALUES (?, ?, ?, ?, ?)
+      `);
+      stmt.run(
+        statusData.serverId,
+        statusData.cpu,
+        statusData.ram,
+        statusData.disk,
+        statusData.lastChecked,
+        (err) => {
+          if (err) {
+            log('Error saving historical metrics', { error: err.message });
+          }
+        }
+      );
+      stmt.finalize();
+    }
+  }
+  broadcastStatuses();
+}
+
+function startMonitoring() {
+  if (monitoringIntervalId) clearInterval(monitoringIntervalId);
+  runMonitoringCycle();
+  monitoringIntervalId = setInterval(runMonitoringCycle, 60000);
+}
+
+ipcMain.handle('monitoring:set-servers', (_, { servers, proxy }) => {
+  monitoredServers = servers || [];
+  monitoringProxy = proxy || null;
+  
+  const serverIds = new Set(monitoredServers.map(s => s.id));
+  for (const id of serverStatuses.keys()) {
+    if (!serverIds.has(id)) {
+      serverStatuses.delete(id);
+    }
+  }
+  
+  startMonitoring();
+  return { ok: true };
+});
+
+ipcMain.handle('monitoring:get-statuses', () => {
+  return Array.from(serverStatuses.values());
+});
+
+ipcMain.handle('metrics:get-history', async (_, { serverId, timeWindow, startDate, endDate }) => {
+  if (!db) return [];
+  
+  let startStr;
+  let endStr = endDate ? new Date(endDate).toISOString() : new Date().toISOString();
+  
+  if (startDate) {
+    startStr = new Date(startDate).toISOString();
+  } else {
+    let timeAgo = new Date();
+    if (timeWindow === '1h') timeAgo.setHours(timeAgo.getHours() - 1);
+    else if (timeWindow === '6h') timeAgo.setHours(timeAgo.getHours() - 6);
+    else if (timeWindow === '24h') timeAgo.setHours(timeAgo.getHours() - 24);
+    else if (timeWindow === '7d') timeAgo.setDate(timeAgo.getDate() - 7);
+    else timeAgo.setHours(timeAgo.getHours() - 24); // default 24h
+    startStr = timeAgo.toISOString();
+  }
+
+  return new Promise((resolve) => {
+    const sql = `
+      SELECT cpu, ram, disk, timestamp 
+      FROM historical_metrics 
+      WHERE serverId = ? AND timestamp >= ? AND timestamp <= ?
+      ORDER BY timestamp ASC
+    `;
+    db.all(sql, [serverId, startStr, endStr], (err, rows) => {
+      if (err) {
+        log('Error reading historical metrics', { error: err.message });
+        resolve([]);
+      } else {
+        resolve(rows || []);
+      }
+    });
+  });
+});
+
+ipcMain.handle('metrics:clear-history', async (_, { serverId }) => {
+  if (!db) return { ok: false, error: 'Database not initialized' };
+  return new Promise((resolve) => {
+    const sql = serverId 
+      ? `DELETE FROM historical_metrics WHERE serverId = ?` 
+      : `DELETE FROM historical_metrics`;
+    const params = serverId ? [serverId] : [];
+    db.run(sql, params, (err) => {
+      if (err) {
+        log('Error clearing historical metrics', { error: err.message });
+        resolve({ ok: false, error: err.message });
+      } else {
+        resolve({ ok: true });
+      }
+    });
+  });
+});
+
+// ----- Database Tunneling and Queries Handling -----
+const activeDbConnections = new Map(); // serverId -> { tunnelServer, dbClient, dbType, localPort }
+const net = require('net');
+
+function createTunnel(sshConn, remoteHost, remotePort) {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer((socket) => {
+      sshConn.forwardOut(
+        '127.0.0.1', 
+        server.address().port, 
+        remoteHost, 
+        remotePort, 
+        (err, stream) => {
+          if (err) {
+            log('Tunnel forwarding error', { error: err.message });
+            socket.destroy();
+            return;
+          }
+          socket.pipe(stream).pipe(socket);
+          
+          socket.on('error', (e) => {
+            log('Tunnel socket error', { error: e.message });
+            stream.destroy();
+          });
+          stream.on('error', (e) => {
+            log('Tunnel stream error', { error: e.message });
+            socket.destroy();
+          });
+        }
+      );
+    });
+
+    server.listen(0, '127.0.0.1', () => {
+      resolve(server);
+    });
+
+    server.on('error', (err) => {
+      reject(err);
+    });
+  });
+}
+
+async function closeDbConnection(serverId) {
+  const connInfo = activeDbConnections.get(serverId);
+  if (!connInfo) return;
+
+  log('Closing database connection and tunnel', { serverId, dbType: connInfo.dbType });
+  
+  try {
+    if (connInfo.dbClient) {
+      if (connInfo.dbType === 'mysql') {
+        await connInfo.dbClient.end();
+      } else if (connInfo.dbType === 'postgres') {
+        await connInfo.dbClient.end();
+      } else if (connInfo.dbType === 'redis') {
+        connInfo.dbClient.disconnect();
+      }
+    }
+  } catch (e) {
+    log('Error closing DB client', { serverId, error: e.message });
+  }
+
+  try {
+    if (connInfo.tunnelServer) {
+      await new Promise((resolve) => {
+        connInfo.tunnelServer.close(() => resolve());
+      });
+    }
+  } catch (e) {
+    log('Error closing tunnel TCP server', { serverId, error: e.message });
+  }
+
+  activeDbConnections.delete(serverId);
+}
+
+ipcMain.handle('database:connect', async (_, { connection, proxy, dbType, config }) => {
+  const serverId = connection.id;
+  await closeDbConnection(serverId);
+
+  try {
+    const sshConn = await getOrCreateConnection(connection, proxy);
+    const remoteHost = config.host || '127.0.0.1';
+    let defaultPort = 3306;
+    if (dbType === 'postgres') defaultPort = 5432;
+    else if (dbType === 'redis') defaultPort = 6379;
+    const remotePort = Number(config.port) || defaultPort;
+
+    const tunnelServer = await createTunnel(sshConn, remoteHost, remotePort);
+    const localPort = tunnelServer.address().port;
+
+    let dbClient = null;
+    
+    if (dbType === 'mysql') {
+      const mysql = require('mysql2/promise');
+      dbClient = await mysql.createConnection({
+        host: '127.0.0.1',
+        port: localPort,
+        user: config.username,
+        password: config.password,
+        database: config.database,
+        connectTimeout: 10000,
+      });
+      await dbClient.query('SELECT 1');
+      
+    } else if (dbType === 'postgres') {
+      const { Client: PgClient } = require('pg');
+      dbClient = new PgClient({
+        host: '127.0.0.1',
+        port: localPort,
+        user: config.username,
+        password: config.password,
+        database: config.database,
+        connectionTimeoutMillis: 10000,
+      });
+      await dbClient.connect();
+      await dbClient.query('SELECT 1');
+      
+    } else if (dbType === 'redis') {
+      const Redis = require('ioredis');
+      dbClient = new Redis({
+        host: '127.0.0.1',
+        port: localPort,
+        password: config.password || undefined,
+        db: Number(config.database) || 0,
+        connectTimeout: 10000,
+        lazyConnect: true,
+      });
+      await dbClient.connect();
+      await dbClient.ping();
+    } else {
+      throw new Error(`Unsupported database type: ${dbType}`);
+    }
+
+    activeDbConnections.set(serverId, {
+      tunnelServer,
+      dbClient,
+      dbType,
+      localPort,
+    });
+
+    log('Database connection and tunnel established', { serverId, dbType, localPort });
+    return { ok: true, localPort };
+
+  } catch (err) {
+    log('Database connection failed', { serverId, error: err.message });
+    return { ok: false, error: err.message || String(err) };
+  }
+});
+
+ipcMain.handle('database:disconnect', async (_, { serverId }) => {
+  await closeDbConnection(serverId);
+  return { ok: true };
+});
+
+ipcMain.handle('database:query', async (_, { serverId, query }) => {
+  const connInfo = activeDbConnections.get(serverId);
+  if (!connInfo || !connInfo.dbClient) {
+    return { ok: false, error: 'No active database connection' };
+  }
+
+  try {
+    const { dbClient, dbType } = connInfo;
+    
+    if (dbType === 'mysql') {
+      const [rows] = await dbClient.query(query);
+      return { ok: true, result: rows };
+      
+    } else if (dbType === 'postgres') {
+      const res = await dbClient.query(query);
+      return { ok: true, result: res.rows };
+      
+    } else if (dbType === 'redis') {
+      const parts = query.trim().split(/\s+/);
+      const cmd = parts[0];
+      const args = parts.slice(1);
+      const res = await dbClient.call(cmd, ...args);
+      return { ok: true, result: res };
+    }
+    
+    return { ok: false, error: `Unknown database type: ${dbType}` };
+  } catch (err) {
+    log('Database query execution error', { serverId, error: err.message });
+    return { ok: false, error: err.message || String(err) };
+  }
+});
+
+ipcMain.handle('database:get-schema', async (_, { serverId }) => {
+  const connInfo = activeDbConnections.get(serverId);
+  if (!connInfo || !connInfo.dbClient) {
+    return { ok: false, error: 'No active database connection' };
+  }
+
+  try {
+    const { dbClient, dbType } = connInfo;
+    
+    if (dbType === 'mysql') {
+      const [tablesRows] = await dbClient.query('SHOW TABLES');
+      const tables = tablesRows.map(row => Object.values(row)[0]);
+      return { ok: true, tables };
+      
+    } else if (dbType === 'postgres') {
+      const res = await dbClient.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        ORDER BY table_name;
+      `);
+      const tables = res.rows.map(row => row.table_name);
+      return { ok: true, tables };
+      
+    } else if (dbType === 'redis') {
+      const keys = await dbClient.call('KEYS', '*');
+      return { ok: true, keys: keys || [] };
+    }
+    
+    return { ok: false, error: `Unknown database type: ${dbType}` };
+  } catch (err) {
+    log('Database schema fetch error', { serverId, error: err.message });
+    return { ok: false, error: err.message || String(err) };
+  }
+});
+
+function getFeaturesConfigPath() {
+  try {
+    return path.join(app.getPath('userData'), 'features.json');
+  } catch (_) {
+    return path.join(process.cwd(), 'features.json');
+  }
+}
+
+ipcMain.handle('features:load', async () => {
+  try {
+    const p = getFeaturesConfigPath();
+    if (fs.existsSync(p)) {
+      const data = fs.readFileSync(p, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    log('Failed to load features config', { error: String(e) });
+  }
+  return null;
+});
+
+ipcMain.handle('features:save', async (_, config) => {
+  try {
+    const p = getFeaturesConfigPath();
+    fs.writeFileSync(p, JSON.stringify(config, null, 2), 'utf8');
+    log('Saved features config');
+    return { ok: true };
+  } catch (e) {
+    log('Failed to save features config', { error: String(e) });
+    return { ok: false, error: String(e) };
+  }
+});
+
+app.on('will-quit', async () => {
+  for (const id of activeDbConnections.keys()) {
+    await closeDbConnection(id);
+  }
+});
+
+
 

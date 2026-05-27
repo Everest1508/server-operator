@@ -25,6 +25,7 @@ import type { ServerConnection, ViewId, FileTreeClipboard } from '../types';
 import { parseLsLine } from '../utils/parseLs';
 import { Tooltip } from './Tooltip';
 import { NotesSidebar } from './NotesSidebar';
+import { SnippetsSidebar } from './SnippetsSidebar';
 
 interface FileTreeMenuState {
   kind: 'entry' | 'background';
@@ -121,6 +122,42 @@ export function Sidebar({
   const [fileTreeMenu, setFileTreeMenu] = useState<FileTreeMenuState | null>(null);
   const [contextMenuAction, setContextMenuAction] = useState<string | null>(null);
   const createInputRef = useRef<HTMLInputElement>(null);
+
+  const [serverStatuses, setServerStatuses] = useState<Record<string, 'green' | 'yellow' | 'red'>>({});
+
+  useEffect(() => {
+    let isMounted = true;
+    if (window.serverOperator && window.serverOperator.getMonitoredServersStatus) {
+      window.serverOperator.getMonitoredServersStatus().then((list) => {
+        if (!isMounted) return;
+        const mapping: Record<string, 'green' | 'yellow' | 'red'> = {};
+        for (const item of list) {
+          mapping[item.serverId] = item.status;
+        }
+        setServerStatuses(mapping);
+      }).catch((err) => {
+        console.error('Failed to get initial server status:', err);
+      });
+    }
+
+    const handleUpdate = (e: Event) => {
+      const list = (e as CustomEvent).detail;
+      if (Array.isArray(list)) {
+        const mapping: Record<string, 'green' | 'yellow' | 'red'> = {};
+        for (const item of list) {
+          mapping[item.serverId] = item.status;
+        }
+        setServerStatuses(mapping);
+      }
+    };
+
+    window.addEventListener('monitored-servers-status-updated', handleUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('monitored-servers-status-updated', handleUpdate);
+    };
+  }, []);
+
 
   useEffect(() => {
     if (!fileTreeMenu) return;
@@ -314,6 +351,8 @@ export function Sidebar({
     <div className="w-full h-full bg-[var(--bg-secondary)] border-r border-[var(--border)] flex flex-col min-w-0">
       {activeView === 'notes' ? (
         <NotesSidebar currentServer={currentServer} onOpenFile={onOpenFile} />
+      ) : activeView === 'snippets' ? (
+        <SnippetsSidebar />
       ) : (
         <>
           <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border)]">
@@ -322,6 +361,7 @@ export function Sidebar({
           {activeView === 'files' && 'Files'}
           {activeView === 'docker' && 'Docker'}
           {activeView === 'deploy' && 'Deploy'}
+          {activeView === 'monitoring' && 'Monitoring'}
         </span>
       </div>
       {showFileBrowser && (
@@ -397,44 +437,55 @@ export function Sidebar({
         </div>
       )}
       <div className="flex-1 overflow-y-auto py-2 min-h-0">
-        {(activeView === 'servers' || activeView === 'docker' || activeView === 'deploy') && (
+        {(activeView === 'servers' || activeView === 'docker' || activeView === 'deploy' || activeView === 'monitoring') && (
           <ul className="space-y-0.5 px-2">
             {servers.length === 0 && (
               <li className="px-3 py-4 text-sm text-[var(--text-secondary)] text-center">
                 No servers. Click + to add.
               </li>
             )}
-            {servers.map((s) => (
-              <li key={s.id} className="group flex items-center gap-2 rounded-md">
-                <button
-                  type="button"
-                  onClick={() => onSelectServer(currentServer?.id === s.id ? null : s)}
-                  disabled={connectingTo !== null}
-                  className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-md text-left text-sm w-full transition-colors disabled:opacity-60 ${
-                    currentServer?.id === s.id
-                      ? 'bg-[var(--bg-tertiary)] text-[var(--accent)]'
-                      : 'text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
-                  }`}
-                >
-                  <ServerIcon size={16} className="shrink-0 text-[var(--success)]" />
-                  <span className="truncate">{connectingTo === s.id ? 'Connecting…' : s.name}</span>
-                  <ChevronRight
-                    size={14}
-                    className={`ml-auto shrink-0 transition-transform ${
-                      currentServer?.id === s.id ? 'rotate-90' : ''
+            {servers.map((s) => {
+              const status = serverStatuses[s.id] || 'gray';
+              let badgeColor = 'bg-[var(--text-muted)]';
+              if (status === 'green') badgeColor = 'bg-[var(--success)]';
+              else if (status === 'yellow') badgeColor = 'bg-[var(--warning)]';
+              else if (status === 'red') badgeColor = 'bg-[var(--error)]';
+
+              return (
+                <li key={s.id} className="group flex items-center gap-2 rounded-md">
+                  <button
+                    type="button"
+                    onClick={() => onSelectServer(currentServer?.id === s.id ? null : s)}
+                    disabled={connectingTo !== null}
+                    className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-md text-left text-sm w-full transition-colors disabled:opacity-60 ${
+                      currentServer?.id === s.id
+                        ? 'bg-[var(--bg-tertiary)] text-[var(--accent)]'
+                        : 'text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
                     }`}
-                  />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onRemoveServer(s.id)}
-                  className="p-1.5 rounded text-[var(--text-secondary)] opacity-0 group-hover:opacity-100 hover:bg-[var(--error)]/20 hover:text-[var(--error)] transition-all shrink-0"
-                  title="Remove server"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </li>
-            ))}
+                  >
+                    <div className="relative shrink-0 flex items-center justify-center w-5 h-5">
+                      <ServerIcon size={16} className="text-[var(--text-primary)]" />
+                      <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-[var(--bg-primary)] ${badgeColor}`} />
+                    </div>
+                    <span className="truncate">{connectingTo === s.id ? 'Connecting…' : s.name}</span>
+                    <ChevronRight
+                      size={14}
+                      className={`ml-auto shrink-0 transition-transform ${
+                        currentServer?.id === s.id ? 'rotate-90' : ''
+                      }`}
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onRemoveServer(s.id)}
+                    className="p-1.5 rounded text-[var(--text-secondary)] opacity-0 group-hover:opacity-100 hover:bg-[var(--error)]/20 hover:text-[var(--error)] transition-all shrink-0"
+                    title="Remove server"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
         {showFileBrowser && (
@@ -525,6 +576,17 @@ export function Sidebar({
                 <p className="text-[var(--text-secondary)]">Select a server above to run deploy commands.</p>
               ) : (
                 <p className="text-[var(--accent)] text-xs">Viewing: {currentServer.name}</p>
+              )}
+            </div>
+          </div>
+        )}
+        {activeView === 'monitoring' && (
+          <div className="px-3 pt-2">
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] p-3 text-sm">
+              {!currentServer ? (
+                <p className="text-[var(--text-secondary)]">Select a server above to view real-time charts.</p>
+              ) : (
+                <p className="text-[var(--accent)] text-xs">Monitoring: {currentServer.name}</p>
               )}
             </div>
           </div>

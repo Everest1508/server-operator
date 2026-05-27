@@ -5,6 +5,7 @@ import { EditorArea } from './components/EditorArea';
 import { NoServerView } from './components/NoServerView';
 import { Panel } from './components/Panel';
 import { RepoSidebar } from './components/RepoSidebar';
+import { SettingsView } from './components/SettingsView';
 import type { ServerConnection, ViewId, ProxySettings, DockerContainer, FileTreeClipboard } from './types';
 import { escapeShellSingleQuotes } from './utils/shellQuote';
 import type { ServerSysInfo } from './components/ServerOverview';
@@ -37,7 +38,7 @@ function loadComposePathsByServer(): Record<string, string[]> {
   }
 }
 
-const VIEW_IDS: ViewId[] = ['servers', 'files', 'docker', 'deploy', 'notes'];
+const VIEW_IDS: ViewId[] = ['servers', 'files', 'docker', 'deploy', 'notes', 'monitoring', 'database', 'snippets', 'settings'];
 const HASH_PREFIX = '#/';
 
 function viewFromHash(): ViewId {
@@ -260,6 +261,15 @@ export default function App() {
     };
     window.addEventListener('notes-updated', syncNotes as EventListener);
     return () => window.removeEventListener('notes-updated', syncNotes as EventListener);
+  }, []);
+
+  useEffect(() => {
+    const handlePaste = () => {
+      setPanelOpen(true);
+      setPanelTab('terminal');
+    };
+    window.addEventListener('paste-to-active-terminal', handlePaste);
+    return () => window.removeEventListener('paste-to-active-terminal', handlePaste);
   }, []);
 
   useEffect(() => {
@@ -1093,6 +1103,12 @@ export default function App() {
     localStorage.setItem(STORAGE_KEY_PROXY, JSON.stringify(proxy));
   }, [proxy]);
 
+  useEffect(() => {
+    if (window.serverOperator && window.serverOperator.setMonitoredServers) {
+      window.serverOperator.setMonitoredServers({ servers, proxy });
+    }
+  }, [servers, proxy]);
+
   const setProxyAndRef = (next: ProxySettings | ((prev: ProxySettings) => ProxySettings)) => {
     if (typeof next === 'function') {
       setProxy((prev) => {
@@ -1201,7 +1217,7 @@ export default function App() {
       />
       <div
         style={{
-          width: sidebarOpen ? `${sidebarWidth}px` : '0px',
+          width: sidebarOpen && activeView !== 'settings' ? `${sidebarWidth}px` : '0px',
           transition: resizeDrag === 'sidebar' ? 'none' : 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
         className="flex flex-col shrink-0 bg-[var(--bg-secondary)] overflow-hidden"
@@ -1249,9 +1265,9 @@ export default function App() {
       <div
         role="separator"
         style={{
-          opacity: sidebarOpen ? 1 : 0,
-          pointerEvents: sidebarOpen ? 'auto' : 'none',
-          width: sidebarOpen ? '1px' : '0px',
+          opacity: sidebarOpen && activeView !== 'settings' ? 1 : 0,
+          pointerEvents: sidebarOpen && activeView !== 'settings' ? 'auto' : 'none',
+          width: sidebarOpen && activeView !== 'settings' ? '1px' : '0px',
           transition: resizeDrag === 'sidebar' ? 'none' : 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
         className="shrink-0 cursor-col-resize bg-[var(--border)] hover:bg-[var(--accent)]/50"
@@ -1300,10 +1316,13 @@ export default function App() {
         )}
         <div className="flex-1 flex min-h-0 min-w-0">
           <div className="flex-1 flex flex-col min-h-0 min-w-0">
-            {currentServer ? (
+            {activeView === 'settings' ? (
+              <SettingsView />
+            ) : currentServer ? (
               <EditorArea
                 currentServer={currentServer}
                 servers={servers}
+                onSelectServer={setCurrentServer}
                 activeView={activeView}
                 proxy={proxy}
                 onPanelTab={setPanelTab}

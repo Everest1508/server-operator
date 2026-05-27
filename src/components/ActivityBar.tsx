@@ -3,17 +3,31 @@ import FolderIcon from './icons/FolderIcon';
 import DockerIcon from './icons/DockerIcon';
 import CloudUploadIcon from './icons/CloudUploadIcon';
 import FileDescriptionIcon from './icons/FileDescriptionIcon';
-import { PanelLeftClose, PanelBottomClose, LogOut } from 'lucide-react';
-import type { ViewId, ServerConnection } from '../types';
+import { PanelLeftClose, PanelBottomClose, LogOut, Activity, Database, Terminal, Lock, Settings } from 'lucide-react';
+import type { ViewId, ServerConnection, FeatureFlags } from '../types';
 import { Tooltip } from './Tooltip';
+import { useFeatureFlags } from '../contexts/FeatureFlagContext';
 
 const items = [
   { id: 'servers' as const, icon: StackIcon, label: 'Servers' },
   { id: 'files' as const, icon: FolderIcon, label: 'Files' },
   { id: 'docker' as const, icon: DockerIcon, label: 'Docker' },
+  { id: 'database' as const, icon: Database, label: 'Database' },
   { id: 'deploy' as const, icon: CloudUploadIcon, label: 'Deploy' },
+  { id: 'monitoring' as const, icon: Activity, label: 'Monitoring' },
   { id: 'notes' as const, icon: FileDescriptionIcon, label: 'Notes & Debug' },
+  { id: 'snippets' as const, icon: Terminal, label: 'Snippets Library' },
 ];
+
+const flagMapping: Record<string, keyof FeatureFlags> = {
+  servers: 'servers',
+  files: 'files',
+  docker: 'docker',
+  deploy: 'deployModule',
+  monitoring: 'serverAdmin',
+  notes: 'notes',
+  snippets: 'snippetLibrary',
+};
 
 interface ActivityBarProps {
   activeView: ViewId;
@@ -36,24 +50,52 @@ export function ActivityBar({
   currentServer,
   onDisconnect,
 }: ActivityBarProps) {
+  const { flags } = useFeatureFlags();
+
   return (
     <div className="flex flex-col w-12 bg-[var(--bg-activity)] border-r border-[var(--border)] shrink-0">
       <div className="flex flex-col items-center py-2 gap-1">
-        {items.map(({ id, icon: Icon, label }) => (
-          <Tooltip key={id} content={label} position="right">
-            <button
-              type="button"
-              onClick={() => onViewChange(id)}
-              className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors duration-150 ${
-                activeView === id
-                  ? 'bg-[var(--bg-secondary)] text-[var(--accent)]'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]/50 hover:text-[var(--text-primary)]'
-              }`}
-            >
-              <Icon size={22} strokeWidth={1.8} />
-            </button>
-          </Tooltip>
-        ))}
+        {items.map(({ id, icon: Icon, label }) => {
+          const flagKey = flagMapping[id];
+          const isEnabled = flagKey ? !!flags[flagKey] : true;
+
+          if (!isEnabled) {
+            if (flags.sidebarUx === 'hidden') {
+              return null;
+            }
+            // 'disabled' behavior: show grayed out, locked
+            return (
+              <Tooltip key={id} content={`[Locked] ${label} (Enable in Settings)`} position="right">
+                <button
+                  type="button"
+                  disabled
+                  className="w-10 h-10 flex items-center justify-center rounded-lg text-[var(--text-muted)] opacity-40 cursor-not-allowed relative"
+                >
+                  <Icon size={22} strokeWidth={1.8} />
+                  <div className="absolute bottom-0 right-0 bg-[var(--bg-activity)] border border-[var(--border)] rounded-full p-[1px] text-[var(--error)] flex items-center justify-center">
+                    <Lock size={8} strokeWidth={2.5} />
+                  </div>
+                </button>
+              </Tooltip>
+            );
+          }
+
+          return (
+            <Tooltip key={id} content={label} position="right">
+              <button
+                type="button"
+                onClick={() => onViewChange(id)}
+                className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors duration-150 ${
+                  activeView === id
+                    ? 'bg-[var(--bg-secondary)] text-[var(--accent)]'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]/50 hover:text-[var(--text-primary)]'
+                }`}
+              >
+                <Icon size={22} strokeWidth={1.8} />
+              </button>
+            </Tooltip>
+          );
+        })}
       </div>
       <div className="mt-auto flex flex-col items-center pb-2 border-t border-[var(--border)] pt-2 gap-1">
         {currentServer && onDisconnect && (
@@ -83,6 +125,19 @@ export function ActivityBar({
             className="w-10 h-9 flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] rounded-md transition-colors"
           >
             <PanelBottomClose size={20} />
+          </button>
+        </Tooltip>
+        <Tooltip content="Feature Settings" position="right">
+          <button
+            type="button"
+            onClick={() => onViewChange('settings')}
+            className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors duration-150 ${
+              activeView === 'settings'
+                ? 'bg-[var(--bg-secondary)] text-[var(--accent)]'
+                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]/50 hover:text-[var(--text-primary)]'
+            }`}
+          >
+            <Settings size={20} strokeWidth={1.8} />
           </button>
         </Tooltip>
       </div>

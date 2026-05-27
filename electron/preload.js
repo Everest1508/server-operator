@@ -9,6 +9,9 @@ ipcRenderer.on('compose-logs-data', (_event, payload) => {
 ipcRenderer.on('compose-logs-stream-ended', (_event, payload) => {
   window.dispatchEvent(new CustomEvent('compose-logs-stream-ended', { detail: payload }));
 });
+ipcRenderer.on('monitored-servers-status-updated', (_event, payload) => {
+  window.dispatchEvent(new CustomEvent('monitored-servers-status-updated', { detail: payload }));
+});
 
 contextBridge.exposeInMainWorld('serverOperator', {
   testConnection: (opts) => ipcRenderer.invoke('server:test-connection', opts),
@@ -33,4 +36,25 @@ contextBridge.exposeInMainWorld('serverOperator', {
   getLogFilePath: () => ipcRenderer.invoke('app:get-log-file-path'),
   readLogFile: () => ipcRenderer.invoke('app:read-log-file'),
   clearLogFile: () => ipcRenderer.invoke('app:clear-log-file'),
+  saveAlert: (opts) => ipcRenderer.invoke('alerts:save', opts),
+  getAlertHistory: (opts) => ipcRenderer.invoke('alerts:get-history', opts),
+  clearAlertHistory: (opts) => ipcRenderer.invoke('alerts:clear-history', opts),
+  sendWebhook: (opts) => ipcRenderer.invoke('alerts:send-webhook', opts),
+  triggerNotification: (opts) => ipcRenderer.invoke('alerts:trigger-notification', opts),
+  setMonitoredServers: (opts) => ipcRenderer.invoke('monitoring:set-servers', opts),
+  getMonitoredServersStatus: () => ipcRenderer.invoke('monitoring:get-statuses'),
+  getHistoricalMetrics: (opts) => ipcRenderer.invoke('metrics:get-history', opts),
+  clearHistoricalMetrics: (opts) => ipcRenderer.invoke('metrics:clear-history', opts),
+  connectDatabase: (opts) => ipcRenderer.invoke('database:connect', opts),
+  disconnectDatabase: (opts) => ipcRenderer.invoke('database:disconnect', opts),
+  queryDatabase: (opts) => ipcRenderer.invoke('database:query', opts),
+  getDatabaseSchema: (opts) => ipcRenderer.invoke('database:get-schema', opts),
+  runDeployPipeline: (opts) => ipcRenderer.invoke('server:run-deploy-pipeline', opts),
+  rollbackDeploy: (opts) => ipcRenderer.invoke('server:rollback-deploy', opts),
+  getDeployHistory: (opts) => ipcRenderer.invoke('server:get-deploy-history', opts),
+  getSnippets: () => ipcRenderer.invoke('snippets:get'),
+  saveSnippet: (opts) => ipcRenderer.invoke('snippets:save', opts),
+  deleteSnippet: (opts) => ipcRenderer.invoke('snippets:delete', opts),
+  loadFeaturesConfig: () => ipcRenderer.invoke('features:load'),
+  saveFeaturesConfig: (config) => ipcRenderer.invoke('features:save', config),
 });

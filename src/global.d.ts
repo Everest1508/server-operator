@@ -80,6 +80,109 @@ export interface ServerOperatorAPI {
   getLogFilePath?: () => Promise<string>;
   readLogFile?: () => Promise<{ ok: boolean; content?: string; error?: string }>;
   clearLogFile?: () => Promise<{ ok: boolean; error?: string }>;
+  saveAlert: (opts: {
+    serverId: string;
+    serverName: string;
+    metricType: 'CPU' | 'RAM' | 'DISK';
+    metricValue: number;
+    thresholdValue: number;
+    message: string;
+    timestamp?: string;
+  }) => Promise<{ ok: boolean; id?: number; error?: string }>;
+  getAlertHistory: (opts: { serverId?: string }) => Promise<Array<{
+    id: number;
+    serverId: string;
+    serverName: string;
+    metricType: 'CPU' | 'RAM' | 'DISK';
+    metricValue: number;
+    thresholdValue: number;
+    message: string;
+    timestamp: string;
+  }>>;
+  clearAlertHistory: (opts: { serverId?: string }) => Promise<{ ok: boolean; error?: string }>;
+  sendWebhook: (opts: { url: string; payload: unknown }) => Promise<{ ok: boolean; status?: number; error?: string }>;
+  triggerNotification: (opts: { title: string; body: string }) => Promise<{ ok: boolean; error?: string }>;
+  setMonitoredServers: (opts: { servers: ServerConnection[]; proxy?: ProxySettings }) => Promise<{ ok: boolean; error?: string }>;
+  getMonitoredServersStatus: () => Promise<Array<{
+    serverId: string;
+    status: 'green' | 'yellow' | 'red';
+    latency: number;
+    lastChecked: string;
+    latencyHistory: Array<{ timestamp: string; latency: number }>;
+    services: Record<string, 'up' | 'down'>;
+  }>>;
+  getHistoricalMetrics: (opts: {
+    serverId: string;
+    timeWindow?: '1h' | '6h' | '24h' | '7d';
+    startDate?: string;
+    endDate?: string;
+  }) => Promise<Array<{
+    cpu: number;
+    ram: number;
+    disk: number;
+    timestamp: string;
+  }>>;
+  clearHistoricalMetrics: (opts: { serverId?: string }) => Promise<{ ok: boolean; error?: string }>;
+  connectDatabase: (opts: {
+    connection: ServerConnection;
+    proxy?: ProxySettings;
+    dbType: 'mysql' | 'postgres' | 'redis';
+    config: Record<string, string>;
+  }) => Promise<{ ok: boolean; localPort?: number; error?: string }>;
+  disconnectDatabase: (opts: { serverId: string }) => Promise<{ ok: boolean; error?: string }>;
+  queryDatabase: (opts: { serverId: string; query: string }) => Promise<{ ok: boolean; result?: any; error?: string }>;
+  getDatabaseSchema: (opts: { serverId: string }) => Promise<{ ok: boolean; tables?: string[]; keys?: string[]; error?: string }>;
+  runDeployPipeline: (opts: {
+    connection: ServerConnection;
+    shellId: string;
+    projectDir: string;
+    branch: string;
+    depType: 'auto' | 'npm' | 'pip' | 'none';
+    migType: 'auto' | 'npm' | 'pip' | 'none';
+    restartType: 'pm2' | 'systemd' | 'none';
+    serviceName: string;
+    proxy?: ProxySettings;
+  }) => Promise<{ ok: boolean; commitHash?: string; output?: string; error?: string }>;
+  rollbackDeploy: (opts: {
+    connection: ServerConnection;
+    shellId: string;
+    projectDir: string;
+    commitHash: string;
+    restartType: 'pm2' | 'systemd' | 'none';
+    serviceName: string;
+    proxy?: ProxySettings;
+  }) => Promise<{ ok: boolean; error?: string }>;
+  getDeployHistory: (opts: {
+    serverId: string;
+    projectDir: string;
+  }) => Promise<Array<{
+    id: number;
+    serverId: string;
+    serverName: string;
+    projectDir: string;
+    branch: string;
+    commitHash: string;
+    triggeredCommand: string;
+    status: 'success' | 'failure';
+    output: string;
+    timestamp: string;
+  }>>;
+  getSnippets: () => Promise<Array<{
+    id: number;
+    title: string;
+    description?: string;
+    command: string;
+    timestamp: string;
+  }>>;
+  saveSnippet: (opts: {
+    id?: number;
+    title: string;
+    description?: string;
+    command: string;
+  }) => Promise<{ ok: boolean; id?: number; error?: string }>;
+  deleteSnippet: (opts: { id: number }) => Promise<{ ok: boolean; error?: string }>;
+  loadFeaturesConfig: () => Promise<any>;
+  saveFeaturesConfig: (config: any) => Promise<{ ok: boolean; error?: string }>;
 }
 
 declare global {
