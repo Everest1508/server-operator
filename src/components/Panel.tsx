@@ -473,7 +473,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
           <TerminalIcon size={16} />
           Terminal
         </button>
-        {panelTab === 'logs' && currentServer && (
+        {panelTab === 'logs' && currentServer && composePaths && composePaths.length > 0 && (
           <div className="ml-4 flex items-center gap-2 flex-wrap">
             <span className="text-xs text-[var(--text-secondary)]">Tail:</span>
             <input
@@ -496,6 +496,11 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
               className="w-16 px-2 py-1 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
               title="Tail lines for new streams"
             />
+          </div>
+        )}
+        {panelTab === 'terminal' && currentServer && (
+          <div className="ml-auto mr-4 text-xs font-semibold text-[var(--text-secondary)] font-mono">
+            ↓ Active Shell — {currentServer.username || 'erp'}@{currentServer.host || 'hrms'}
           </div>
         )}
       </div>

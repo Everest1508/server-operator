@@ -16,8 +16,10 @@ import {
   Sliders,
   CheckCircle,
   Database,
-  LineChart
+  LineChart,
+  ShieldCheck,
 } from 'lucide-react';
+import { motion } from 'motion/react';
 import type { ServerConnection, ProxySettings } from '../types';
 import {
   Chart,
@@ -133,6 +135,9 @@ export function ServerMonitoringView({ currentServer, proxy }: ServerMonitoringV
 
   // Alert history state
   const [alertLogs, setAlertLogs] = useState<AlertLog[]>([]);
+  const [dataReceived, setDataReceived] = useState(false);
+  const [showSkeleton, setShowSkeleton] = useState(true);
+  const [pollingFailed, setPollingFailed] = useState(false);
 
   // Current metric values for UI indicators
   const [metrics, setMetrics] = useState<MetricHistoryPoint>({
@@ -175,6 +180,30 @@ export function ServerMonitoringView({ currentServer, proxy }: ServerMonitoringV
   const historyRef = useRef<MetricHistoryPoint[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const lastAlertTimes = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    setShowSkeleton(true);
+    setDataReceived(false);
+    setPollingFailed(false);
+    
+    const skeletonTimer = setTimeout(() => {
+      setShowSkeleton(false);
+    }, 3000);
+
+    const failTimer = setTimeout(() => {
+      setDataReceived((current) => {
+        if (!current) {
+          setPollingFailed(true);
+        }
+        return current;
+      });
+    }, 10000);
+
+    return () => {
+      clearTimeout(skeletonTimer);
+      clearTimeout(failTimer);
+    };
+  }, [currentServer.id]);
 
   // 1. Load alerts config on server change
   useEffect(() => {
@@ -255,10 +284,24 @@ export function ServerMonitoringView({ currentServer, proxy }: ServerMonitoringV
       historicalChartRef.current.destroy();
     }
 
+    const hasMultiDay = (() => {
+      if (historicalData.length < 2) return false;
+      const first = new Date(historicalData[0].timestamp).getTime();
+      const last = new Date(historicalData[historicalData.length - 1].timestamp).getTime();
+      return (last - first) > 24 * 60 * 60 * 1000;
+    })();
+
     const labels = historicalData.map(d => {
       try {
         const date = new Date(d.timestamp);
-        return date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        if (hasMultiDay) {
+          const month = date.toLocaleString([], { month: 'short' });
+          const day = date.getDate();
+          const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+          return `${month} ${day} ${timeStr}`;
+        } else {
+          return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+        }
       } catch (_) {
         return '';
       }
@@ -334,7 +377,8 @@ export function ServerMonitoringView({ currentServer, proxy }: ServerMonitoringV
             grid: { color: '#3c3c3c' },
             ticks: {
               color: '#858585',
-              maxTicksLimit: 12,
+              maxTicksLimit: 7,
+              autoSkip: true,
               font: { family: 'JetBrains Mono, Fira Code, monospace', size: 9 }
             }
           },
@@ -1074,6 +1118,7 @@ export function ServerMonitoringView({ currentServer, proxy }: ServerMonitoringV
       };
 
       setMetrics(newPoint);
+      setDataReceived(true);
       historyRef.current = [...historyRef.current, newPoint].slice(-30);
       if (monitorSubTab === 'dashboard') {
         updateCharts(historyRef.current);
@@ -1118,6 +1163,27 @@ export function ServerMonitoringView({ currentServer, proxy }: ServerMonitoringV
   }, [isPlaying, refreshInterval, currentServer.id, alertConfig]);
 
   const handleManualRefresh = () => {
+    fetchMetrics();
+  };
+
+  const handleRetryPolling = () => {
+    setDataReceived(false);
+    setPollingFailed(false);
+    setShowSkeleton(true);
+    
+    setTimeout(() => {
+      setShowSkeleton(false);
+    }, 3000);
+
+    setTimeout(() => {
+      setDataReceived((current) => {
+        if (!current) {
+          setPollingFailed(true);
+        }
+        return current;
+      });
+    }, 10000);
+
     fetchMetrics();
   };
 
@@ -1354,64 +1420,98 @@ export function ServerMonitoringView({ currentServer, proxy }: ServerMonitoringV
             </div>
           )}
 
+          {/* Amber SSH Failure Warning Banner */}
+          {pollingFailed && (
+            <div className="mx-6 mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-md">
+              <div className="flex gap-2.5 items-start">
+                <AlertTriangle size={18} className="text-amber-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-500">Could not fetch metrics — check SSH connection</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleRetryPolling}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-amber-500 hover:bg-amber-600 text-white shrink-0 shadow-sm"
+              >
+                <RefreshCw size={12} className={isLoading ? 'animate-spin' : ''} />
+                Retry
+              </button>
+            </div>
+          )}
+
           {/* Live numerical metrics overview cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 px-6 pt-4 shrink-0">
-            {/* CPU */}
-            <div className="border border-[var(--border)] bg-[var(--bg-secondary)] rounded-lg p-4 flex items-center gap-3">
-              <div className="p-2 rounded bg-emerald-500/10 text-[var(--success)]">
-                <Cpu size={20} />
-              </div>
-              <div>
-                <p className="text-xs text-[var(--text-secondary)] font-medium">CPU Load</p>
-                <p className="text-lg font-bold font-mono">{metrics.cpu}%</p>
-              </div>
+          {showSkeleton || !dataReceived ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 px-6 pt-4 shrink-0">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="border border-[var(--border)] bg-[var(--bg-secondary)] rounded-lg p-4 flex items-center gap-3 animate-pulse">
+                  <div className="w-9 h-9 rounded bg-[var(--bg-tertiary)] shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 bg-[var(--bg-tertiary)] rounded w-1/2" />
+                    <div className="h-5 bg-[var(--bg-tertiary)] rounded w-3/4" />
+                  </div>
+                </div>
+              ))}
             </div>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 px-6 pt-4 shrink-0">
+              {/* CPU */}
+              <div className="border border-[var(--border)] bg-[var(--bg-secondary)] rounded-lg p-4 flex items-center gap-3">
+                <div className="p-2 rounded bg-emerald-500/10 text-[var(--success)]">
+                  <Cpu size={20} />
+                </div>
+                <div>
+                  <p className="text-xs text-[var(--text-secondary)] font-medium">CPU Load</p>
+                  <p className="text-lg font-bold font-mono">{metrics.cpu}%</p>
+                </div>
+              </div>
 
-            {/* RAM */}
-            <div className="border border-[var(--border)] bg-[var(--bg-secondary)] rounded-lg p-4 flex items-center gap-3">
-              <div className="p-2 rounded bg-blue-500/10 text-[var(--accent-hover)]">
-                <Activity size={20} />
+              {/* RAM */}
+              <div className="border border-[var(--border)] bg-[var(--bg-secondary)] rounded-lg p-4 flex items-center gap-3">
+                <div className="p-2 rounded bg-blue-500/10 text-[var(--accent-hover)]">
+                  <Activity size={20} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-[var(--text-secondary)] font-medium">Memory</p>
+                  <p className="text-lg font-bold font-mono truncate">
+                    {metrics.memPercent}% <span className="text-xs text-[var(--text-muted)] font-normal">({metrics.memUsedGB.toFixed(1)}G/{metrics.memTotalGB.toFixed(0)}G)</span>
+                  </p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className="text-xs text-[var(--text-secondary)] font-medium">Memory</p>
-                <p className="text-lg font-bold font-mono truncate">
-                  {metrics.memPercent}% <span className="text-xs text-[var(--text-muted)] font-normal">({metrics.memUsedGB.toFixed(1)}G/{metrics.memTotalGB.toFixed(0)}G)</span>
-                </p>
-              </div>
-            </div>
 
-            {/* Disk */}
-            <div className="border border-[var(--border)] bg-[var(--bg-secondary)] rounded-lg p-4 flex items-center gap-3">
-              <div className="p-2 rounded bg-amber-500/10 text-[var(--warning)]">
-                <HardDrive size={20} />
+              {/* Disk */}
+              <div className="border border-[var(--border)] bg-[var(--bg-secondary)] rounded-lg p-4 flex items-center gap-3">
+                <div className="p-2 rounded bg-amber-500/10 text-[var(--warning)]">
+                  <HardDrive size={20} />
+                </div>
+                <div>
+                  <p className="text-xs text-[var(--text-secondary)] font-medium">Disk Space / I/O</p>
+                  <p className="text-sm font-semibold font-mono">
+                    <span className="text-[var(--text-muted)] font-normal text-xs">Used:</span> {metrics.diskPercent}%
+                  </p>
+                  <p className="text-xs font-mono text-[var(--text-secondary)] mt-0.5">
+                    R: {formatSpeed(metrics.diskReadKB)} | W: {formatSpeed(metrics.diskWriteKB)}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-[var(--text-secondary)] font-medium">Disk Space / I/O</p>
-                <p className="text-sm font-semibold font-mono">
-                  <span className="text-[var(--text-muted)] font-normal text-xs">Used:</span> {metrics.diskPercent}%
-                </p>
-                <p className="text-xs font-mono text-[var(--text-secondary)] mt-0.5">
-                  R: {formatSpeed(metrics.diskReadKB)} | W: {formatSpeed(metrics.diskWriteKB)}
-                </p>
-              </div>
-            </div>
 
-            {/* Network */}
-            <div className="border border-[var(--border)] bg-[var(--bg-secondary)] rounded-lg p-4 flex items-center gap-3">
-              <div className="p-2 rounded bg-cyan-500/10 text-cyan-400">
-                <Network size={20} />
-              </div>
-              <div>
-                <p className="text-xs text-[var(--text-secondary)] font-medium">Network</p>
-                <p className="text-sm font-semibold font-mono">
-                  <span className="text-[var(--text-muted)]">Down:</span> {formatSpeed(metrics.netDownKB)}
-                </p>
-                <p className="text-sm font-semibold font-mono mt-0.5">
-                  <span className="text-[var(--text-muted)]">Up:</span> {formatSpeed(metrics.netUpKB)}
-                </p>
+              {/* Network */}
+              <div className="border border-[var(--border)] bg-[var(--bg-secondary)] rounded-lg p-4 flex items-center gap-3">
+                <div className="p-2 rounded bg-cyan-500/10 text-cyan-400">
+                  <Network size={20} />
+                </div>
+                <div>
+                  <p className="text-xs text-[var(--text-secondary)] font-medium">Network</p>
+                  <p className="text-sm font-semibold font-mono">
+                    <span className="text-[var(--text-muted)]">Down:</span> {formatSpeed(metrics.netDownKB)}
+                  </p>
+                  <p className="text-sm font-semibold font-mono mt-0.5">
+                    <span className="text-[var(--text-muted)]">Up:</span> {formatSpeed(metrics.netUpKB)}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Grid of live charts */}
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 p-6 min-h-[500px]">
@@ -1426,6 +1526,11 @@ export function ServerMonitoringView({ currentServer, proxy }: ServerMonitoringV
                 )}
               </div>
               <div className="flex-1 min-h-0 relative">
+                {!dataReceived && (
+                  <div className="absolute inset-0 bg-[var(--bg-secondary)]/85 backdrop-blur-[0.5px] flex items-center justify-center rounded-lg z-10">
+                    <span className="text-xs text-[var(--text-muted)] animate-pulse">Waiting for first data point…</span>
+                  </div>
+                )}
                 <canvas ref={cpuCanvasRef} />
               </div>
             </div>
@@ -1441,6 +1546,11 @@ export function ServerMonitoringView({ currentServer, proxy }: ServerMonitoringV
                 )}
               </div>
               <div className="flex-1 min-h-0 relative">
+                {!dataReceived && (
+                  <div className="absolute inset-0 bg-[var(--bg-secondary)]/85 backdrop-blur-[0.5px] flex items-center justify-center rounded-lg z-10">
+                    <span className="text-xs text-[var(--text-muted)] animate-pulse">Waiting for first data point…</span>
+                  </div>
+                )}
                 <canvas ref={ramCanvasRef} />
               </div>
             </div>
@@ -1456,6 +1566,11 @@ export function ServerMonitoringView({ currentServer, proxy }: ServerMonitoringV
                 )}
               </div>
               <div className="flex-1 min-h-0 relative">
+                {!dataReceived && (
+                  <div className="absolute inset-0 bg-[var(--bg-secondary)]/85 backdrop-blur-[0.5px] flex items-center justify-center rounded-lg z-10">
+                    <span className="text-xs text-[var(--text-muted)] animate-pulse">Waiting for first data point…</span>
+                  </div>
+                )}
                 <canvas ref={diskCanvasRef} />
               </div>
             </div>
@@ -1471,6 +1586,11 @@ export function ServerMonitoringView({ currentServer, proxy }: ServerMonitoringV
                 )}
               </div>
               <div className="flex-1 min-h-0 relative">
+                {!dataReceived && (
+                  <div className="absolute inset-0 bg-[var(--bg-secondary)]/85 backdrop-blur-[0.5px] flex items-center justify-center rounded-lg z-10">
+                    <span className="text-xs text-[var(--text-muted)] animate-pulse">Waiting for first data point…</span>
+                  </div>
+                )}
                 <canvas ref={netCanvasRef} />
               </div>
             </div>
@@ -1526,6 +1646,11 @@ export function ServerMonitoringView({ currentServer, proxy }: ServerMonitoringV
               <div className="border border-[var(--border)] bg-[var(--bg-secondary)] rounded-lg p-4 flex flex-col min-h-[300px]">
                 <h4 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2">SSH Latency History</h4>
                 <div className="flex-1 min-h-0 relative">
+                  {!dataReceived && (
+                    <div className="absolute inset-0 bg-[var(--bg-secondary)]/85 backdrop-blur-[0.5px] flex items-center justify-center rounded-lg z-10">
+                      <span className="text-xs text-[var(--text-muted)] animate-pulse">Waiting for first data point…</span>
+                    </div>
+                  )}
                   <canvas ref={latencyCanvasRef} />
                 </div>
               </div>
@@ -1685,8 +1810,18 @@ export function ServerMonitoringView({ currentServer, proxy }: ServerMonitoringV
                 <tbody className="divide-y divide-[var(--border)] text-[var(--text-primary)]">
                   {alertLogs.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-4 py-12 text-center text-[var(--text-muted)] font-sans">
-                        No alerts have been recorded yet. Threshold breaches will appear here.
+                      <td colSpan={5} className="px-4 py-16 text-center text-[var(--text-secondary)] font-sans">
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="flex flex-col items-center justify-center gap-3 py-6"
+                        >
+                          <ShieldCheck size={48} className="text-[var(--text-muted)] opacity-40" />
+                          <h4 className="text-sm font-semibold text-[var(--text-primary)]">No alerts yet</h4>
+                          <p className="text-xs text-[var(--text-muted)] max-w-sm mx-auto">
+                            Threshold breaches from CPU, RAM, and Disk monitoring will appear here automatically.
+                          </p>
+                        </motion.div>
                       </td>
                     </tr>
                   ) : (
@@ -1733,6 +1868,35 @@ export function ServerMonitoringView({ currentServer, proxy }: ServerMonitoringV
             <p className="text-xs text-[var(--text-secondary)]">Customize monitoring notification boundaries and reporting channels per server.</p>
           </div>
 
+          <style>{`
+            .custom-range-input::-webkit-slider-thumb {
+              -webkit-appearance: none;
+              appearance: none;
+              width: 14px;
+              height: 14px;
+              border-radius: 50%;
+              background: var(--accent);
+              cursor: pointer;
+              transition: transform 0.1s;
+              border: none;
+            }
+            .custom-range-input::-webkit-slider-thumb:hover {
+              transform: scale(1.2);
+            }
+            .custom-range-input::-moz-range-thumb {
+              width: 14px;
+              height: 14px;
+              border-radius: 50%;
+              background: var(--accent);
+              cursor: pointer;
+              border: none;
+              transition: transform 0.1s;
+            }
+            .custom-range-input::-moz-range-thumb:hover {
+              transform: scale(1.2);
+            }
+          `}</style>
+
           <form onSubmit={handleSaveSettings} className="space-y-6">
             <div className="border border-[var(--border)] bg-[var(--bg-secondary)] rounded-lg p-5 space-y-5">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] border-b border-[var(--border)] pb-2 flex items-center gap-1.5">
@@ -1754,15 +1918,23 @@ export function ServerMonitoringView({ currentServer, proxy }: ServerMonitoringV
                     max={95}
                     value={alertConfig.cpuThreshold}
                     onChange={(e) => setAlertConfig({ ...alertConfig, cpuThreshold: Number(e.target.value) })}
-                    className="flex-1 h-1 bg-[var(--border)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)]"
+                    className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer custom-range-input"
+                    style={{
+                      background: `linear-gradient(to right, var(--accent) 0%, var(--accent) ${((alertConfig.cpuThreshold - 10) / (95 - 10)) * 100}%, var(--border) ${((alertConfig.cpuThreshold - 10) / (95 - 10)) * 100}%, var(--border) 100%)`
+                    }}
                   />
                   <input
                     aria-label="CPU Threshold percentage"
                     type="number"
-                    min={10}
-                    max={95}
-                    value={alertConfig.cpuThreshold}
-                    onChange={(e) => setAlertConfig({ ...alertConfig, cpuThreshold: Math.max(10, Math.min(95, Number(e.target.value))) })}
+                    value={alertConfig.cpuThreshold === 0 ? '' : alertConfig.cpuThreshold}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const parsed = parseInt(val, 10);
+                      setAlertConfig({ ...alertConfig, cpuThreshold: isNaN(parsed) ? 0 : parsed });
+                    }}
+                    onBlur={() => {
+                      setAlertConfig({ ...alertConfig, cpuThreshold: Math.max(10, Math.min(95, alertConfig.cpuThreshold || 10)) });
+                    }}
                     className="w-16 px-2 py-1 rounded border border-[var(--border)] bg-[var(--bg-primary)] text-center text-xs font-mono"
                   />
                 </div>
@@ -1783,15 +1955,23 @@ export function ServerMonitoringView({ currentServer, proxy }: ServerMonitoringV
                     max={95}
                     value={alertConfig.ramThreshold}
                     onChange={(e) => setAlertConfig({ ...alertConfig, ramThreshold: Number(e.target.value) })}
-                    className="flex-1 h-1 bg-[var(--border)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)]"
+                    className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer custom-range-input"
+                    style={{
+                      background: `linear-gradient(to right, var(--accent) 0%, var(--accent) ${((alertConfig.ramThreshold - 10) / (95 - 10)) * 100}%, var(--border) ${((alertConfig.ramThreshold - 10) / (95 - 10)) * 100}%, var(--border) 100%)`
+                    }}
                   />
                   <input
                     aria-label="RAM Threshold percentage"
                     type="number"
-                    min={10}
-                    max={95}
-                    value={alertConfig.ramThreshold}
-                    onChange={(e) => setAlertConfig({ ...alertConfig, ramThreshold: Math.max(10, Math.min(95, Number(e.target.value))) })}
+                    value={alertConfig.ramThreshold === 0 ? '' : alertConfig.ramThreshold}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const parsed = parseInt(val, 10);
+                      setAlertConfig({ ...alertConfig, ramThreshold: isNaN(parsed) ? 0 : parsed });
+                    }}
+                    onBlur={() => {
+                      setAlertConfig({ ...alertConfig, ramThreshold: Math.max(10, Math.min(95, alertConfig.ramThreshold || 10)) });
+                    }}
                     className="w-16 px-2 py-1 rounded border border-[var(--border)] bg-[var(--bg-primary)] text-center text-xs font-mono"
                   />
                 </div>
@@ -1812,15 +1992,23 @@ export function ServerMonitoringView({ currentServer, proxy }: ServerMonitoringV
                     max={98}
                     value={alertConfig.diskThreshold}
                     onChange={(e) => setAlertConfig({ ...alertConfig, diskThreshold: Number(e.target.value) })}
-                    className="flex-1 h-1 bg-[var(--border)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)]"
+                    className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer custom-range-input"
+                    style={{
+                      background: `linear-gradient(to right, var(--accent) 0%, var(--accent) ${((alertConfig.diskThreshold - 10) / (98 - 10)) * 100}%, var(--border) ${((alertConfig.diskThreshold - 10) / (98 - 10)) * 100}%, var(--border) 100%)`
+                    }}
                   />
                   <input
                     aria-label="Disk Threshold percentage"
                     type="number"
-                    min={10}
-                    max={98}
-                    value={alertConfig.diskThreshold}
-                    onChange={(e) => setAlertConfig({ ...alertConfig, diskThreshold: Math.max(10, Math.min(98, Number(e.target.value))) })}
+                    value={alertConfig.diskThreshold === 0 ? '' : alertConfig.diskThreshold}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const parsed = parseInt(val, 10);
+                      setAlertConfig({ ...alertConfig, diskThreshold: isNaN(parsed) ? 0 : parsed });
+                    }}
+                    onBlur={() => {
+                      setAlertConfig({ ...alertConfig, diskThreshold: Math.max(10, Math.min(98, alertConfig.diskThreshold || 10)) });
+                    }}
                     className="w-16 px-2 py-1 rounded border border-[var(--border)] bg-[var(--bg-primary)] text-center text-xs font-mono"
                   />
                 </div>

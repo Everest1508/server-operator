@@ -23,6 +23,7 @@ const flagMapping: Record<string, keyof FeatureFlags> = {
   servers: 'servers',
   files: 'files',
   docker: 'docker',
+  database: 'database',
   deploy: 'deployModule',
   monitoring: 'serverAdmin',
   notes: 'notes',

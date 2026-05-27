@@ -4,7 +4,7 @@ import { Tooltip } from './Tooltip';
 
 
 
-interface TerminalSnippet {
+export interface TerminalSnippet {
   id: number;
   title: string;
   description?: string;
@@ -12,7 +12,12 @@ interface TerminalSnippet {
   timestamp: string;
 }
 
-export function SnippetsSidebar() {
+interface SnippetsSidebarProps {
+  selectedSnippet: TerminalSnippet | null;
+  onSelectSnippet: (snippet: TerminalSnippet | null) => void;
+}
+
+export function SnippetsSidebar({ selectedSnippet, onSelectSnippet }: SnippetsSidebarProps) {
   const [snippets, setSnippets] = useState<TerminalSnippet[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -373,8 +378,12 @@ export function SnippetsSidebar() {
               filteredSnippets.map((snippet) => (
                 <div
                   key={snippet.id}
-                  onClick={() => handleSnippetClick(snippet)}
-                  className="group relative rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] p-2.5 shadow-sm hover:border-[var(--accent)]/50 hover:bg-[var(--bg-tertiary)]/20 transition-all duration-150 cursor-pointer flex flex-col gap-1 min-w-0"
+                  onClick={() => onSelectSnippet(snippet)}
+                  className={`group relative rounded-lg border p-2.5 shadow-sm transition-all duration-150 cursor-pointer flex flex-col gap-1 min-w-0 ${
+                    selectedSnippet?.id === snippet.id
+                      ? 'border-[var(--accent)] bg-[var(--bg-tertiary)]/30'
+                      : 'border-[var(--border)] bg-[var(--bg-primary)] hover:border-[var(--accent)]/50 hover:bg-[var(--bg-tertiary)]/20'
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-2 min-w-0">
                     <span className="font-semibold text-xs text-[var(--text-primary)] truncate" title={snippet.title}>

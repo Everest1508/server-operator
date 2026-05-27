@@ -5,6 +5,7 @@ export interface FeatureFlags {
   servers: boolean;
   files: boolean;
   docker: boolean;
+  database: boolean;
   aiAssistant: boolean;
   shortcuts: boolean;
   serverAdmin: boolean;
@@ -17,15 +18,16 @@ export interface FeatureFlags {
 }
 
 export const DEFAULT_FLAGS: FeatureFlags = {
-  deployModule: false,
-  servers: false,
-  files: false,
-  docker: false,
+  deployModule: true,
+  servers: true,
+  files: true,
+  docker: true,
+  database: false,
   aiAssistant: false,
   shortcuts: false,
   serverAdmin: false,
   configCreators: false,
-  notes: false,
+  notes: true,
   deployPipeline: false,
   deployHistory: false,
   snippetLibrary: false,

@@ -248,6 +248,8 @@ interface DeployViewProps {
   projectTreeListings?: Record<string, string>;
   /** Open panel terminal and run a command (e.g. cd to project then run) */
   onOpenTerminalAndRun?: (command: string, label?: string) => void;
+  bottomPanelOpen?: boolean;
+  bottomPanelTab?: 'logs' | 'terminal';
 }
 
 const hasServerOperator = typeof window !== 'undefined' && typeof window.serverOperator?.deploy === 'function';
@@ -265,7 +267,9 @@ export function DeployView({
   activeFilePath,
   projectRepos = [],
   projectTreeListings = {},
-  onOpenTerminalAndRun: _onOpenTerminalAndRun
+  onOpenTerminalAndRun: _onOpenTerminalAndRun,
+  bottomPanelOpen = false,
+  bottomPanelTab = 'logs',
 }: DeployViewProps) {
   const [deploySubTab, setDeploySubTab] = useState<DeploySubTab>('deploy');
   const isPipelineEnabled = useFeatureFlag('deployPipeline');
@@ -273,6 +277,7 @@ export function DeployView({
   const isServerEnabled = useFeatureFlag('serverAdmin');
   const isShortcutsEnabled = useFeatureFlag('shortcuts');
   const isAiEnabled = useFeatureFlag('aiAssistant');
+  const isBottomTerminalActive = bottomPanelOpen && bottomPanelTab === 'terminal';
 
   useEffect(() => {
     if (deploySubTab === 'pipeline' && !isPipelineEnabled) {
@@ -296,9 +301,9 @@ export function DeployView({
   const [contextAccordionOpen, setContextAccordionOpen] = useState(false);
   const [selectedDeployProjectPath, setSelectedDeployProjectPath] = useState('');
   const [loadingDeployContext, setLoadingDeployContext] = useState(false);
-  const [deploySplitPercent, setDeploySplitPercent] = useState(50);
+  const [deploySplitPercent, setDeploySplitPercent] = useState(65);
   const [deployResizing, setDeployResizing] = useState(false);
-  const deployResizeStartRef = useRef({ x: 0, percent: 50 });
+  const deployResizeStartRef = useRef({ x: 0, percent: 65 });
   const runCommandInTerminalRef = useRef<((cmd: string) => void) | null>(null);
   const [aiRequest, setAiRequest] = useState('');
   const [aiSuggesting, setAiSuggesting] = useState(false);
@@ -731,40 +736,43 @@ export function DeployView({
       >
         <div data-deploy-split className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
           {/* Left: Terminal - flex 0 0 so it keeps its share and doesn't shrink to zero */}
-          <div
-            style={{
-              flex: showRightPanel ? `0 0 ${deploySplitPercent}%` : '1 1 100%',
-              minWidth: 200,
-              maxWidth: !showRightPanel ? '100%' : (deploySplitPercent === 100 ? '100%' : undefined),
-            }}
-            className="flex flex-col min-h-0 border-r border-[var(--border)] bg-[var(--bg-primary)] overflow-hidden"
-          >
-            <div className="shrink-0 px-3 py-2 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
-              <span className="text-xs font-medium text-[var(--text-secondary)]">
-                Terminal {deploySubTab === 'pipeline' ? (pipelineProjDir ? `· ${pipelineProjDir}` : '') : (runCwd ? `· ${runCwd}` : '')}
-              </span>
+          {/* Left: Terminal - flex 0 0 so it keeps its share and doesn't shrink to zero */}
+          {!isBottomTerminalActive && (
+            <div
+              style={{
+                flex: showRightPanel ? `0 0 ${deploySplitPercent}%` : '1 1 100%',
+                minWidth: 200,
+                maxWidth: !showRightPanel ? '100%' : (deploySplitPercent === 100 ? '100%' : undefined),
+              }}
+              className="flex flex-col min-h-0 border-r border-[var(--border)] bg-[var(--bg-primary)] overflow-hidden"
+            >
+              <div className="shrink-0 px-3 py-2 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
+                <span className="text-xs font-medium text-[var(--text-secondary)]">
+                  Terminal {deploySubTab === 'pipeline' ? (pipelineProjDir ? `· ${pipelineProjDir}` : '') : (runCwd ? `· ${runCwd}` : '')}
+                </span>
+              </div>
+     
+              <ProjectTerminal
+                currentServer={currentServer}
+                proxy={proxy}
+                projectPath={deploySubTab === 'pipeline' ? pipelineProjDir : runCwd}
+                disabled={deploying}
+                onReady={(runCommand, shellId) => {
+                  runCommandInTerminalRef.current = runCommand;
+                  terminalShellIdRef.current = shellId;
+                  setIsTerminalReady(true);
+                }}
+                onUnready={() => {
+                  runCommandInTerminalRef.current = null;
+                  terminalShellIdRef.current = null;
+                  setIsTerminalReady(false);
+                }}
+              />
             </div>
-   
-            <ProjectTerminal
-              currentServer={currentServer}
-              proxy={proxy}
-              projectPath={deploySubTab === 'pipeline' ? pipelineProjDir : runCwd}
-              disabled={deploying}
-              onReady={(runCommand, shellId) => {
-                runCommandInTerminalRef.current = runCommand;
-                terminalShellIdRef.current = shellId;
-                setIsTerminalReady(true);
-              }}
-              onUnready={() => {
-                runCommandInTerminalRef.current = null;
-                terminalShellIdRef.current = null;
-                setIsTerminalReady(false);
-              }}
-            />
-          </div>
+          )}
   
           {/* Resize Handle */}
-          {showRightPanel && (
+          {showRightPanel && !isBottomTerminalActive && (
             <div
               role="separator"
               aria-orientation="vertical"
@@ -786,7 +794,7 @@ export function DeployView({
           {showRightPanel && (
             <div
               style={{
-                flex: `1 1 ${100 - deploySplitPercent}%`,
+                flex: isBottomTerminalActive ? '1 1 100%' : `1 1 ${100 - deploySplitPercent}%`,
                 minWidth: 280,
                 minHeight: 0,
               }}

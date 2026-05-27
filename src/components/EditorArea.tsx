@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Editor from '@monaco-editor/react';
-import { FileCode, Save, Loader2, X, Download, ChevronDown, Plus, FolderOpen, Shield } from 'lucide-react';
+import { FileCode, Save, Loader2, X, Download, ChevronDown, Plus, FolderOpen, Shield, Play, Check, Copy, Keyboard, Terminal } from 'lucide-react';
+import { motion } from 'motion/react';
 import type { ServerConnection, ViewId, ProxySettings } from '../types';
 import { DockerView } from './DockerView';
 import { DeployView } from './DeployView';
@@ -60,6 +61,160 @@ interface EditorAreaProps {
   composePaths?: string[];
   projectRepos?: string[];
   projectTreeListings?: Record<string, string>;
+  selectedSnippet?: any;
+  onSelectSnippet?: (snippet: any) => void;
+  bottomPanelOpen?: boolean;
+  bottomPanelTab?: 'logs' | 'terminal';
+}
+
+function SnippetDetails({
+  snippet,
+  onRun,
+}: {
+  snippet: any;
+  onRun?: (cmd: string) => void;
+}) {
+  const [varValues, setVarValues] = useState<Record<string, string>>({});
+  const [copied, setCopied] = useState(false);
+
+  const getVariables = useCallback((cmd: string) => {
+    const regex = /\{\{([^}]+)\}\}/g;
+    const matches: string[] = [];
+    let match;
+    while ((match = regex.exec(cmd)) !== null) {
+      const varName = match[1].trim();
+      if (!matches.includes(varName)) {
+        matches.push(varName);
+      }
+    }
+    return matches;
+  }, []);
+
+  const variables = getVariables(snippet.command);
+
+  useEffect(() => {
+    const vals: Record<string, string> = {};
+    variables.forEach((v) => {
+      vals[v] = '';
+    });
+    setVarValues(vals);
+  }, [snippet.id, snippet.command]);
+
+  const getSubstitutedCommand = () => {
+    let cmd = snippet.command;
+    variables.forEach((v) => {
+      const val = varValues[v]?.trim() || `{{${v}}}`;
+      const escapedVar = v.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const varRegex = new RegExp(`\\{\\{\\s*${escapedVar}\\s*\\}\\}`, 'g');
+      cmd = cmd.replace(varRegex, val);
+    });
+    return cmd;
+  };
+
+  const finalCommand = getSubstitutedCommand();
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(finalCommand);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleRun = () => {
+    if (onRun) {
+      onRun(finalCommand);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 5 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.15 }}
+      className="flex-1 flex flex-col min-h-0 bg-[var(--bg-primary)] p-6 space-y-6"
+    >
+      <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] pb-4 shrink-0">
+        <div>
+          <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+            <Terminal size={18} className="text-[var(--accent)]" />
+            {snippet.title}
+          </h2>
+          {snippet.description && (
+            <p className="text-xs text-[var(--text-secondary)] mt-1 max-w-2xl leading-relaxed">
+              {snippet.description}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-xs font-semibold hover:border-[var(--text-muted)]/40 hover:bg-[var(--bg-tertiary)]/50 transition-all cursor-pointer"
+          >
+            {copied ? (
+              <>
+                <Check size={12} className="text-emerald-400" />
+                <span>Copied</span>
+              </>
+            ) : (
+              <>
+                <Copy size={12} />
+                <span>Copy</span>
+              </>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={handleRun}
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded bg-[var(--accent)] text-white text-xs font-bold hover:bg-[var(--accent-hover)] transition-all cursor-pointer shadow-sm"
+          >
+            <Play size={12} fill="currentColor" />
+            <span>Run Snippet</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col min-h-0 space-y-4 overflow-y-auto pr-1">
+        {variables.length > 0 && (
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-4 space-y-3">
+            <h3 className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+              Snippet Variables
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {variables.map((v) => (
+                <div key={v} className="flex flex-col gap-1">
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] font-mono uppercase tracking-wide">
+                    {v}
+                  </label>
+                  <input
+                    type="text"
+                    value={varValues[v] || ''}
+                    onChange={(e) =>
+                      setVarValues((prev) => ({ ...prev, [v]: e.target.value }))
+                    }
+                    placeholder={`Enter value for ${v}`}
+                    className="w-full px-2.5 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] placeholder-[var(--text-muted)]/50 font-mono"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex-1 flex flex-col min-h-[180px] rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] overflow-hidden">
+          <div className="px-4 py-2 bg-[var(--bg-tertiary)]/30 border-b border-[var(--border)] flex items-center justify-between shrink-0">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+              Command Preview
+            </span>
+          </div>
+          <div className="flex-1 overflow-auto p-4 bg-black/25">
+            <pre className="text-xs font-mono text-[var(--text-primary)] whitespace-pre-wrap break-all leading-relaxed select-text selection:bg-[var(--accent)]/30">
+              {finalCommand}
+            </pre>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
 }
 
 function basename(path: string): string {
@@ -108,6 +263,10 @@ export function EditorArea({
   composePaths = [],
   projectRepos = [],
   projectTreeListings = {},
+  selectedSnippet,
+  onSelectSnippet,
+  bottomPanelOpen = false,
+  bottomPanelTab = 'logs',
 }: EditorAreaProps) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -241,6 +400,8 @@ export function EditorArea({
             projectRepos={projectRepos}
             projectTreeListings={projectTreeListings}
             onOpenTerminalAndRun={onOpenTerminalAndRun}
+            bottomPanelOpen={bottomPanelOpen}
+            bottomPanelTab={bottomPanelTab}
           />
         </div>
       )}
@@ -466,11 +627,32 @@ export function EditorArea({
                   <p className="mt-1 text-[var(--text-primary)] break-words">{fileLoadError}</p>
                 </div>
               )}
-              <div className="flex-1 min-h-0 min-w-0" style={{ minHeight: 200 }}>
+               <div className="flex-1 min-h-0 min-w-0" style={{ minHeight: 200 }}>
                 {isLoading ? (
                   <div className="flex items-center justify-center h-full text-[var(--text-secondary)]">
                     <Loader2 size={24} className="animate-spin mr-2" /> Loading...
                   </div>
+                ) : fileLoadError ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex flex-col items-center justify-center h-full p-6 text-center text-[var(--text-secondary)] gap-4"
+                  >
+                    <div className="p-3 rounded-full bg-[var(--error)]/10 text-[var(--error)]">
+                      <FileCode size={32} />
+                    </div>
+                    <div className="max-w-md">
+                      <h3 className="text-base font-semibold text-[var(--text-primary)] mb-1">Failed to load file</h3>
+                      <p className="text-xs text-[var(--text-muted)] mb-4 font-mono whitespace-pre-wrap break-all bg-[var(--bg-tertiary)]/50 p-2.5 rounded border border-[var(--border)]">{fileLoadError}</p>
+                      <button
+                        type="button"
+                        onClick={() => activeTabPath && onOpenFileByPath?.(activeTabPath, { useSudo: activeTabUsesSudo })}
+                        className="px-4 py-2 rounded-md bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold transition-colors"
+                      >
+                        Failed to load file — click to retry
+                      </button>
+                    </div>
+                  </motion.div>
                 ) : activeTabPath ? (
                   <Editor
                     key={activeTabPath}
@@ -519,6 +701,28 @@ export function EditorArea({
                 )}
               </div>
             </div>
+          )}
+        </div>
+      )}
+      {activeView === 'snippets' && (
+        <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-[var(--bg-primary)]">
+          {selectedSnippet ? (
+            <SnippetDetails
+              snippet={selectedSnippet}
+              onRun={onOpenTerminalAndRun}
+            />
+          ) : (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex-1 flex flex-col items-center justify-center text-[var(--text-secondary)] text-sm gap-3 select-none"
+            >
+              <Keyboard size={36} className="text-[var(--text-muted)] animate-pulse" />
+              <p className="font-medium text-xs tracking-wide">← Select a snippet to preview and run it</p>
+              <span className="text-[10px] text-[var(--text-muted)] px-2 py-1 rounded bg-[var(--bg-secondary)] border border-[var(--border)] font-mono">
+                Press Esc or click search box to clear filter
+              </span>
+            </motion.div>
           )}
         </div>
       )}

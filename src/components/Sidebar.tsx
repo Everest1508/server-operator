@@ -20,6 +20,8 @@ import {
   Copy,
   ClipboardPaste,
   CopyPlus,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import type { ServerConnection, ViewId, FileTreeClipboard } from '../types';
 import { parseLsLine } from '../utils/parseLs';
@@ -73,6 +75,8 @@ interface SidebarProps {
   onFileTreeRenamePath?: (path: string) => Promise<{ ok: boolean; error?: string }>;
   onFileTreeDuplicatePath?: (path: string, isDir: boolean) => Promise<{ ok: boolean; error?: string }>;
   onFileTreeActionMessage?: (message: string | null) => void;
+  selectedSnippet?: any;
+  onSelectSnippet?: (snippet: any) => void;
 }
 
 function buildPath(prefix: string, name: string): string {
@@ -114,6 +118,8 @@ export function Sidebar({
   onFileTreeRenamePath,
   onFileTreeDuplicatePath,
   onFileTreeActionMessage,
+  selectedSnippet,
+  onSelectSnippet,
 }: SidebarProps) {
   const [creatingType, setCreatingType] = useState<'file' | 'folder' | null>(null);
   const [creatingName, setCreatingName] = useState('');
@@ -121,6 +127,7 @@ export function Sidebar({
   const [creating, setCreating] = useState(false);
   const [fileTreeMenu, setFileTreeMenu] = useState<FileTreeMenuState | null>(null);
   const [contextMenuAction, setContextMenuAction] = useState<string | null>(null);
+  const [showDotfiles, setShowDotfiles] = useState(false);
   const createInputRef = useRef<HTMLInputElement>(null);
 
   const [serverStatuses, setServerStatuses] = useState<Record<string, 'green' | 'yellow' | 'red'>>({});
@@ -234,7 +241,8 @@ export function Sidebar({
     const lines = (listing || '').trim().split('\n').filter(Boolean);
     const sortedEntries = lines
       .map((line) => parseLsLine(line))
-      .filter((p): p is NonNullable<typeof p> => p != null);
+      .filter((p): p is NonNullable<typeof p> => p != null)
+      .filter((p) => showDotfiles || !p.name.startsWith('.'));
     sortedEntries.sort((a, b) => {
       if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
       return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
@@ -352,7 +360,10 @@ export function Sidebar({
       {activeView === 'notes' ? (
         <NotesSidebar currentServer={currentServer} onOpenFile={onOpenFile} />
       ) : activeView === 'snippets' ? (
-        <SnippetsSidebar />
+        <SnippetsSidebar
+          selectedSnippet={selectedSnippet}
+          onSelectSnippet={onSelectSnippet || (() => {})}
+        />
       ) : (
         <>
           <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border)]">
@@ -428,6 +439,15 @@ export function Sidebar({
               </button>
             </Tooltip>
           )}
+          <Tooltip content={showDotfiles ? "Hide Hidden Files" : "Show Hidden Files"} position="top">
+            <button
+              type="button"
+              onClick={() => setShowDotfiles(prev => !prev)}
+              className={`p-1.5 rounded transition-colors ${showDotfiles ? 'text-[var(--accent)] bg-[var(--bg-tertiary)]/50' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)]'}`}
+            >
+              {showDotfiles ? <Eye size={16} /> : <EyeOff size={16} />}
+            </button>
+          </Tooltip>
         </div>
       )}
       {connectionError && (

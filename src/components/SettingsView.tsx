@@ -20,6 +20,8 @@ import {
   ScrollText,
   ChevronDown,
   ChevronUp,
+  Bug,
+  Trash2,
 } from 'lucide-react';
 
 import { CHANGELOG, ChangeEntry } from './changelogData';
@@ -64,6 +66,13 @@ const ALL_FEATURES: FeatureItem[] = [
     description: 'Monitor container status list, read logs, rebuild docker-compose systems, and manage active service status.',
     category: 'advanced',
     icon: Boxes,
+  },
+  {
+    key: 'database',
+    title: 'Database Manager',
+    description: 'Connect to remote databases, browse tables, run queries, and manage database schemas directly from the app.',
+    category: 'advanced',
+    icon: ScrollText,
   },
   {
     key: 'shortcuts',
@@ -253,6 +262,62 @@ function ChangelogView() {
 function ModulesView() {
   const { flags, toggleFlag, setSidebarUx, resetToDefaults } = useFeatureFlags();
   const [searchQuery, setSearchQuery] = useState('');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [devtoolsStatus, setDevtoolsStatus] = useState<'idle' | 'opened' | 'error'>('idle');
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logsContent, setLogsContent] = useState('');
+  const [logPath, setLogPath] = useState('');
+
+  React.useEffect(() => {
+    if (window.serverOperator?.getLogFilePath) {
+      window.serverOperator.getLogFilePath().then((path: string) => setLogPath(path || ''));
+    }
+  }, []);
+
+  const handleOpenDevTools = async () => {
+    if (!window.serverOperator?.openDevTools) {
+      setDevtoolsStatus('error');
+      return;
+    }
+    setDevtoolsStatus('opened');
+    await window.serverOperator.openDevTools();
+    setTimeout(() => setDevtoolsStatus('idle'), 2000);
+  };
+
+  const loadLogs = async () => {
+    if (!window.serverOperator?.readLogFile) return;
+    setLogsLoading(true);
+    try {
+      const res = await window.serverOperator.readLogFile();
+      if (res.ok) {
+        setLogsContent(res.content ?? '');
+      } else {
+        alert(res.error || 'Failed to read logs');
+      }
+    } catch (e: any) {
+      alert(e?.message || 'Error reading log file');
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
+  const handleClearLogs = async () => {
+    if (!window.serverOperator?.clearLogFile) return;
+    if (!window.confirm('Are you sure you want to clear the application log file? This cannot be undone.')) {
+      return;
+    }
+    try {
+      const res = await window.serverOperator.clearLogFile();
+      if (res.ok) {
+        setLogsContent('Log file cleared.');
+        alert('Logs cleared successfully');
+      } else {
+        alert(res.error || 'Failed to clear logs');
+      }
+    } catch (e: any) {
+      alert(e?.message || 'Error clearing logs');
+    }
+  };
 
   const toggles = Object.keys(flags).filter((k) => k !== 'sidebarUx') as Array<keyof FeatureFlags>;
   const enabledCount = toggles.reduce((c, k) => c + (flags[k] ? 1 : 0), 0);
@@ -406,6 +471,97 @@ function ModulesView() {
             >
               Clear search query
             </button>
+          </div>
+        )}
+        {/* Advanced / Developer Section - Dev Mode only */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="border border-[var(--border)] bg-[var(--bg-secondary)] rounded-lg overflow-hidden shrink-0 mt-6">
+            <button
+              type="button"
+              onClick={() => setAdvancedOpen(!advancedOpen)}
+              className="w-full flex items-center justify-between px-5 py-4 text-left font-semibold text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]/50 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <Bug size={16} className="text-[var(--error)]" />
+                Advanced / Developer Settings
+              </span>
+              {advancedOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
+            
+            {advancedOpen && (
+              <div className="p-5 border-t border-[var(--border)] space-y-4 bg-[var(--bg-primary)]/40">
+                <p className="text-xs text-[var(--text-secondary)] mb-2">
+                  Application debugging tools and diagnostic log paths.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={handleOpenDevTools}
+                    className={`flex items-center gap-2 px-3 py-2 rounded border text-xs font-medium transition-all ${
+                      devtoolsStatus === 'opened'
+                        ? 'bg-[var(--success)]/10 border-[var(--success)] text-[var(--success)]'
+                        : 'bg-[var(--bg-secondary)] border-[var(--border)] hover:border-[var(--accent)] text-[var(--text-primary)] hover:text-[var(--accent)]'
+                    }`}
+                  >
+                    <Terminal size={14} />
+                    {devtoolsStatus === 'opened' ? 'DevTools Opened!' : 'Open DevTools (Inspect App)'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={loadLogs}
+                    className="flex items-center gap-2 px-3 py-2 rounded border bg-[var(--bg-secondary)] border-[var(--border)] hover:border-[var(--accent)] text-[var(--text-primary)] hover:text-[var(--accent)] text-xs font-medium transition-all"
+                  >
+                    <FileText size={14} className={logsLoading ? 'animate-spin' : ''} />
+                    View Application Logs
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleClearLogs}
+                    className="flex items-center gap-2 px-3 py-2 rounded border border-transparent hover:border-[var(--error)]/30 hover:bg-[var(--error)]/10 text-[var(--text-secondary)] hover:text-[var(--error)] text-xs font-medium transition-all"
+                  >
+                    <Trash2 size={14} />
+                    Clear Log File
+                  </button>
+                </div>
+
+                {logPath && (
+                  <div className="pt-3 border-t border-[var(--border)]">
+                    <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] block mb-1">
+                      Log File Path
+                    </span>
+                    <span
+                      className="text-xs font-mono text-[var(--text-secondary)] break-all select-all hover:text-[var(--text-primary)] cursor-pointer"
+                      onClick={() => {
+                        navigator.clipboard.writeText(logPath);
+                        alert('Log path copied to clipboard');
+                      }}
+                    >
+                      {logPath}
+                    </span>
+                  </div>
+                )}
+
+                {logsContent && (
+                  <div className="mt-4 border border-[var(--border)] bg-[var(--bg-secondary)] rounded-md p-3 flex flex-col gap-2">
+                    <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
+                      <span className="text-xs font-bold text-[var(--text-primary)]">Application Log Contents:</span>
+                      <button
+                        type="button"
+                        onClick={() => setLogsContent('')}
+                        className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] font-semibold"
+                      >
+                        Close Logs
+                      </button>
+                    </div>
+                    <pre className="font-mono text-[10px] text-[var(--text-secondary)] max-h-60 overflow-y-auto whitespace-pre-wrap break-all p-2 rounded bg-[var(--bg-primary)]">
+                      {logsContent}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
