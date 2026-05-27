@@ -5,8 +5,11 @@ import type { ServerConnection, ViewId, ProxySettings } from '../types';
 import { DockerView } from './DockerView';
 import { DeployView } from './DeployView';
 import { ServerOverview } from './ServerOverview';
+import { ServerMonitoringView } from './ServerMonitoringView';
+import { DatabaseView } from './DatabaseView';
 
 function languageFromPath(path: string): string {
+  if (path.startsWith('notes://')) return 'markdown';
   const ext = path.split('.').pop()?.toLowerCase() ?? '';
   const map: Record<string, string> = {
     js: 'javascript', ts: 'typescript', jsx: 'javascript', tsx: 'typescript',
@@ -20,6 +23,7 @@ function languageFromPath(path: string): string {
 interface EditorAreaProps {
   currentServer: ServerConnection | null;
   servers: ServerConnection[];
+  onSelectServer?: (server: ServerConnection) => void;
   activeView: ViewId;
   proxy: ProxySettings;
   onPanelTab: (tab: 'logs' | 'terminal') => void;
@@ -59,12 +63,16 @@ interface EditorAreaProps {
 }
 
 function basename(path: string): string {
+  if (path === 'notes://general') return 'General Notes';
+  if (path === 'notes://server') return 'Server Notes';
   const i = path.lastIndexOf('/');
   return i >= 0 ? path.slice(i + 1) : path;
 }
 
 export function EditorArea({
   currentServer,
+  servers,
+  onSelectServer,
   activeView,
   proxy,
   onPanelTab: _onPanelTab,
@@ -223,6 +231,8 @@ export function EditorArea({
         >
           <DeployView
             currentServer={currentServer}
+            servers={servers}
+            onSelectServer={onSelectServer}
             proxy={proxy}
             onOpenPanel={onPanelOpen}
             currentPath={_currentPath}
@@ -249,6 +259,22 @@ export function EditorArea({
             servicesByPath={dockerServicesByPath}
             servicesLoading={dockerServicesLoading}
             onRefresh={onRefreshDocker}
+          />
+        </div>
+      )}
+      {activeView === 'monitoring' && (
+        <div className="flex-1 flex flex-col min-h-0">
+          <ServerMonitoringView
+            currentServer={currentServer}
+            proxy={proxy}
+          />
+        </div>
+      )}
+      {activeView === 'database' && (
+        <div className="flex-1 flex flex-col min-h-0">
+          <DatabaseView
+            currentServer={currentServer}
+            proxy={proxy}
           />
         </div>
       )}
@@ -496,7 +522,7 @@ export function EditorArea({
           )}
         </div>
       )}
-      {activeView === 'servers' && (
+      {(activeView === 'servers' || activeView === 'notes') && (
         <ServerOverview
           currentServer={currentServer}
           proxy={proxy}

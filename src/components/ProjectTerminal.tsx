@@ -12,12 +12,13 @@ export interface ProjectTerminalProps {
   /** Project path to cd into when shell opens (e.g. selected project from dropdown) */
   projectPath: string;
   /** Called when terminal is ready; pass a function that sends a command to this terminal */
-  onReady: (runCommand: (cmd: string) => void) => void;
+  onReady: (runCommand: (cmd: string) => void, shellId: string) => void;
   /** When terminal is closed or unavailable */
   onUnready: () => void;
+  disabled?: boolean;
 }
 
-export function ProjectTerminal({ currentServer, proxy, projectPath, onReady, onUnready }: ProjectTerminalProps) {
+export function ProjectTerminal({ currentServer, proxy, projectPath, onReady, onUnready, disabled = false }: ProjectTerminalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const shellIdRef = useRef<string | null>(null);
   const [shellId, setShellId] = useState<string | null>(null);
@@ -55,7 +56,7 @@ export function ProjectTerminal({ currentServer, proxy, projectPath, onReady, on
         }
         shellIdRef.current = res.shellId;
         setShellId(res.shellId);
-        onReadyRef.current(runCommand);
+        onReadyRef.current(runCommand, res.shellId);
       })
       .catch((e) => {
         setConnecting(false);
@@ -103,11 +104,18 @@ export function ProjectTerminal({ currentServer, proxy, projectPath, onReady, on
     fitAddon.fit();
     const sid = shellId;
     term.onData((data) => {
-      if (window.serverOperator && sid) {
+      if (window.serverOperator && sid && !disabled) {
         window.serverOperator.shellWrite({ shellId: sid, data });
       }
     });
-    const ro = new ResizeObserver(() => fitAddon.fit());
+    let rafId: number | null = null;
+    const ro = new ResizeObserver(() => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        fitAddon.fit();
+      });
+    });
     ro.observe(container);
     const handler = (e: CustomEvent<{ shellId: string; data: string }>) => {
       if (e.detail.shellId === sid) term.write(e.detail.data);

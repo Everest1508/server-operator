@@ -1,4 +1,36 @@
-export type ViewId = 'servers' | 'files' | 'docker' | 'deploy';
+export type ViewId = 'servers' | 'files' | 'docker' | 'deploy' | 'notes' | 'monitoring' | 'database' | 'snippets' | 'settings';
+
+export interface FeatureFlags {
+  deployModule: boolean;
+  servers: boolean;
+  files: boolean;
+  docker: boolean;
+  aiAssistant: boolean;
+  shortcuts: boolean;
+  serverAdmin: boolean;
+  configCreators: boolean;
+  notes: boolean;
+  deployPipeline: boolean;
+  deployHistory: boolean;
+  snippetLibrary: boolean;
+  sidebarUx: 'hidden' | 'disabled';
+}
+
+export const DEFAULT_FLAGS: FeatureFlags = {
+  deployModule: true,
+  servers: true,
+  files: true,
+  docker: true,
+  aiAssistant: true,
+  shortcuts: true,
+  serverAdmin: true,
+  configCreators: true,
+  notes: true,
+  deployPipeline: true,
+  deployHistory: true,
+  snippetLibrary: true,
+  sidebarUx: 'hidden',
+};
 
 export interface ProxySettings {
   enabled: boolean;
@@ -6,7 +38,7 @@ export interface ProxySettings {
   port: number;
 }
 
-export type ConnectionType = 'ec2' | 'password';
+export type ConnectionType = 'ec2' | 'password' | 'cloudflare';
 
 export interface ServerConnection {
   id: string;
@@ -22,6 +54,10 @@ export interface ServerConnection {
   projectPath?: string;
   cwd?: string;
   useProxy?: boolean;
+  layoutX?: number;
+  layoutY?: number;
+  role?: string;
+  links?: string[];
 }
 
 /** Clipboard for cut/copy in remote file trees (main Files panel and Projects). */

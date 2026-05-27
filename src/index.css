@@ -56,3 +56,30 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #505050;
 }
+
+/* Hide number input spinners for a cleaner, VS Code-like look */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Smooth Accordion transition utilities */
+.accordion-wrapper {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition: grid-template-rows 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s ease-out, visibility 0.2s;
+}
+.accordion-wrapper.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+}
+
+

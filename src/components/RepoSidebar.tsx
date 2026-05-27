@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { ServerConnection, FileTreeClipboard } from '../types';
 import { parseLsLine } from '../utils/parseLs';
+import { Tooltip } from './Tooltip';
 
 interface RepoFileTreeMenuState {
   kind: 'entry' | 'background';
@@ -360,36 +361,39 @@ export function RepoSidebar({
       {canCreate && (
         <div className="shrink-0 flex items-center gap-1 px-2 py-1.5 border-b border-[var(--border)]">
           {onCreateFile && (
-            <button
-              type="button"
-              onClick={() => setCreatingType('file')}
-              disabled={creating}
-              className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] disabled:opacity-50"
-              title="New File"
-            >
-              <FilePlus size={16} />
-            </button>
+            <Tooltip content="New File" position="top">
+              <button
+                type="button"
+                onClick={() => setCreatingType('file')}
+                disabled={creating}
+                className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] disabled:opacity-50"
+              >
+                <FilePlus size={16} />
+              </button>
+            </Tooltip>
           )}
           {onCreateFolder && (
-            <button
-              type="button"
-              onClick={() => setCreatingType('folder')}
-              disabled={creating}
-              className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] disabled:opacity-50"
-              title="New Folder"
-            >
-              <FolderPlus size={16} />
-            </button>
+            <Tooltip content="New Folder" position="top">
+              <button
+                type="button"
+                onClick={() => setCreatingType('folder')}
+                disabled={creating}
+                className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] disabled:opacity-50"
+              >
+                <FolderPlus size={16} />
+              </button>
+            </Tooltip>
           )}
           {onCollapseRepo && selectedRepoPath && (
-            <button
-              type="button"
-              onClick={() => onCollapseRepo(selectedRepoPath)}
-              className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)]"
-              title="Collapse all"
-            >
-              <ChevronsUp size={16} />
-            </button>
+            <Tooltip content="Collapse all" position="top">
+              <button
+                type="button"
+                onClick={() => onCollapseRepo(selectedRepoPath)}
+                className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)]"
+              >
+                <ChevronsUp size={16} />
+              </button>
+            </Tooltip>
           )}
         </div>
       )}

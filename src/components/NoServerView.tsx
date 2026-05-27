@@ -1,19 +1,7 @@
 import { useState } from 'react';
-import { Server, Shield, Plus, Trash2, Edit2, LogIn, Key, Lock, Folder } from 'lucide-react';
+import { Server, Shield, Plus, Trash2, Edit2, LogIn, Key, Lock } from 'lucide-react';
 import type { ServerConnection, ProxySettings, ConnectionType } from '../types';
-
-export const DUMMY_SERVER: ServerConnection = {
-  id: 'dummy',
-  name: 'Dummy (local)',
-  host: 'dummy',
-  username: 'local',
-  connectionType: 'ec2',
-  projectPath: '.',
-  cwd: '.',
-  useProxy: false,
-};
-
-const hasServerOperator = typeof window !== 'undefined' && typeof (window as unknown as { serverOperator?: unknown }).serverOperator !== 'undefined';
+import { Tooltip } from './Tooltip';
 
 const inputClass =
   'px-3 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none text-sm w-full min-w-0';
@@ -63,6 +51,7 @@ export function NoServerView({
     if (!form.name.trim() || !form.host.trim() || !form.username.trim()) return;
     if (connectionType === 'ec2' && !form.privateKeyPath.trim()) return;
     if (connectionType === 'password' && !form.password) return;
+    // cloudflare requires no extra credentials — hostname is sufficient
     onAddServer({
       id: crypto.randomUUID(),
       name: form.name.trim(),
@@ -117,31 +106,11 @@ export function NoServerView({
                 <button type="button" onClick={onDismissError} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-2">Dismiss</button>
               </div>
             )}
-            {hasServerOperator && (
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-4">
-                <p className="text-xs text-[var(--text-secondary)] mb-2">Simulate without SSH: use a local folder (dummy-root) as the server.</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const existing = servers.find((s) => s.id === 'dummy');
-                    if (existing) {
-                      onSelectServer(existing);
-                    } else {
-                      onAddServer(DUMMY_SERVER);
-                      onSelectServer(DUMMY_SERVER);
-                    }
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:text-[var(--accent)] text-sm font-medium"
-                >
-                  <Folder size={16} />
-                  Use Dummy (local) server
-                </button>
-              </div>
-            )}
+
             {/* Add new server */}
             <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-4">
               <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Add new server</h3>
-              <div className="flex gap-4 mb-4">
+              <div className="flex flex-wrap gap-3 mb-4">
                 <button
                   type="button"
                   onClick={() => setConnectionType('ec2')}
@@ -164,7 +133,19 @@ export function NoServerView({
                   }`}
                 >
                   <Lock size={16} />
-                  Password (IP + username + password)
+                  Password (username + password)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConnectionType('cloudflare')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    connectionType === 'cloudflare'
+                      ? 'bg-[var(--bg-tertiary)] text-[var(--warning,#f59e0b)] border border-[var(--warning,#f59e0b)]/50'
+                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] border border-transparent'
+                  }`}
+                >
+                  <Shield size={16} />
+                  Cloudflare Tunnel SSH
                 </button>
               </div>
               <form onSubmit={submitAdd} className="space-y-3">
@@ -210,9 +191,21 @@ export function NoServerView({
                         className={inputClass}
                       />
                     </div>
-                  ) : (
+                  ) : connectionType === 'password' ? (
                     <div>
                       <label className="block text-xs text-[var(--text-secondary)] mb-1">Password</label>
+                      <input
+                        type="password"
+                        value={form.password}
+                        onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                        placeholder="••••••••"
+                        className={inputClass}
+                      />
+                    </div>
+                  ) : (
+                    /* cloudflare: tunnel via cloudflared, SSH auth still needs a password */
+                    <div>
+                      <label className="block text-xs text-[var(--text-secondary)] mb-1">SSH Password</label>
                       <input
                         type="password"
                         value={form.password}
@@ -289,7 +282,7 @@ export function NoServerView({
                           {editingId === s.id ? (
                             <>
                               <td className="px-4 py-2">
-                                <span className="text-xs text-[var(--text-secondary)]">{type === 'ec2' ? 'EC2' : 'Password'}</span>
+                                <span className="text-xs text-[var(--text-secondary)]">{type === 'ec2' ? 'EC2' : type === 'cloudflare' ? 'CF Tunnel' : 'Password'}</span>
                               </td>
                               <td className="px-4 py-2">
                                 <input
@@ -322,6 +315,14 @@ export function NoServerView({
                                     value={s.privateKeyPath ?? ''}
                                     onChange={(e) => onUpdateServer(s.id, { privateKeyPath: e.target.value })}
                                     placeholder="Key path"
+                                    className={inputClass}
+                                  />
+                                ) : type === 'password' ? (
+                                  <input
+                                    type="password"
+                                    value={s.password ?? ''}
+                                    onChange={(e) => onUpdateServer(s.id, { password: e.target.value })}
+                                    placeholder="••••••••"
                                     className={inputClass}
                                   />
                                 ) : (
@@ -372,15 +373,21 @@ export function NoServerView({
                           ) : (
                             <>
                               <td className="px-4 py-2.5">
-                                <span className={`text-xs px-2 py-0.5 rounded ${type === 'ec2' ? 'bg-[var(--success)]/20 text-[var(--success)]' : 'bg-[var(--accent)]/20 text-[var(--accent)]'}`}>
-                                  {type === 'ec2' ? 'EC2' : 'Password'}
+                                <span className={`text-xs px-2 py-0.5 rounded ${
+                                  type === 'ec2'
+                                    ? 'bg-[var(--success)]/20 text-[var(--success)]'
+                                    : type === 'cloudflare'
+                                    ? 'bg-orange-500/20 text-orange-400'
+                                    : 'bg-[var(--accent)]/20 text-[var(--accent)]'
+                                }`}>
+                                  {type === 'ec2' ? 'EC2' : type === 'cloudflare' ? 'CF Tunnel' : 'Password'}
                                 </span>
                               </td>
                               <td className="px-4 py-2.5 text-[var(--text-primary)]">{s.name}</td>
                               <td className="px-4 py-2.5 text-[var(--text-secondary)] font-mono">{s.host}</td>
                               <td className="px-4 py-2.5 text-[var(--text-secondary)]">{s.username}</td>
-                              <td className="px-4 py-2.5 text-[var(--text-secondary)] font-mono truncate max-w-[120px]" title={type === 'ec2' ? (s.privateKeyPath ?? '') : '••••••••'}>
-                                {type === 'ec2' ? (s.privateKeyPath ?? '—') : '••••••••'}
+                              <td className="px-4 py-2.5 text-[var(--text-secondary)] font-mono truncate max-w-[120px]" title={type === 'ec2' ? (s.privateKeyPath ?? '') : type === 'cloudflare' ? 'via cloudflared' : '••••••••'}>
+                                {type === 'ec2' ? (s.privateKeyPath ?? '—') : type === 'cloudflare' ? <span className="italic text-xs">cloudflared</span> : '••••••••'}
                               </td>
                               <td className="px-4 py-2.5 text-[var(--text-secondary)] font-mono truncate max-w-[120px]" title={s.projectPath || '-'}>
                                 {s.projectPath || '—'}
@@ -394,31 +401,34 @@ export function NoServerView({
                               </td>
                               <td className="px-4 py-2.5">
                                 <div className="flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => onSelectServer(s)}
-                                    disabled={connectingTo !== null}
-                                    className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--success)] transition-colors disabled:opacity-60"
-                                    title={connectingTo === s.id ? 'Connecting…' : 'Connect via SSH'}
-                                  >
-                                    <LogIn size={14} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setEditingId(s.id)}
-                                    className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] transition-colors"
-                                    title="Edit"
-                                  >
-                                    <Edit2 size={14} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => onRemoveServer(s.id)}
-                                    className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--error)] transition-colors"
-                                    title="Remove"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
+                                  <Tooltip content={connectingTo === s.id ? 'Connecting…' : 'Connect via SSH'} position="top">
+                                    <button
+                                      type="button"
+                                      onClick={() => onSelectServer(s)}
+                                      disabled={connectingTo !== null}
+                                      className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--success)] transition-colors disabled:opacity-60"
+                                    >
+                                      <LogIn size={14} />
+                                    </button>
+                                  </Tooltip>
+                                  <Tooltip content="Edit server" position="top">
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingId(s.id)}
+                                      className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] transition-colors"
+                                    >
+                                      <Edit2 size={14} />
+                                    </button>
+                                  </Tooltip>
+                                  <Tooltip content="Remove server" position="top">
+                                    <button
+                                      type="button"
+                                      onClick={() => onRemoveServer(s.id)}
+                                      className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--error)] transition-colors"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </Tooltip>
                                 </div>
                               </td>
                             </>

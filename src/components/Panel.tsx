@@ -37,7 +37,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
   const [activeLogTabId, setActiveLogTabId] = useState<string | null>(null);
   const [logContentByTabId, setLogContentByTabId] = useState<Record<string, string>>({});
   const logPreRef = useRef<HTMLPreElement>(null);
-  const [tail, setTail] = useState(200);
+  const [tail, setTail] = useState<number | ''>(200);
 
   const [terminalTabs, setTerminalTabs] = useState<TerminalTab[]>([]);
   const [activeTerminalTabId, setActiveTerminalTabId] = useState<string | null>(null);
@@ -146,7 +146,14 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
           window.serverOperator.shellWrite({ shellId: currentShellId, data });
         }
       });
-      const ro = new ResizeObserver(() => fitAddon.fit());
+      let rafId: number | null = null;
+      const ro = new ResizeObserver(() => {
+        if (rafId !== null) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          fitAddon.fit();
+        });
+      });
       ro.observe(container);
       xtermMap.set(tab.id, { term, fitAddon, ro });
     });
@@ -181,6 +188,64 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
     window.addEventListener('shell-output', handler as EventListener);
     return () => window.removeEventListener('shell-output', handler as EventListener);
   }, [terminalTabs]);
+
+  // Listen for paste snippet requests
+  useEffect(() => {
+    const handlePaste = (e: Event) => {
+      const customEvent = e as CustomEvent<{ command: string }>;
+      const cmdText = customEvent.detail.command;
+      if (!cmdText) return;
+
+      const activeTab = terminalTabs.find((t) => t.id === activeTerminalTabId);
+      if (activeTab && activeTab.shellId) {
+        // Paste into active terminal PTY
+        window.serverOperator?.shellWrite({ shellId: activeTab.shellId, data: cmdText });
+      } else {
+        // No active terminal tab, spawn a new one with the command
+        if (!currentServer || !window.serverOperator) return;
+        const id = `term-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const tab: TerminalTab = {
+          id,
+          shellId: null,
+          serverId: currentServer.id,
+          label: 'Shell',
+          connecting: true,
+          error: null,
+          pendingCommand: cmdText,
+        };
+        setTerminalTabs((prev) => [...prev, tab]);
+        setActiveTerminalTabId(id);
+        window.serverOperator
+          .openShell({ connection: currentServer, proxy })
+          .then((res) => {
+            if (res.ok && res.shellId) {
+              setTerminalTabs((prev) =>
+                prev.map((t) => (t.id === id ? { ...t, shellId: res.shellId!, connecting: false } : t))
+              );
+              // Wait slightly for connection to stabilize before writing command
+              setTimeout(() => {
+                window.serverOperator?.shellWrite({ shellId: res.shellId!, data: cmdText });
+              }, 400);
+            } else {
+              setTerminalTabs((prev) =>
+                prev.map((t) => (t.id === id ? { ...t, connecting: false, error: res.error || 'Failed to open shell' } : t))
+              );
+            }
+          })
+          .catch((err) => {
+            const msg = err && typeof err === 'object' && 'message' in err ? String(err.message) : String(err);
+            setTerminalTabs((prev) =>
+              prev.map((t) => (t.id === id ? { ...t, connecting: false, error: msg } : t))
+            );
+          });
+      }
+    };
+
+    window.addEventListener('paste-to-active-terminal', handlePaste as EventListener);
+    return () => {
+      window.removeEventListener('paste-to-active-terminal', handlePaste as EventListener);
+    };
+  }, [terminalTabs, activeTerminalTabId, currentServer, proxy]);
 
   const closeTerminalTab = useCallback((tabId: string) => {
     const tab = terminalTabs.find((t) => t.id === tabId);
@@ -302,7 +367,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
           connection: currentServer,
           composePath,
           service: service || undefined,
-          tail,
+          tail: tail === '' ? 200 : tail,
           proxy,
         })
         .then((res) => {
@@ -414,8 +479,21 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
             <input
               type="number"
               value={tail}
-              onChange={(e) => setTail(Math.max(0, Number(e.target.value) || 200))}
-              className="w-14 px-2 py-1 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === '') {
+                  setTail('');
+                } else {
+                  const num = parseInt(val, 10);
+                  setTail(isNaN(num) ? '' : Math.max(0, num));
+                }
+              }}
+              onBlur={() => {
+                if (tail === '') {
+                  setTail(200);
+                }
+              }}
+              className="w-16 px-2 py-1 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
               title="Tail lines for new streams"
             />
           </div>

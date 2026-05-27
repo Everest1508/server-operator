@@ -5,6 +5,7 @@ import { EditorArea } from './components/EditorArea';
 import { NoServerView } from './components/NoServerView';
 import { Panel } from './components/Panel';
 import { RepoSidebar } from './components/RepoSidebar';
+import { SettingsView } from './components/SettingsView';
 import type { ServerConnection, ViewId, ProxySettings, DockerContainer, FileTreeClipboard } from './types';
 import { escapeShellSingleQuotes } from './utils/shellQuote';
 import type { ServerSysInfo } from './components/ServerOverview';
@@ -37,7 +38,7 @@ function loadComposePathsByServer(): Record<string, string[]> {
   }
 }
 
-const VIEW_IDS: ViewId[] = ['servers', 'files', 'docker', 'deploy'];
+const VIEW_IDS: ViewId[] = ['servers', 'files', 'docker', 'deploy', 'notes', 'monitoring', 'database', 'snippets', 'settings'];
 const HASH_PREFIX = '#/';
 
 function viewFromHash(): ViewId {
@@ -61,7 +62,10 @@ function loadServers(): ServerConnection[] {
     const raw = localStorage.getItem(STORAGE_KEY_SERVERS);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
-    return Array.isArray(parsed) ? parsed : [];
+    if (Array.isArray(parsed)) {
+      return (parsed as ServerConnection[]).filter(s => s.id !== 'dummy' && s.host !== 'dummy');
+    }
+    return [];
   } catch {
     return [];
   }
@@ -241,6 +245,32 @@ export default function App() {
       loadRepoDir(selectedRepoPath, '.', false);
     }
   }, [selectedRepoPath, currentServer?.id]);
+
+  useEffect(() => {
+    const syncNotes = (e: Event) => {
+      const customEvent = e as CustomEvent<{ type: 'general' | 'server'; content: string }>;
+      const path = customEvent.detail.type === 'general' ? 'notes://general' : 'notes://server';
+      setContentByPath((prev) => {
+        if (prev[path] === customEvent.detail.content) return prev;
+        return { ...prev, [path]: customEvent.detail.content };
+      });
+      setSavedContentByPath((prev) => {
+        if (prev[path] === customEvent.detail.content) return prev;
+        return { ...prev, [path]: customEvent.detail.content };
+      });
+    };
+    window.addEventListener('notes-updated', syncNotes as EventListener);
+    return () => window.removeEventListener('notes-updated', syncNotes as EventListener);
+  }, []);
+
+  useEffect(() => {
+    const handlePaste = () => {
+      setPanelOpen(true);
+      setPanelTab('terminal');
+    };
+    window.addEventListener('paste-to-active-terminal', handlePaste);
+    return () => window.removeEventListener('paste-to-active-terminal', handlePaste);
+  }, []);
 
   useEffect(() => {
     try {
@@ -631,7 +661,26 @@ export default function App() {
 
   // Load file when a new tab is opened (loadingPath set)
   useEffect(() => {
-    if (!loadingPath || !currentServer || !window.serverOperator) return;
+    if (!loadingPath) return;
+    if (loadingPath === 'notes://general') {
+      const content = localStorage.getItem('server-operator:general-notes') ?? '';
+      setContentByPath((prev) => ({ ...prev, [loadingPath]: content }));
+      setSavedContentByPath((prev) => ({ ...prev, [loadingPath]: content }));
+      setFileLoadError(null);
+      setLoadingPath(null);
+      return;
+    }
+    if (loadingPath === 'notes://server') {
+      const serverId = currentServer?.id || '';
+      const content = serverId ? (localStorage.getItem(`server-operator:server-notes:${serverId}`) ?? '') : '';
+      setContentByPath((prev) => ({ ...prev, [loadingPath]: content }));
+      setSavedContentByPath((prev) => ({ ...prev, [loadingPath]: content }));
+      setFileLoadError(null);
+      setLoadingPath(null);
+      return;
+    }
+
+    if (!currentServer || !window.serverOperator) return;
     setFileLoadError(null);
     window.serverOperator
       .readFile({ connection: currentServer, filePath: loadingPath, proxy, useSudo: !!tabSudoByPath[loadingPath] })
@@ -657,6 +706,21 @@ export default function App() {
   }, [loadingPath, currentServer?.id, tabSudoByPath]);
 
   const handleSaveFile = (filePath: string, content: string, opts?: { useSudo?: boolean }) => {
+    if (filePath === 'notes://general') {
+      localStorage.setItem('server-operator:general-notes', content);
+      setSavedContentByPath((prev) => ({ ...prev, [filePath]: content }));
+      window.dispatchEvent(new CustomEvent('notes-updated', { detail: { type: 'general', content } }));
+      return Promise.resolve({ ok: true });
+    }
+    if (filePath === 'notes://server') {
+      const serverId = currentServer?.id;
+      if (!serverId) return Promise.resolve({ ok: false, error: 'No server connected' });
+      localStorage.setItem(`server-operator:server-notes:${serverId}`, content);
+      setSavedContentByPath((prev) => ({ ...prev, [filePath]: content }));
+      window.dispatchEvent(new CustomEvent('notes-updated', { detail: { type: 'server', content } }));
+      return Promise.resolve({ ok: true });
+    }
+
     if (!currentServer || !window.serverOperator) return Promise.resolve({ ok: false, error: 'Not connected' });
     const useSudo = opts?.useSudo ?? !!tabSudoByPath[filePath];
     return window.serverOperator
@@ -1039,6 +1103,12 @@ export default function App() {
     localStorage.setItem(STORAGE_KEY_PROXY, JSON.stringify(proxy));
   }, [proxy]);
 
+  useEffect(() => {
+    if (window.serverOperator && window.serverOperator.setMonitoredServers) {
+      window.serverOperator.setMonitoredServers({ servers, proxy });
+    }
+  }, [servers, proxy]);
+
   const setProxyAndRef = (next: ProxySettings | ((prev: ProxySettings) => ProxySettings)) => {
     if (typeof next === 'function') {
       setProxy((prev) => {
@@ -1081,10 +1151,10 @@ export default function App() {
       setConnectionError('SSH username is required. Edit the server and set Username.');
       return;
     }
-    const isDummy = server.id === 'dummy' || host === 'dummy';
-    const usePassword = server.connectionType === 'password' || (server.password && server.password.length > 0);
-    const useKey = !usePassword && server.privateKeyPath?.trim();
-    if (!isDummy && !usePassword && !useKey) {
+    const isCloudflare = server.connectionType === 'cloudflare';
+    const usePassword = !isCloudflare && (server.connectionType === 'password' || (server.password && server.password.length > 0));
+    const useKey = !isCloudflare && !usePassword && server.privateKeyPath?.trim();
+    if (!isCloudflare && !usePassword && !useKey) {
       setConnectionError('Set either SSH key path (EC2) or password for this server.');
       return;
     }
@@ -1139,60 +1209,73 @@ export default function App() {
         onSidebarToggle={() => setSidebarOpen((o) => !o)}
         panelOpen={panelOpen}
         onPanelToggle={() => setPanelOpen((o) => !o)}
+        currentServer={currentServer}
+        onDisconnect={() => {
+          setCurrentServer(null);
+          setActiveViewAndRoute('servers');
+        }}
       />
-      {sidebarOpen && (
-        <>
-          <div style={{ width: sidebarWidth }} className="flex flex-col shrink-0 bg-[var(--bg-secondary)]">
-            <Sidebar
-              activeView={activeView}
-              servers={servers}
-              currentServer={currentServer}
-              connectingTo={connectingTo}
-              connectionError={connectionError}
-              onSelectServer={handleSelectServer}
-              onRemoveServer={removeServer}
-              onDismissError={() => setConnectionError(null)}
-              treeListings={treeListings}
-              openFolders={openFolders}
-              loadingPaths={loadingPaths}
-              filesError={filesError}
-              currentPath={currentPath}
-              basePath={basePath}
-              onToggleFolder={toggleFolder}
-              onOpenFile={openFile}
-              onLoadDir={loadDir}
-              onCreateFile={createFile}
-              onCreateFolder={createFolder}
-              onDeleteEntry={deleteEntry}
-              onCollapseAll={collapseAll}
-              onMakeGitRepo={onMakeGitRepo}
-              onAddAsProject={onAddAsProject}
-              onAddToLogs={onAddToLogs}
-              onUploadLocalFile={handleUploadLocalFile}
-              uploadBusy={fileTransferBusy}
-              fileTreeClipboard={fileTreeClipboard}
-              onFileTreeCopyPaths={(paths) => {
-                if (currentServer) setFileTreeClipboard({ serverId: currentServer.id, action: 'copy', paths });
-              }}
-              onFileTreeCutPaths={(paths) => {
-                if (currentServer) setFileTreeClipboard({ serverId: currentServer.id, action: 'cut', paths });
-              }}
-              onFileTreePasteInto={pasteIntoRemoteFolder}
-              onFileTreeRenamePath={promptRenamePath}
-              onFileTreeDuplicatePath={duplicatePathOnServer}
-              onFileTreeActionMessage={setFilesError}
-            />
-          </div>
-          <div
-            role="separator"
-            className="w-1 shrink-0 cursor-col-resize bg-[var(--border)] hover:bg-[var(--accent)]/50 transition-colors"
-            onMouseDown={(e) => {
-              resizeStartRef.current = { x: e.clientX, y: 0, w: sidebarWidth, h: 0 };
-              setResizeDrag('sidebar');
-            }}
-          />
-        </>
-      )}
+      <div
+        style={{
+          width: sidebarOpen && activeView !== 'settings' ? `${sidebarWidth}px` : '0px',
+          transition: resizeDrag === 'sidebar' ? 'none' : 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+        className="flex flex-col shrink-0 bg-[var(--bg-secondary)] overflow-hidden"
+      >
+        <Sidebar
+          activeView={activeView}
+          servers={servers}
+          currentServer={currentServer}
+          connectingTo={connectingTo}
+          connectionError={connectionError}
+          onSelectServer={handleSelectServer}
+          onRemoveServer={removeServer}
+          onDismissError={() => setConnectionError(null)}
+          treeListings={treeListings}
+          openFolders={openFolders}
+          loadingPaths={loadingPaths}
+          filesError={filesError}
+          currentPath={currentPath}
+          basePath={basePath}
+          onToggleFolder={toggleFolder}
+          onOpenFile={openFile}
+          onLoadDir={loadDir}
+          onCreateFile={createFile}
+          onCreateFolder={createFolder}
+          onDeleteEntry={deleteEntry}
+          onCollapseAll={collapseAll}
+          onMakeGitRepo={onMakeGitRepo}
+          onAddAsProject={onAddAsProject}
+          onAddToLogs={onAddToLogs}
+          onUploadLocalFile={handleUploadLocalFile}
+          uploadBusy={fileTransferBusy}
+          fileTreeClipboard={fileTreeClipboard}
+          onFileTreeCopyPaths={(paths) => {
+            if (currentServer) setFileTreeClipboard({ serverId: currentServer.id, action: 'copy', paths });
+          }}
+          onFileTreeCutPaths={(paths) => {
+            if (currentServer) setFileTreeClipboard({ serverId: currentServer.id, action: 'cut', paths });
+          }}
+          onFileTreePasteInto={pasteIntoRemoteFolder}
+          onFileTreeRenamePath={promptRenamePath}
+          onFileTreeDuplicatePath={duplicatePathOnServer}
+          onFileTreeActionMessage={setFilesError}
+        />
+      </div>
+      <div
+        role="separator"
+        style={{
+          opacity: sidebarOpen && activeView !== 'settings' ? 1 : 0,
+          pointerEvents: sidebarOpen && activeView !== 'settings' ? 'auto' : 'none',
+          width: sidebarOpen && activeView !== 'settings' ? '1px' : '0px',
+          transition: resizeDrag === 'sidebar' ? 'none' : 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+        className="shrink-0 cursor-col-resize bg-[var(--border)] hover:bg-[var(--accent)]/50"
+        onMouseDown={(e) => {
+          resizeStartRef.current = { x: e.clientX, y: 0, w: sidebarWidth, h: 0 };
+          setResizeDrag('sidebar');
+        }}
+      />
       <div className="flex flex-1 flex-col min-w-0 min-h-0 relative">
         {connectingToServer && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[var(--bg-primary)]/95 backdrop-blur-sm">
@@ -1233,10 +1316,13 @@ export default function App() {
         )}
         <div className="flex-1 flex min-h-0 min-w-0">
           <div className="flex-1 flex flex-col min-h-0 min-w-0">
-            {currentServer ? (
+            {activeView === 'settings' ? (
+              <SettingsView />
+            ) : currentServer ? (
               <EditorArea
                 currentServer={currentServer}
                 servers={servers}
+                onSelectServer={setCurrentServer}
                 activeView={activeView}
                 proxy={proxy}
                 onPanelTab={setPanelTab}
@@ -1359,8 +1445,11 @@ export default function App() {
               />
             )}
             <div
-              style={{ height: panelOpen ? panelHeight : 0 }}
-              className="shrink-0 flex flex-col min-h-0 overflow-hidden transition-[height] duration-150"
+              style={{
+                height: panelOpen ? `${panelHeight}px` : '0px',
+                transition: resizeDrag === 'panel' ? 'none' : 'height 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
+              }}
+              className="shrink-0 flex flex-col min-h-0 overflow-hidden"
             >
               <Panel
                 currentServer={currentServer}

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Box, RefreshCw, Loader2, FileText, RotateCw, X, Play, Square, MoreVertical, Pause, Trash2, Zap, Terminal, Database } from 'lucide-react';
 import type { ServerConnection, ProxySettings } from '../types';
 import type { DockerContainer } from '../types';
+import { Tooltip } from './Tooltip';
 
 const TAB_ALL = '__all__';
 const LOG_TAIL = 200;
@@ -340,41 +341,44 @@ export function DockerView({
             All containers
           </button>
           {composePaths.map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => setActiveTab(p)}
-              title={p}
-              className={`shrink-0 px-3 py-2 text-sm font-medium border-b-2 transition-colors truncate max-w-[180px] ${
-                activeTab === p
-                  ? 'border-[var(--accent)] text-[var(--accent)]'
-                  : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              {shortName(p)}
-            </button>
+            <Tooltip key={p} content={p} position="bottom">
+              <button
+                type="button"
+                onClick={() => setActiveTab(p)}
+                className={`shrink-0 px-3 py-2 text-sm font-medium border-b-2 transition-colors truncate max-w-[180px] ${
+                  activeTab === p
+                    ? 'border-[var(--accent)] text-[var(--accent)]'
+                    : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                {shortName(p)}
+              </button>
+            </Tooltip>
           ))}
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={runRestartAll}
-            disabled={restartAllInProgress || loading || (activeTab !== TAB_ALL && !!loadingServicesForPath)}
-            title={activeTab === TAB_ALL ? 'Restart all running containers' : 'Restart all services in this compose project'}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] transition-colors disabled:opacity-50"
-          >
-            {restartAllInProgress ? <Loader2 size={16} className="animate-spin" /> : <RotateCw size={16} />}
-            Restart all
-          </button>
-          <button
-            type="button"
-            onClick={() => onRefresh?.()}
-            disabled={loading || (activeTab !== TAB_ALL && !!loadingServicesForPath)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] transition-colors disabled:opacity-50"
-          >
-            {(loading || loadingServices) ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-            Refresh
-          </button>
+          <Tooltip content={activeTab === TAB_ALL ? 'Restart all running containers' : 'Restart all services in this compose project'} position="bottom">
+            <button
+              type="button"
+              onClick={runRestartAll}
+              disabled={restartAllInProgress || loading || (activeTab !== TAB_ALL && !!loadingServicesForPath)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] transition-colors disabled:opacity-50"
+            >
+              {restartAllInProgress ? <Loader2 size={16} className="animate-spin" /> : <RotateCw size={16} />}
+              Restart all
+            </button>
+          </Tooltip>
+          <Tooltip content="Refresh status" position="bottom">
+            <button
+              type="button"
+              onClick={() => onRefresh?.()}
+              disabled={loading || (activeTab !== TAB_ALL && !!loadingServicesForPath)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] transition-colors disabled:opacity-50"
+            >
+              {(loading || loadingServices) ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+              Refresh
+            </button>
+          </Tooltip>
         </div>
       </div>
       <div className="flex-1 overflow-auto p-4">
@@ -420,17 +424,18 @@ export function DockerView({
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-                          <div className="relative" ref={isActionsOpen ? actionsMenuRef : undefined}>
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); setOpenActionsKey((k) => (k === actionsKey ? null : actionsKey)); }}
-                              disabled={!!containerAction}
-                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] disabled:opacity-50"
-                              title="Actions"
-                            >
-                              <MoreVertical size={14} />
-                              Actions
-                            </button>
+                          <div className="relative flex items-center" ref={isActionsOpen ? actionsMenuRef : undefined}>
+                            <Tooltip content="Actions" position="top">
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setOpenActionsKey((k) => (k === actionsKey ? null : actionsKey)); }}
+                                disabled={!!containerAction}
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] disabled:opacity-50"
+                              >
+                                <MoreVertical size={14} />
+                                Actions
+                              </button>
+                            </Tooltip>
                             {isActionsOpen && (
                               <div className="absolute right-0 top-full mt-1 py-1 min-w-[130px] rounded-md border border-[var(--border)] bg-[var(--bg-secondary)] shadow-lg z-20 max-h-[70vh] overflow-y-auto">
                                 {!isRunning && !isPaused && (
@@ -522,14 +527,15 @@ export function DockerView({
                         <div className="border-t border-[var(--border)] bg-[var(--bg-primary)]">
                           <div className="flex items-center justify-between px-3 py-1.5 border-b border-[var(--border)]">
                             <span className="text-[10px] text-[var(--text-muted)]">Logs: {c.Names || c.ID || 'container'}</span>
-                            <button
-                              type="button"
-                              onClick={() => toggleLogsForContainer(containerId)}
-                              className="p-1 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
-                              title="Close logs"
-                            >
-                              <X size={14} />
-                            </button>
+                            <Tooltip content="Close logs" position="left">
+                              <button
+                                type="button"
+                                onClick={() => toggleLogsForContainer(containerId)}
+                                className="p-1 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center"
+                              >
+                                <X size={14} />
+                              </button>
+                            </Tooltip>
                           </div>
                           <pre
                             ref={logPreRef}
@@ -579,17 +585,18 @@ export function DockerView({
                               <p className="font-medium text-[var(--text-primary)] truncate">{s}</p>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
-                              <div className="relative" ref={openActionsKey === `compose:${key}` ? actionsMenuRef : undefined}>
-                                <button
-                                  type="button"
-                                  onClick={(e) => { e.stopPropagation(); setOpenActionsKey((k) => (k === `compose:${key}` ? null : `compose:${key}`)); }}
-                                  disabled={!!composeServiceAction}
-                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] disabled:opacity-50"
-                                  title="Actions"
-                                >
-                                  <MoreVertical size={14} />
-                                  Actions
-                                </button>
+                              <div className="relative flex items-center" ref={openActionsKey === `compose:${key}` ? actionsMenuRef : undefined}>
+                                <Tooltip content="Actions" position="top">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setOpenActionsKey((k) => (k === `compose:${key}` ? null : `compose:${key}`)); }}
+                                    disabled={!!composeServiceAction}
+                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] disabled:opacity-50"
+                                  >
+                                    <MoreVertical size={14} />
+                                    Actions
+                                  </button>
+                                </Tooltip>
                                 {openActionsKey === `compose:${key}` && (
                                   <div className="absolute right-0 top-full mt-1 py-1 min-w-[130px] rounded-md border border-[var(--border)] bg-[var(--bg-secondary)] shadow-lg z-20 max-h-[70vh] overflow-y-auto">
                                     <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceAction(activeTab, s, 'start'); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]" disabled={!!composeServiceAction}>
@@ -668,14 +675,15 @@ export function DockerView({
                             <div className="border-t border-[var(--border)] bg-[var(--bg-primary)]">
                               <div className="flex items-center justify-between px-3 py-1.5 border-b border-[var(--border)]">
                                 <span className="text-[10px] text-[var(--text-muted)]">Logs: {s}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => toggleLogs(activeTab, s)}
-                                  className="p-1 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
-                                  title="Close logs"
-                                >
-                                  <X size={14} />
-                                </button>
+                                <Tooltip content="Close logs" position="left">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleLogs(activeTab, s)}
+                                    className="p-1 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </Tooltip>
                               </div>
                               <pre
                                 ref={logPreRef}
