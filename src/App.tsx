@@ -4,6 +4,7 @@ import { Sidebar } from './components/Sidebar';
 import { EditorArea } from './components/EditorArea';
 import { NoServerView } from './components/NoServerView';
 import { Panel } from './components/Panel';
+import { RepoSidebar } from './components/RepoSidebar';
 import { SettingsView } from './components/SettingsView';
 import { UpdateBanner } from './components/UpdateBanner';
 import type { ServerConnection, ViewId, ProxySettings, DockerContainer, FileTreeClipboard } from './types';
@@ -164,7 +165,8 @@ export default function App() {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const connectCancelRef = useRef(false);
   const [selectedGuideId, setSelectedGuideId] = useState<string>('database');
-  const [resizeDrag, setResizeDrag] = useState<'sidebar' | 'panel' | null>(null);
+  const [rightPanelWidth, setRightPanelWidth] = useState(RIGHT_PANEL_DEFAULT);
+  const [resizeDrag, setResizeDrag] = useState<'sidebar' | 'panel' | 'rightPanel' | null>(null);
   const resizeStartRef = useRef({ x: 0, y: 0, w: 0, h: 0 });
 
   useEffect(() => {
@@ -173,6 +175,8 @@ export default function App() {
       const s = resizeStartRef.current;
       if (resizeDrag === 'sidebar') {
         setSidebarWidth(Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, s.w + (e.clientX - s.x))));
+      } else if (resizeDrag === 'rightPanel') {
+        setRightPanelWidth(Math.min(RIGHT_PANEL_MAX, Math.max(RIGHT_PANEL_MIN, s.w - (e.clientX - s.x))));
       } else {
         setPanelHeight(Math.min(PANEL_MAX, Math.max(PANEL_MIN, s.h - (e.clientY - s.y))));
       }
@@ -1391,6 +1395,58 @@ export default function App() {
               />
             )}
           </div>
+          {currentServer && activeView === 'files' && (
+            <>
+              <div
+                role="separator"
+                className="w-1 shrink-0 cursor-col-resize bg-[var(--border)] hover:bg-[var(--accent)]/50 transition-colors"
+                onMouseDown={(e) => {
+                  resizeStartRef.current = { x: e.clientX, y: 0, w: rightPanelWidth, h: 0 };
+                  setResizeDrag('rightPanel');
+                }}
+              />
+              <div style={{ width: rightPanelWidth }} className="shrink-0 flex flex-col min-h-0 border-l border-[var(--border)]">
+                <RepoSidebar
+                  repos={repos}
+                  selectedRepoPath={selectedRepoPath}
+                  currentServer={currentServer}
+                  onSelectRepo={setSelectedRepoPath}
+                  onRemoveRepo={removeRepo}
+                  repoTreeListings={repoTreeListings}
+                  repoOpenFolders={repoOpenFolders}
+                  repoLoadingPaths={repoLoadingPaths}
+                  repoCurrentPath={selectedRepoPath ? (repoCurrentPathByRepo[selectedRepoPath] ?? '.') : '.'}
+                  repoBrowseDirForPaste={
+                    selectedRepoPath
+                      ? (() => {
+                          const rel = repoCurrentPathByRepo[selectedRepoPath] ?? '.';
+                          return rel === '.' ? selectedRepoPath : `${selectedRepoPath}/${rel}`;
+                        })()
+                      : '.'
+                  }
+                  onToggleRepoFolder={toggleRepoFolder}
+                  loadRepoDir={loadRepoDir}
+                  onOpenFile={openFile}
+                  onCreateFile={createFileInRepo}
+                  onCreateFolder={createFolderInRepo}
+                  onDeleteEntry={deleteEntryInRepo}
+                  onCollapseRepo={collapseRepo}
+                  basePath={basePath}
+                  fileTreeClipboard={fileTreeClipboard}
+                  onFileTreeCopyPaths={(paths) => {
+                    if (currentServer) setFileTreeClipboard({ serverId: currentServer.id, action: 'copy', paths });
+                  }}
+                  onFileTreeCutPaths={(paths) => {
+                    if (currentServer) setFileTreeClipboard({ serverId: currentServer.id, action: 'cut', paths });
+                  }}
+                  onFileTreePasteInto={pasteIntoRemoteFolder}
+                  onFileTreeRenamePath={promptRenamePath}
+                  onFileTreeDuplicatePath={duplicatePathOnServer}
+                  onFileTreeActionMessage={setFilesError}
+                />
+              </div>
+            </>
+          )}
         </div>
         {currentServer && (
           <>

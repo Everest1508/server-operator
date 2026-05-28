@@ -553,7 +553,12 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                       ]}
                     />
                     <div className="flex items-center gap-2 mt-1">
-                      {loadingContext && <Loader2 size={14} className="animate-spin text-[var(--text-secondary)]" />}
+                      {loadingContext && (
+                        <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+                          <Loader2 size={14} className="animate-spin text-[var(--text-secondary)]" />
+                          <span>Loading project context...</span>
+                        </div>
+                      )}
                       {!projectRepos.length && (
                         <span className="text-xs text-[var(--text-muted)]">Right-click a folder → Add as project</span>
                       )}
