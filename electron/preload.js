@@ -68,4 +68,10 @@ contextBridge.exposeInMainWorld('serverOperator', {
   // ── Updates ───────────────────────────────────────────────────────────────
   checkForUpdates: () => ipcRenderer.invoke('updates:check'),
   openReleasePage: (url) => ipcRenderer.invoke('updates:open-release', url),
+  // ── Window Controls ────────────────────────────────────────────────────────
+  platform: process.platform,
+  minimizeWindow: () => ipcRenderer.invoke('window:minimize'),
+  maximizeWindow: () => ipcRenderer.invoke('window:maximize'),
+  closeWindow: () => ipcRenderer.invoke('window:close'),
+  isWindowMaximized: () => ipcRenderer.invoke('window:isMaximized'),
 });

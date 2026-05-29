@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Rocket, Loader2, Key, FileCode, FolderTree, Send, Sparkles, Play, ChevronDown, Server, Copy, Wand2, GitBranch, RefreshCw } from 'lucide-react';
+import EyeIcon from './icons/EyeIcon';
+import EyeOffIcon from './icons/EyeOffIcon';
 import { useFeatureFlag } from '../contexts/FeatureFlagContext';
 import type { ServerConnection, ProxySettings } from '../types';
 import { loadProjectContext } from '../utils/loadProjectContext';
@@ -308,6 +310,7 @@ export function DeployView({
   const [aiRequest, setAiRequest] = useState('');
   const [aiSuggesting, setAiSuggesting] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [showGroqKey, setShowGroqKey] = useState(false);
 
   // Pipeline form states
   const [pipelineProjDir, setPipelineProjDir] = useState(currentServer?.projectPath || currentServer?.cwd || '');
@@ -980,14 +983,23 @@ export function DeployView({
                       <div className="p-3 border-b border-[var(--border)] shrink-0">
                         <div className="flex items-center gap-2">
                           <Key size={14} className="text-[var(--text-secondary)] shrink-0" />
-                          <input
-                            type="password"
-                            value={groqApiKey}
-                            onChange={(e) => setGroqApiKey(e.target.value)}
-                            onBlur={handleSaveGroqKey}
-                            placeholder="Groq API key (saved locally)"
-                            className="flex-1 min-w-0 px-3 py-1.5 rounded-md bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)]"
-                          />
+                          <div className="relative flex-1 flex items-center min-w-0">
+                            <input
+                              type={showGroqKey ? 'text' : 'password'}
+                              value={groqApiKey}
+                              onChange={(e) => setGroqApiKey(e.target.value)}
+                              onBlur={handleSaveGroqKey}
+                              placeholder="Groq API key (saved locally)"
+                              className="w-full px-3 py-1.5 pr-10 rounded-md bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowGroqKey(!showGroqKey)}
+                              className="absolute right-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none"
+                            >
+                              {showGroqKey ? <EyeOffIcon size={14} /> : <EyeIcon size={14} />}
+                            </button>
+                          </div>
                           <button
                             type="button"
                             onClick={handleSaveGroqKey}

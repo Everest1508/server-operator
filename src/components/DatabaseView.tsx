@@ -12,6 +12,8 @@ import {
   ChevronRight,
   Server as ServerIcon
 } from 'lucide-react';
+import EyeIcon from './icons/EyeIcon';
+import EyeOffIcon from './icons/EyeOffIcon';
 import type { ServerConnection, ProxySettings } from '../types';
 import Editor, { useMonaco } from '@monaco-editor/react';
 
@@ -28,6 +30,7 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
   const [username, setUsername] = useState('root');
   const [password, setPassword] = useState('');
   const [database, setDatabase] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Execution State
   const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
@@ -385,14 +388,23 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs text-[var(--text-secondary)]" htmlFor="pass-input">Password</label>
-                <input
-                  id="pass-input"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Optional"
-                  className="w-full px-2.5 py-1.5 border border-[var(--border)] bg-[var(--bg-primary)] rounded text-xs text-[var(--text-primary)] focus:outline-none"
-                />
+                <div className="relative flex items-center">
+                  <input
+                    id="pass-input"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Optional"
+                    className="w-full px-2.5 py-1.5 pr-10 border border-[var(--border)] bg-[var(--bg-primary)] rounded text-xs text-[var(--text-primary)] focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none"
+                  >
+                    {showPassword ? <EyeOffIcon size={14} /> : <EyeIcon size={14} />}
+                  </button>
+                </div>
               </div>
 
               <div className="flex flex-col gap-1.5">

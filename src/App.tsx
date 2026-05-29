@@ -7,6 +7,7 @@ import { Panel } from './components/Panel';
 import { RepoSidebar } from './components/RepoSidebar';
 import { SettingsView } from './components/SettingsView';
 import { UpdateBanner } from './components/UpdateBanner';
+import { TitleBar } from './components/TitleBar';
 import type { ServerConnection, ViewId, ProxySettings, DockerContainer, FileTreeClipboard } from './types';
 import { escapeShellSingleQuotes } from './utils/shellQuote';
 import type { ServerSysInfo } from './components/ServerOverview';
@@ -1210,21 +1211,27 @@ export default function App() {
   };
 
   return (
-    <div className={`flex h-full bg-[var(--bg-primary)] text-[var(--text-primary)] ${resizeDrag ? 'select-none' : ''}`}>
-      <UpdateBanner />
-      <ActivityBar
-        activeView={activeView}
-        onViewChange={setActiveViewAndRoute}
+    <div className={`flex flex-col h-full bg-[var(--bg-primary)] text-[var(--text-primary)] ${resizeDrag ? 'select-none' : ''}`}>
+      <TitleBar
+        currentServer={currentServer}
         sidebarOpen={sidebarOpen}
         onSidebarToggle={() => setSidebarOpen((o) => !o)}
-        panelOpen={panelOpen}
-        onPanelToggle={() => setPanelOpen((o) => !o)}
-        currentServer={currentServer}
-        onDisconnect={() => {
-          setCurrentServer(null);
-          setActiveViewAndRoute('servers');
-        }}
       />
+      <div className="flex flex-1 min-h-0 min-w-0">
+        <UpdateBanner />
+        <ActivityBar
+          activeView={activeView}
+          onViewChange={setActiveViewAndRoute}
+          sidebarOpen={sidebarOpen}
+          onSidebarToggle={() => setSidebarOpen((o) => !o)}
+          panelOpen={panelOpen}
+          onPanelToggle={() => setPanelOpen((o) => !o)}
+          currentServer={currentServer}
+          onDisconnect={() => {
+            setCurrentServer(null);
+            setActiveViewAndRoute('servers');
+          }}
+        />
       <div
         style={{
           width: sidebarOpen && activeView !== 'settings' ? `${sidebarWidth}px` : '0px',
@@ -1487,5 +1494,6 @@ export default function App() {
         )}
       </div>
     </div>
+  </div>
   );
 }
