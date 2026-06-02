@@ -23,6 +23,47 @@ export interface ChangelogVersion {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: '1.0.1',
+    codename: 'Amber Anchor',
+    date: '2026-06-02',
+    summary:
+      'This release introduces critical SSH stability improvements, a connection queuing manager to prevent session exhaustion, custom toggles, password visibility eye toggles, multi-architecture macOS build support, Tailwind CSS v4 styling migration, and significant CPU optimization by removing redundant periodic uptime monitoring loops.',
+    groups: [
+      {
+        label: 'SSH Stability & Queuing',
+        icon: Shield,
+        color: '#a7f3d0',
+        items: [
+          { type: 'feat', text: 'Implemented a sequential FIFO Promise queue (connectionQueues) to serialize remote execution requests and prevent MaxSessions channel open failures.' },
+          { type: 'feat', text: 'Added SSH keepalive heartbeats (keepaliveInterval: 10000, keepaliveCountMax: 3) to automatically teardown dead or timed-out connection sockets.' },
+          { type: 'fix', text: 'Cleared connection queue state upon socket closure, errors, or idle timeout evictions to prevent reference memory leaks.' },
+          { type: 'improve', text: 'Completely removed the 60-second periodic background uptime monitoring checks to eliminate unnecessary SSH load on servers.' },
+        ],
+      },
+      {
+        label: 'Visual Refinements & Controls',
+        icon: Sliders,
+        color: '#f0abfc',
+        items: [
+          { type: 'feat', text: 'Integrated an interactive eye icon visibility toggle for masked server passwords under the Authentication table column.' },
+          { type: 'feat', text: 'Replaced native browser checkboxes across server configuration forms, Docker views, and settings with sleek custom React buttons.' },
+          { type: 'fix', text: 'Fixed bottom terminal active checks to prevent active SSH stream sessions from unmounting and disconnecting during drawer toggles.' },
+          { type: 'improve', text: 'Migrated custom UI styling and theme colors to Tailwind CSS v4 design specifications.' },
+        ],
+      },
+      {
+        label: 'Deployment & Core Infrastructure',
+        icon: Sparkles,
+        color: '#fb923c',
+        items: [
+          { type: 'feat', text: 'Configured explicit multi-arch macOS targets supporting both Apple Silicon (ARM64) and Intel (x64) architectures.' },
+          { type: 'improve', text: 'Refined Certbot automatic SSL detection and status verification logic for server domains.' },
+          { type: 'improve', text: 'Optimized Tor SOCKS5 proxy toggle defaults for SSH connections.' },
+        ],
+      },
+    ],
+  },
+  {
     version: '1.0.0',
     codename: 'Cobalt Catalyst',
     date: '2026-05-27',
