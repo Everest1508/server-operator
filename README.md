@@ -63,6 +63,19 @@ npm run electron:build
 ```
 Find the output files inside the `release/` or `dist/` directory.
 
+#### ⚠️ macOS "App is Damaged" Troubleshooting
+Because local or unsigned macOS builds are not code-signed or notarized with an Apple Developer account, macOS Gatekeeper will block them, showing a warning that the app is "damaged and can't be opened".
+
+To resolve this on your system:
+1. Copy `Server Operator.app` to your `/Applications` folder.
+2. Open your terminal and run:
+   ```bash
+   xattr -cr /Applications/Server\ Operator.app
+   ```
+This strips the quarantine attribute and allows the application to launch successfully.
+
+For official distribution, configure code signing and notarization using Apple Developer certificates within `electron-builder`.
+
 ---
 
 ## 🔌 Project Bootstrap (CLI & Configuration)

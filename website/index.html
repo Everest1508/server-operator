@@ -265,8 +265,11 @@
             <div class="download-card">
               <span class="download-card__platform">macOS · dmg / zip</span>
               <h3>Apple Silicon &amp; Intel</h3>
-              <p>Download the latest DMG package (falls back to zip asset when available).</p>
-              <a class="btn btn--primary" id="dl-mac-dmg" href="https://github.com/everest1508/server-operator/releases/latest">Download for macOS</a>
+              <p>Download the build optimized for your Mac's processor type.</p>
+              <div style="display: flex; gap: 8px; flex-direction: column; margin-top: 12px;">
+                <a class="btn btn--primary" id="dl-mac-arm" href="https://github.com/everest1508/server-operator/releases/latest" style="text-align: center;">Apple Silicon (M1/M2/M3)</a>
+                <a class="btn btn--secondary" id="dl-mac-x64" href="https://github.com/everest1508/server-operator/releases/latest" style="text-align: center;">Intel Processor</a>
+              </div>
             </div>
             <div class="download-card">
               <span class="download-card__platform">Windows · x64</span>
@@ -288,6 +291,11 @@
             </div>
           </div>
           <div class="download-note">
+            <strong style="color: var(--text-primary)">macOS "App is damaged" Warning:</strong>
+            Because the macOS build is currently unsigned, Gatekeeper may flag it as damaged. To fix this, copy the app to your Applications folder, open Terminal, and run:
+            <code style="display: block; margin: 8px 0; padding: 8px; background: rgba(0, 0, 0, 0.3); border-radius: 4px; font-family: monospace; color: #ff79c6;">xattr -cr /Applications/Server\ Operator.app</code>
+          </div>
+          <div class="download-note" style="margin-top: 16px;">
             <strong style="color: var(--text-primary)">Prefer the release page?</strong>
             All artifacts and checksums live on
             <a href="https://github.com/everest1508/server-operator/releases/latest">GitHub Releases</a>.
