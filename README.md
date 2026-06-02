@@ -1,137 +1,89 @@
-# Server Operator
+# ⚡ Server Operator ⚡
 
-A premium Electron app to manage servers, view Docker containers, browse files (Dockerfile, docker-compose), view Docker Compose logs, and deploy code — with a VS Code–inspired UI and Tailwind CSS.
+<p align="center">
+  <img src="public/logo.png" width="128" height="128" alt="Server Operator Logo" />
+</p>
 
-## Features
+<p align="center">
+  <strong>Forged by BeForth</strong><br />
+  A premium, high-performance desktop server manager and deployment environment built on Electron, React, and TypeScript.
+</p>
 
-- **Servers**: Add servers via SSH (host, username, private key path, optional project path).
-- **Files**: Browse project directory on the server and open files (e.g. Dockerfile, docker-compose.yml).
-- **Docker**: List all Docker containers (from `docker ps -a`) for the selected server.
-- **Logs**: View Docker Compose logs in the bottom panel (optional service filter, tail lines).
-- **Deploy**: Run deploy commands (e.g. `git pull && docker compose up -d --build`) with presets.
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License" /></a>
+  <img src="https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows-blue" alt="Platforms" />
+  <img src="https://img.shields.io/badge/Built%20With-Electron%20%2B%20Vite%20%2B%20Tailwind-61dafb" alt="Built With" />
+</p>
 
-## Tech
+---
 
-- Electron + React + TypeScript
-- Vite + Tailwind CSS v4
-- `node-ssh` for SSH and remote commands
+## 🚀 Key Modules
 
-## Setup
+Server Operator operates with a **disabled-by-default architecture**, allowing you to customize your workspace and keep memory consumption low. Enable the modules you need directly in **Feature Settings**:
 
+*   🖥️ **Connection Manager**: Fast SSH connections supporting private key keys, password authentication, and integrated Tor SOCKS5 proxying.
+*   📂 **Remote File System Explorer**: Visual folder tree navigation with built-in Monaco Editor support, file creation, uploads, and downloads.
+*   🐳 **Docker Console**: Instantly list active Docker containers (`docker ps -a`), inspect service logs, and rebuild configurations.
+*   📦 **Database Suite**: Run database queries directly over the secure SSH tunnel connection. Includes syntax highlights for MySQL/PostgreSQL and autocomplete.
+*   🚀 **Git Deployment Pipeline**: Trigger remote project updates, run migrations, install pip/npm dependencies, and view execution histories.
+*   ⚙️ **Systemd & Nginx Wizards**: Generate reverse proxy configurations and service files with automated wizards.
+*   🧠 **AI Diagnostic Assistant**: Get immediate diagnostic suggestions, query explanations, and command generation directly in your workspace.
+*   📋 **Persistent Snippets & Notes**: Create localized snippets with parameter placeholders (`{{port}}`) and maintain clean, auto-saving checklists.
+
+---
+
+## 🛠️ Tech Stack
+
+*   **Runtime Framework**: Electron
+*   **User Interface**: React + TypeScript (Vite bundler)
+*   **Styling Engine**: Tailwind CSS
+*   **Connection Protocols**: `node-ssh`, SOCKS5 Proxy client
+*   **Text Editor**: Monaco Editor (VS Code core engine)
+*   **Database Connectivity**: SQLite, node-postgres, mysql2
+
+---
+
+## 💻 Local Setup
+
+Install dependencies:
 ```bash
 npm install
 ```
 
-## Run (dev)
-
-Start the app with Vite dev server + Electron:
-
+### Development Mode
+Boot the hot-reloading Vite dev environment with Electron concurrently:
 ```bash
 npm run electron:dev
 ```
 
-Or run the web UI only:
-
-```bash
-npm run dev
-```
-
-## Build
-
+### Production Compilation
+Build release targets for macOS, Windows, and Linux:
 ```bash
 npm run electron:build
 ```
+Find the output files inside the `release/` or `dist/` directory.
 
-Output is in `release/`.
+---
 
-## Usage
+## 🔌 Project Bootstrap (CLI & Configuration)
 
-1. Click **+** in the Servers sidebar and add a server (host, user, SSH key path, optional project path).
-2. Select the server in the sidebar.
-3. Use the activity bar: **Files** (browse and open files), **Docker** (containers), **Deploy** (run commands).
-4. Open the bottom **Logs** tab to see Docker Compose logs; use the optional service name and refresh as needed.
-
-## Project Shortcut Files (`.serop`)
-
-You can keep reusable deploy shortcuts in each project under:
-
-`<project-path>/.server-operator/*.serop`
-
-In the **Deploy** tab, choose the project and `.serop` file, then click **Run** on any shortcut.
-
-Example file: `.server-operator/deploy.serop`
-
-```txt
-[Deploy app]
-git pull
-docker compose up -d --build
-
-[Restart api]
-docker compose restart api
-
-Quick logs = docker compose logs --tail=100 api
-```
-
-Notes:
-- `[Name]` starts a shortcut section; the lines below it are command steps.
-- Commands in the same section run together with `&&`.
-- `Name = command` (or `Name: command`) creates a one-line shortcut.
-
-## Bootstrap in Any Project (AI-Friendly)
-
-Server Operator now includes a project initializer you can use in any codebase.
-
-It creates:
-
-- `.server-operator/deploy.serop`
-- `.server-operator/ops.serop`
-- `.server-operator/custom.serop`
-- `.server-operator/AI_CONTEXT.md`
-- `.server-operator/INSTALLATION_CONTEXT.md`
-- `.server-operator/README.md`
-
-### Run initializer
-
-From this repository:
+Create standardized deploy settings inside any active project codebase:
 
 ```bash
-npm run serop:init -- --path /path/to/your/project
-```
-
-Interactive mode (asks Docker/Nginx/services/install-command questions):
-
-```bash
+# Interactive setup configuration
 npm run serop:init:interactive -- --path /path/to/your/project
 ```
 
-If you install this package in another project (or publish the CLI), run:
+This creates a local `.server-operator/` configuration folder containing:
+*   `deploy.serop`: Reusable terminal shortcuts.
+*   `AI_CONTEXT.md`: System metadata for AI agents.
+*   `INSTALLATION_CONTEXT.md`: Server operating dependencies.
 
-```bash
-npx server-operator-init --path .
-```
+---
 
-Optional flags:
+## 📄 License & Copyright
 
-- `--force` overwrite existing files
-- `--dry-run` preview without writing files
-- `--interactive` ask setup questions and generate context
+Copyright © 2026 **BeForth**. All rights reserved.
 
-### Website bootstrap scripts
-
-If you host the `website/` folder on your domain, you can provide one-liners:
-
-macOS/Linux:
-
-```bash
-curl -fsSL https://server-operator-zeta.vercel.app/init-server-operator.sh | sh
-```
-
-Windows PowerShell:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://server-operator-zeta.vercel.app/init-server-operator.ps1 -UseBasicParsing | iex"
-```
-
-### How AI agents should use it
-
-In projects that use Server Operator, agents should read `.server-operator/AI_CONTEXT.md` and `.server-operator/INSTALLATION_CONTEXT.md`, then maintain `.serop` files inside `.server-operator/`.
+Licensed under the **Apache License, Version 2.0** (the "License"). You may obtain a copy of the License at:
+http://www.apache.org/licenses/LICENSE-2.0

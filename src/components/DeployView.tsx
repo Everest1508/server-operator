@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Rocket, Loader2, Key, FileCode, FolderTree, Send, Sparkles, Play, ChevronDown, Server, Copy, Wand2, GitBranch, RefreshCw } from 'lucide-react';
+import EyeIcon from './icons/EyeIcon';
+import EyeOffIcon from './icons/EyeOffIcon';
 import { useFeatureFlag } from '../contexts/FeatureFlagContext';
 import type { ServerConnection, ProxySettings } from '../types';
 import { loadProjectContext } from '../utils/loadProjectContext';
@@ -248,6 +250,8 @@ interface DeployViewProps {
   projectTreeListings?: Record<string, string>;
   /** Open panel terminal and run a command (e.g. cd to project then run) */
   onOpenTerminalAndRun?: (command: string, label?: string) => void;
+  bottomPanelOpen?: boolean;
+  bottomPanelTab?: 'logs' | 'terminal';
 }
 
 const hasServerOperator = typeof window !== 'undefined' && typeof window.serverOperator?.deploy === 'function';
@@ -265,7 +269,9 @@ export function DeployView({
   activeFilePath,
   projectRepos = [],
   projectTreeListings = {},
-  onOpenTerminalAndRun: _onOpenTerminalAndRun
+  onOpenTerminalAndRun: _onOpenTerminalAndRun,
+  bottomPanelOpen = false,
+  bottomPanelTab = 'logs',
 }: DeployViewProps) {
   const [deploySubTab, setDeploySubTab] = useState<DeploySubTab>('deploy');
   const isPipelineEnabled = useFeatureFlag('deployPipeline');
@@ -273,6 +279,7 @@ export function DeployView({
   const isServerEnabled = useFeatureFlag('serverAdmin');
   const isShortcutsEnabled = useFeatureFlag('shortcuts');
   const isAiEnabled = useFeatureFlag('aiAssistant');
+  const isBottomTerminalActive = bottomPanelOpen && bottomPanelTab === 'terminal';
 
   useEffect(() => {
     if (deploySubTab === 'pipeline' && !isPipelineEnabled) {
@@ -296,13 +303,14 @@ export function DeployView({
   const [contextAccordionOpen, setContextAccordionOpen] = useState(false);
   const [selectedDeployProjectPath, setSelectedDeployProjectPath] = useState('');
   const [loadingDeployContext, setLoadingDeployContext] = useState(false);
-  const [deploySplitPercent, setDeploySplitPercent] = useState(50);
+  const [deploySplitPercent, setDeploySplitPercent] = useState(65);
   const [deployResizing, setDeployResizing] = useState(false);
-  const deployResizeStartRef = useRef({ x: 0, percent: 50 });
+  const deployResizeStartRef = useRef({ x: 0, percent: 65 });
   const runCommandInTerminalRef = useRef<((cmd: string) => void) | null>(null);
   const [aiRequest, setAiRequest] = useState('');
   const [aiSuggesting, setAiSuggesting] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [showGroqKey, setShowGroqKey] = useState(false);
 
   // Pipeline form states
   const [pipelineProjDir, setPipelineProjDir] = useState(currentServer?.projectPath || currentServer?.cwd || '');
@@ -731,40 +739,43 @@ export function DeployView({
       >
         <div data-deploy-split className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
           {/* Left: Terminal - flex 0 0 so it keeps its share and doesn't shrink to zero */}
-          <div
-            style={{
-              flex: showRightPanel ? `0 0 ${deploySplitPercent}%` : '1 1 100%',
-              minWidth: 200,
-              maxWidth: !showRightPanel ? '100%' : (deploySplitPercent === 100 ? '100%' : undefined),
-            }}
-            className="flex flex-col min-h-0 border-r border-[var(--border)] bg-[var(--bg-primary)] overflow-hidden"
-          >
-            <div className="shrink-0 px-3 py-2 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
-              <span className="text-xs font-medium text-[var(--text-secondary)]">
-                Terminal {deploySubTab === 'pipeline' ? (pipelineProjDir ? `· ${pipelineProjDir}` : '') : (runCwd ? `· ${runCwd}` : '')}
-              </span>
+          {/* Left: Terminal - flex 0 0 so it keeps its share and doesn't shrink to zero */}
+          {!isBottomTerminalActive && (
+            <div
+              style={{
+                flex: showRightPanel ? `0 0 ${deploySplitPercent}%` : '1 1 100%',
+                minWidth: 200,
+                maxWidth: !showRightPanel ? '100%' : (deploySplitPercent === 100 ? '100%' : undefined),
+              }}
+              className="flex flex-col min-h-0 border-r border-[var(--border)] bg-[var(--bg-primary)] overflow-hidden"
+            >
+              <div className="shrink-0 px-3 py-2 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
+                <span className="text-xs font-medium text-[var(--text-secondary)]">
+                  Terminal {deploySubTab === 'pipeline' ? (pipelineProjDir ? `· ${pipelineProjDir}` : '') : (runCwd ? `· ${runCwd}` : '')}
+                </span>
+              </div>
+     
+              <ProjectTerminal
+                currentServer={currentServer}
+                proxy={proxy}
+                projectPath={deploySubTab === 'pipeline' ? pipelineProjDir : runCwd}
+                disabled={deploying}
+                onReady={(runCommand, shellId) => {
+                  runCommandInTerminalRef.current = runCommand;
+                  terminalShellIdRef.current = shellId;
+                  setIsTerminalReady(true);
+                }}
+                onUnready={() => {
+                  runCommandInTerminalRef.current = null;
+                  terminalShellIdRef.current = null;
+                  setIsTerminalReady(false);
+                }}
+              />
             </div>
-   
-            <ProjectTerminal
-              currentServer={currentServer}
-              proxy={proxy}
-              projectPath={deploySubTab === 'pipeline' ? pipelineProjDir : runCwd}
-              disabled={deploying}
-              onReady={(runCommand, shellId) => {
-                runCommandInTerminalRef.current = runCommand;
-                terminalShellIdRef.current = shellId;
-                setIsTerminalReady(true);
-              }}
-              onUnready={() => {
-                runCommandInTerminalRef.current = null;
-                terminalShellIdRef.current = null;
-                setIsTerminalReady(false);
-              }}
-            />
-          </div>
+          )}
   
           {/* Resize Handle */}
-          {showRightPanel && (
+          {showRightPanel && !isBottomTerminalActive && (
             <div
               role="separator"
               aria-orientation="vertical"
@@ -786,7 +797,7 @@ export function DeployView({
           {showRightPanel && (
             <div
               style={{
-                flex: `1 1 ${100 - deploySplitPercent}%`,
+                flex: isBottomTerminalActive ? '1 1 100%' : `1 1 ${100 - deploySplitPercent}%`,
                 minWidth: 280,
                 minHeight: 0,
               }}
@@ -827,7 +838,12 @@ export function DeployView({
                           ]}
                         />
                         <div className="flex items-center gap-2 mt-1">
-                          {loadingDeployContext && <Loader2 size={14} className="animate-spin text-[var(--text-secondary)]" />}
+                          {loadingDeployContext && (
+                            <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+                              <Loader2 size={14} className="animate-spin text-[var(--text-secondary)]" />
+                              <span>Loading project context...</span>
+                            </div>
+                          )}
                           {!projectRepos.length && (
                             <span className="text-xs text-[var(--text-muted)]">Right-click a folder → Add as project</span>
                           )}
@@ -967,14 +983,23 @@ export function DeployView({
                       <div className="p-3 border-b border-[var(--border)] shrink-0">
                         <div className="flex items-center gap-2">
                           <Key size={14} className="text-[var(--text-secondary)] shrink-0" />
-                          <input
-                            type="password"
-                            value={groqApiKey}
-                            onChange={(e) => setGroqApiKey(e.target.value)}
-                            onBlur={handleSaveGroqKey}
-                            placeholder="Groq API key (saved locally)"
-                            className="flex-1 min-w-0 px-3 py-1.5 rounded-md bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)]"
-                          />
+                          <div className="relative flex-1 flex items-center min-w-0">
+                            <input
+                              type={showGroqKey ? 'text' : 'password'}
+                              value={groqApiKey}
+                              onChange={(e) => setGroqApiKey(e.target.value)}
+                              onBlur={handleSaveGroqKey}
+                              placeholder="Groq API key (saved locally)"
+                              className="w-full px-3 py-1.5 pr-10 rounded-md bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowGroqKey(!showGroqKey)}
+                              className="absolute right-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none"
+                            >
+                              {showGroqKey ? <EyeOffIcon size={14} /> : <EyeIcon size={14} />}
+                            </button>
+                          </div>
                           <button
                             type="button"
                             onClick={handleSaveGroqKey}

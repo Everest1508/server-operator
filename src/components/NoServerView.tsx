@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Server, Shield, Plus, Trash2, Edit2, LogIn, Key, Lock } from 'lucide-react';
+import EyeIcon from './icons/EyeIcon';
+import EyeOffIcon from './icons/EyeOffIcon';
 import type { ServerConnection, ProxySettings, ConnectionType } from '../types';
 import { Tooltip } from './Tooltip';
 
@@ -19,6 +21,7 @@ interface NoServerViewProps {
   onSelectServer: (s: ServerConnection) => void;
   onProxyChange: (p: ProxySettings) => void;
   onDismissError: () => void;
+  onViewGuide?: (guideId: string) => void;
 }
 
 export function NoServerView({
@@ -32,10 +35,13 @@ export function NoServerView({
   onSelectServer,
   onProxyChange,
   onDismissError,
+  onViewGuide,
 }: NoServerViewProps) {
   const [activeTab, setActiveTab] = useState<TabId>('servers');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [connectionType, setConnectionType] = useState<ConnectionType>('ec2');
+  const [showFormPassword, setShowFormPassword] = useState(false);
+  const [showEditPassword, setShowEditPassword] = useState(false);
   const [form, setForm] = useState({
     name: '',
     host: '',
@@ -194,25 +200,43 @@ export function NoServerView({
                   ) : connectionType === 'password' ? (
                     <div>
                       <label className="block text-xs text-[var(--text-secondary)] mb-1">Password</label>
-                      <input
-                        type="password"
-                        value={form.password}
-                        onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                        placeholder="••••••••"
-                        className={inputClass}
-                      />
+                      <div className="relative flex items-center">
+                        <input
+                          type={showFormPassword ? 'text' : 'password'}
+                          value={form.password}
+                          onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                          placeholder="••••••••"
+                          className={`${inputClass} pr-10`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowFormPassword(!showFormPassword)}
+                          className="absolute right-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none"
+                        >
+                          {showFormPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     /* cloudflare: tunnel via cloudflared, SSH auth still needs a password */
                     <div>
                       <label className="block text-xs text-[var(--text-secondary)] mb-1">SSH Password</label>
-                      <input
-                        type="password"
-                        value={form.password}
-                        onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                        placeholder="••••••••"
-                        className={inputClass}
-                      />
+                      <div className="relative flex items-center">
+                        <input
+                          type={showFormPassword ? 'text' : 'password'}
+                          value={form.password}
+                          onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                          placeholder="••••••••"
+                          className={`${inputClass} pr-10`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowFormPassword(!showFormPassword)}
+                          className="absolute right-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none"
+                        >
+                          {showFormPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                        </button>
+                      </div>
                     </div>
                   )}
                   <div>
@@ -318,21 +342,39 @@ export function NoServerView({
                                     className={inputClass}
                                   />
                                 ) : type === 'password' ? (
-                                  <input
-                                    type="password"
-                                    value={s.password ?? ''}
-                                    onChange={(e) => onUpdateServer(s.id, { password: e.target.value })}
-                                    placeholder="••••••••"
-                                    className={inputClass}
-                                  />
+                                  <div className="relative flex items-center">
+                                    <input
+                                      type={showEditPassword ? 'text' : 'password'}
+                                      value={s.password ?? ''}
+                                      onChange={(e) => onUpdateServer(s.id, { password: e.target.value })}
+                                      placeholder="••••••••"
+                                      className={`${inputClass} pr-10`}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowEditPassword(!showEditPassword)}
+                                      className="absolute right-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none"
+                                    >
+                                      {showEditPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                                    </button>
+                                  </div>
                                 ) : (
-                                  <input
-                                    type="password"
-                                    value={s.password ?? ''}
-                                    onChange={(e) => onUpdateServer(s.id, { password: e.target.value })}
-                                    placeholder="••••••••"
-                                    className={inputClass}
-                                  />
+                                  <div className="relative flex items-center">
+                                    <input
+                                      type={showEditPassword ? 'text' : 'password'}
+                                      value={s.password ?? ''}
+                                      onChange={(e) => onUpdateServer(s.id, { password: e.target.value })}
+                                      placeholder="••••••••"
+                                      className={`${inputClass} pr-10`}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowEditPassword(!showEditPassword)}
+                                      className="absolute right-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none"
+                                    >
+                                      {showEditPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                                    </button>
+                                  </div>
                                 )}
                               </td>
                               <td className="px-4 py-2">
@@ -414,7 +456,7 @@ export function NoServerView({
                                   <Tooltip content="Edit server" position="top">
                                     <button
                                       type="button"
-                                      onClick={() => setEditingId(s.id)}
+                                      onClick={() => { setShowEditPassword(false); setEditingId(s.id); }}
                                       className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] transition-colors"
                                     >
                                       <Edit2 size={14} />
@@ -439,6 +481,23 @@ export function NoServerView({
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* Offline Guide banner */}
+            <div className="mt-6 p-5 rounded-lg border border-dashed border-[var(--border)] bg-[var(--bg-secondary)] flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h4 className="text-sm font-semibold text-[var(--text-primary)]">Offline Feature Guides</h4>
+                <p className="text-xs text-[var(--text-secondary)] mt-1">
+                  Learn how the Database Manager, Git Pipeline, SQLite Rollbacks, and Auto-Updates work under the hood. No server connection is required to browse our detailed documentation.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onViewGuide?.('database')}
+                className="px-4 py-2 rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--border)] text-[var(--text-primary)] text-xs font-semibold shrink-0 transition-colors cursor-pointer"
+              >
+                Read Feature Guides ↗
+              </button>
             </div>
           </div>
         )}

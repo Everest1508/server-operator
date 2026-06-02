@@ -183,6 +183,14 @@ export interface ServerOperatorAPI {
   deleteSnippet: (opts: { id: number }) => Promise<{ ok: boolean; error?: string }>;
   loadFeaturesConfig: () => Promise<any>;
   saveFeaturesConfig: (config: any) => Promise<{ ok: boolean; error?: string }>;
+  // Updates
+  checkForUpdates?: () => Promise<{ ok: boolean }>;
+  openReleasePage?: (url: string) => Promise<{ ok: boolean; error?: string }>;
+  platform?: string;
+  minimizeWindow?: () => Promise<void>;
+  maximizeWindow?: () => Promise<void>;
+  closeWindow?: () => Promise<void>;
+  isWindowMaximized?: () => Promise<boolean>;
 }
 
 declare global {

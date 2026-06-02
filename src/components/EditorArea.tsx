@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Editor from '@monaco-editor/react';
-import { FileCode, Save, Loader2, X, Download, ChevronDown, Plus, FolderOpen, Shield } from 'lucide-react';
+import { FileCode, Save, Loader2, X, Download, ChevronDown, Plus, FolderOpen, Shield, Play, Check, Copy, Keyboard, Terminal, Database, Workflow, History, Sparkles } from 'lucide-react';
+import { motion } from 'motion/react';
 import type { ServerConnection, ViewId, ProxySettings } from '../types';
 import { DockerView } from './DockerView';
 import { DeployView } from './DeployView';
 import { ServerOverview } from './ServerOverview';
-import { ServerMonitoringView } from './ServerMonitoringView';
 import { DatabaseView } from './DatabaseView';
 
 function languageFromPath(path: string): string {
@@ -60,6 +60,9 @@ interface EditorAreaProps {
   composePaths?: string[];
   projectRepos?: string[];
   projectTreeListings?: Record<string, string>;
+  bottomPanelOpen?: boolean;
+  bottomPanelTab?: 'logs' | 'terminal';
+  selectedGuideId?: string;
 }
 
 function basename(path: string): string {
@@ -108,6 +111,9 @@ export function EditorArea({
   composePaths = [],
   projectRepos = [],
   projectTreeListings = {},
+  bottomPanelOpen = false,
+  bottomPanelTab = 'logs',
+  selectedGuideId = 'database',
 }: EditorAreaProps) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -213,7 +219,7 @@ export function EditorArea({
       .finally(() => setSaving(false));
     setFileMenuOpen(false);
   }, [activeContent, activeTabPath, onSaveFile]);
-  if (!currentServer) {
+  if (!currentServer && activeView !== 'guide') {
     return (
       <div className="flex-1 flex items-center justify-center bg-[var(--bg-primary)] text-[var(--text-secondary)]">
         <p>No server selected.</p>
@@ -241,10 +247,12 @@ export function EditorArea({
             projectRepos={projectRepos}
             projectTreeListings={projectTreeListings}
             onOpenTerminalAndRun={onOpenTerminalAndRun}
+            bottomPanelOpen={bottomPanelOpen}
+            bottomPanelTab={bottomPanelTab}
           />
         </div>
       )}
-      {activeView === 'docker' && (
+      {activeView === 'docker' && currentServer && (
         <div className="flex-1 flex flex-col min-h-0">
           <DockerView
             currentServer={currentServer}
@@ -262,14 +270,7 @@ export function EditorArea({
           />
         </div>
       )}
-      {activeView === 'monitoring' && (
-        <div className="flex-1 flex flex-col min-h-0">
-          <ServerMonitoringView
-            currentServer={currentServer}
-            proxy={proxy}
-          />
-        </div>
-      )}
+
       {activeView === 'database' && (
         <div className="flex-1 flex flex-col min-h-0">
           <DatabaseView
@@ -466,11 +467,32 @@ export function EditorArea({
                   <p className="mt-1 text-[var(--text-primary)] break-words">{fileLoadError}</p>
                 </div>
               )}
-              <div className="flex-1 min-h-0 min-w-0" style={{ minHeight: 200 }}>
+               <div className="flex-1 min-h-0 min-w-0" style={{ minHeight: 200 }}>
                 {isLoading ? (
                   <div className="flex items-center justify-center h-full text-[var(--text-secondary)]">
                     <Loader2 size={24} className="animate-spin mr-2" /> Loading...
                   </div>
+                ) : fileLoadError ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex flex-col items-center justify-center h-full p-6 text-center text-[var(--text-secondary)] gap-4"
+                  >
+                    <div className="p-3 rounded-full bg-[var(--error)]/10 text-[var(--error)]">
+                      <FileCode size={32} />
+                    </div>
+                    <div className="max-w-md">
+                      <h3 className="text-base font-semibold text-[var(--text-primary)] mb-1">Failed to load file</h3>
+                      <p className="text-xs text-[var(--text-muted)] mb-4 font-mono whitespace-pre-wrap break-all bg-[var(--bg-tertiary)]/50 p-2.5 rounded border border-[var(--border)]">{fileLoadError}</p>
+                      <button
+                        type="button"
+                        onClick={() => activeTabPath && onOpenFileByPath?.(activeTabPath, { useSudo: activeTabUsesSudo })}
+                        className="px-4 py-2 rounded-md bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold transition-colors"
+                      >
+                        Failed to load file — click to retry
+                      </button>
+                    </div>
+                  </motion.div>
                 ) : activeTabPath ? (
                   <Editor
                     key={activeTabPath}
@@ -522,7 +544,151 @@ export function EditorArea({
           )}
         </div>
       )}
-      {(activeView === 'servers' || activeView === 'notes') && (
+
+      {activeView === 'guide' && (
+        <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-primary)] p-6 overflow-y-auto select-none">
+          {(() => {
+            const guides = [
+              {
+                id: 'database',
+                title: 'Database Manager & SQL Query Runner',
+                icon: Database,
+                badge: 'SQL Client',
+                color: '#4ec9b0',
+                description: 'Establish end-to-end encrypted connections to remote PostgreSQL, MySQL/MariaDB, and Redis instances. Write and execute queries inside Monaco Editor with dynamic schema autocompletion, query timers, and instant CSV exports—fully offline-ready without exposing ports to the public Internet.',
+                howItWorks: 'Instead of requiring you to expose raw database ports (like 5432 or 3306) on your firewalls or configure complex VPC security groups, Server Operator uses your active SSH connection to establish secure local TCP port forwarding. When you initiate a connection, our Node.js main process starts a temporary local TCP server on your machine on a randomized free port. Any traffic received on this local port is intercepted, encrypted, and safely encapsulated inside the active SSH tunnel, before being forwarded directly to the target database host relative to the remote server itself. Once the tunnel is open, the app initiates a direct database driver connection to the local port, meaning your data travels securely inside the SSH stream. Furthermore, the schema explorer immediately executes specialized system catalog queries to discover available tables, columns, and Redis keys, dynamically injecting them into Monaco Editor\'s autocomplete provider.',
+                steps: [
+                  'Open the Feature Guide or navigate to the Database tab in the left-hand Activity Bar.',
+                  'Select your database engine (PostgreSQL, MySQL, or Redis) from the engine selector. The default port and connection user fields will automatically populate.',
+                  'Specify the target database parameters. Enter the host (use "127.0.0.1" if the database is running on the same server, or a private IP like "10.0.0.8" if it resides inside the remote server\'s local network), authentication details, and the name or index of the database.',
+                  'Click the "Establish DB Tunnel" button. The system will securely perform the SSH port forwarding handshake and test database access. On successful connection, the indicator will turn green, displaying "Active Tunnel" and the local port in use.',
+                  'Explore the Database Sidebar to inspect your tables or Redis keys. Double-clicking any item will instantly generate and populate a query script into your workspace.',
+                  'Compose your query inside the Monaco workspace. Click "Run Query" (or press Cmd+Enter / Ctrl+Enter) to execute the statement. Browse paginated rows in the spreadsheet-like grid, analyze execution timings, and click "Export CSV" to save the results to your computer.'
+                ],
+                tips: 'Because the database client operates inside your encrypted SSH tunnel, you can query private databases, Amazon RDS instances, or isolated Docker database containers that are completely inaccessible to the rest of the web.'
+              },
+              {
+                id: 'pipeline',
+                title: 'Git-based Deployment Pipeline',
+                icon: Workflow,
+                badge: 'Builds & Deploys',
+                color: '#3794ff',
+                description: 'Trigger reliable, zero-downtime application updates directly from your repositories. Serop automates remote Git branch checkouts, dependency resolution (npm, pip, composer), database migrations, and service restarts with live terminal logging.',
+                howItWorks: 'The deployment pipeline simplifies operations by executing automated build recipes over a secure, non-interactive SSH terminal stream. First, it verifies that the target directory is a valid repository by checking the Git tree. It then fetches active remote repository references, checks out your selected branch, and runs a hard reset ("git reset --hard origin/<branch>") to eliminate any untracked or locally modified file conflicts that could block the build. Next, it searches for a specialized ".server-operator" folder in the project root. If found, it automatically executes lifecycle scripts (such as "pre-deploy.sh" and "post-deploy.sh") to run package managers, transpile frontend bundles, and run database migrations. Finally, it signals your chosen process manager (PM2 or systemd) to perform a graceful reload of your services, ensuring continuous uptime.',
+                steps: [
+                  'Select the "Deploy" tab on the left-hand Activity Bar (CloudUpload icon).',
+                  'Select your target project repository from the project path dropdown list. If your directory is not registered yet, click "Add Current Path as Project" or run "git init" via the remote terminal.',
+                  'Choose the git branch you want to pull, build, and publish.',
+                  'Choose your preferred process manager: select "PM2" (for Node.js processes) and specify the app name, or "systemd" (for Python, Go, Rust, or system services) and specify the system service name.',
+                  'Click the "Deploy Now" button. The app will immediately lock input controls to prevent concurrent builds, open a dedicated terminal stream, and run the pipeline.',
+                  'Monitor stdout and stderr streams in real-time as packages install, assets compile, and services restart. The output will flag green on success or red on failure.'
+                ],
+                tips: 'You can write advanced deployment scripts by creating a ".server-operator/post-deploy.sh" file in your repo. Remember to run "chmod +x .server-operator/*.sh" so the script has execution rights on your remote server!'
+              },
+              {
+                id: 'history',
+                title: 'Deployment History & SQLite Rollbacks',
+                icon: History,
+                badge: 'Audit & Rollback',
+                color: '#fbbf24',
+                description: 'Maintain a robust, local SQLite audit ledger of all production build attempts. Inspect complete historical terminal logs, track deployment timings, and execute instant rollbacks to any previously successful commit with one click.',
+                howItWorks: 'To ensure maximum reliability and transparency, Server Operator runs a local SQLite database ("alerts.db") inside your computer\'s Application Support directory. Every time a build is triggered, the system commits an audit entry containing the server configuration, branch, commit hash, timestamp, and triggered action. Throughout the build process, the entire console output is captured and saved as a text blob in SQLite upon completion, ensuring a permanent log history. If an update introduces a breaking change, clicking "Rollback" extracts the precise previous commit hash from this local database, connects via SSH to run "git checkout <commit_hash>", and re-runs the service manager reload sequence to immediately restore stability.',
+                steps: [
+                  'Open the "Deploy" panel in the left-hand Activity Bar, and switch to the "History & Logs" sub-tab.',
+                  'Review the chronological list of all previous deployment sessions. You can filter by project or browse build statuses (green for success, red for errors).',
+                  'Click the "View Output Log" button on any build card to open the complete terminal output history saved from that run.',
+                  'To revert a regression, locate a healthy successful deployment in the log timeline, click the "Rollback" button, verify the commit details, and click "Revert Now".'
+                ],
+                tips: 'Because the history ledger is stored locally in a SQLite database, your build history is fully preserved even if you completely rebuild the remote server or switch SSH connection profiles.'
+              },
+              {
+                id: 'updates',
+                title: 'GitHub Auto-Update System',
+                icon: Sparkles,
+                badge: 'Lifecycle',
+                color: '#f0abfc',
+                description: 'Keep your workspace up to date with zero effort. The auto-update system quietly performs semantic version checks on startup and displays non-intrusive floating toasts with markdown changelogs.',
+                howItWorks: 'Upon application boot, Server Operator initiates a single, lightweight, asynchronous HTTP request to the official GitHub Releases API. It compares the remote latest tag version (e.g. "v1.2.0") against your local version tag using semver parsing. If a new release is available, the app injects a floating toast notification in the bottom right corner of the workspace. Clicking the "View Release Notes" button loads the complete markdown release notes and displays them inside the Settings Changelog tab. Clicking "Dismiss" saves a skip preference for that specific version tag in your browser\'s local storage, preventing further prompts for that release.',
+                steps: [
+                  'Launch Server Operator. If an update is detected, a toast alert will slide in from the bottom-right corner.',
+                  'Click "View Release Notes" to read the new features, performance tweaks, and bug fixes directly in the Settings area.',
+                  'Click "Dismiss" to skip the notification. The alert will remain hidden until a brand new release is published to GitHub.',
+                  'To trigger a manual check at any time, open the menu bar and click Help → Check for Updates.'
+                ],
+                tips: 'The update check is completely non-intrusive. If you are offline or working in an air-gapped environment, the check fails silently without throwing error dialogues or using system memory.'
+              }
+            ];
+
+            const active = guides.find((g) => g.id === selectedGuideId) || guides[0];
+            const ActiveIcon = active.icon;
+
+            return (
+              <div className="flex-1 flex flex-col min-h-0 space-y-6 max-w-4xl mx-auto w-full">
+                <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] pb-5">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span
+                        style={{ color: active.color, backgroundColor: `${active.color}15`, borderColor: `${active.color}30` }}
+                        className="text-[9px] font-extrabold px-2 py-0.5 rounded border uppercase tracking-wider"
+                      >
+                        {active.badge}
+                      </span>
+                    </div>
+                    <h2 className="text-xl font-extrabold text-[var(--text-primary)] flex items-center gap-2.5 mt-2.5">
+                      <ActiveIcon size={22} style={{ color: active.color }} />
+                      {active.title}
+                    </h2>
+                    <p className="text-sm text-[var(--text-secondary)] mt-2 leading-relaxed">
+                      {active.description}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  {/* How It Works */}
+                  <div className="p-5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)]">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)] mb-2.5 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: active.color }} />
+                      How It Works
+                    </h3>
+                    <p className="text-xs text-[var(--text-secondary)] leading-relaxed font-sans">{active.howItWorks}</p>
+                  </div>
+
+                  {/* Usage Steps */}
+                  <div className="p-6 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] space-y-4">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)] flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: active.color }} />
+                      Step-by-Step Usage Guide
+                    </h3>
+                    <ol className="space-y-3.5">
+                      {active.steps.map((step, i) => (
+                        <li key={i} className="flex gap-3 text-xs leading-relaxed text-[var(--text-secondary)] align-top">
+                          <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[var(--bg-primary)] border border-[var(--border)] text-[10px] font-bold text-[var(--text-primary)] shrink-0 mt-0.5">
+                            {i + 1}
+                          </span>
+                          <span className="pt-0.5">{step}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+
+                  {/* Pro Tips */}
+                  {active.tips && (
+                    <div className="p-5 rounded-lg bg-[var(--bg-tertiary)]/20 border border-[var(--border)] border-dashed">
+                      <span className="text-[10px] font-extrabold text-[var(--accent)] uppercase tracking-wider block mb-1">
+                        ✦ Pro Tip
+                      </span>
+                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed italic">{active.tips}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {(activeView === 'servers' || activeView === 'notes') && currentServer && (
         <ServerOverview
           currentServer={currentServer}
           proxy={proxy}

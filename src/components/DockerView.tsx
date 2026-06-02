@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Box, RefreshCw, Loader2, FileText, RotateCw, X, Play, Square, MoreVertical, Pause, Trash2, Zap, Terminal, Database } from 'lucide-react';
+import { Box, RefreshCw, Loader2, FileText, RotateCw, X, Play, Square, MoreVertical, Pause, Trash2, Zap, Terminal, Database, AlertCircle, Copy, Check } from 'lucide-react';
+import { motion } from 'motion/react';
 import type { ServerConnection, ProxySettings } from '../types';
 import type { DockerContainer } from '../types';
 import { Tooltip } from './Tooltip';
@@ -73,6 +74,13 @@ export function DockerView({
   const [openActionsKey, setOpenActionsKey] = useState<string | null>(null);
   const [logContent, setLogContent] = useState<string>('');
   const [loadingContainerLogs, setLoadingContainerLogs] = useState<string | null>(null);
+  const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
+
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedCmd(id);
+    setTimeout(() => setCopiedCmd(null), 2000);
+  };
   const logStreamIdRef = useRef<string | null>(null);
   const logPreRef = useRef<HTMLPreElement>(null);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
@@ -324,6 +332,10 @@ export function DockerView({
   const showAllContainers = activeTab === TAB_ALL;
   const currentServices = activeTab !== TAB_ALL ? (servicesByPath[activeTab] ?? []) : [];
   const loadingServices = activeTab !== TAB_ALL && loadingServicesForPath === activeTab;
+  const isDockerPermissionError = typeof error === 'string' && (
+    error.toLowerCase().includes('permission denied') &&
+    error.toLowerCase().includes('docker.sock')
+  );
 
   return (
     <div className="flex-1 flex flex-col bg-[var(--bg-primary)] min-h-0">
@@ -385,9 +397,70 @@ export function DockerView({
         {showAllContainers && (
           <>
             {error && (
-              <div className="rounded-lg border border-[var(--error)]/50 bg-[var(--error)]/10 text-[var(--error)] px-4 py-3 text-sm">
-                {error}
-              </div>
+              isDockerPermissionError ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-6 rounded-xl border border-[var(--error)]/30 bg-[var(--error)]/5 flex flex-col gap-4 text-sm mb-4"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-lg bg-[var(--error)]/10 text-[var(--error)] shrink-0">
+                      <AlertCircle size={20} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-[var(--text-primary)] text-base">Docker Permission Error</h3>
+                      <p className="text-[var(--text-secondary)] mt-1 font-mono text-xs whitespace-pre-wrap break-all bg-[var(--bg-tertiary)]/30 p-2.5 rounded border border-[var(--border)]">{error}</p>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-[var(--border)] pt-4">
+                    <h4 className="font-medium text-[var(--text-primary)] mb-2">How to fix:</h4>
+                    <p className="text-xs text-[var(--text-secondary)] mb-3">
+                      Add your user to the <code>docker</code> group by running these commands in your server terminal:
+                    </p>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-3 p-2 bg-[var(--bg-tertiary)]/50 rounded border border-[var(--border)]">
+                        <code className="text-xs font-mono text-[var(--text-primary)] select-all">sudo usermod -aG docker $USER</code>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard('sudo usermod -aG docker $USER', 'cmd1')}
+                          className="p-1 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-primary)] hover:text-[var(--accent)] transition-colors flex items-center justify-center shrink-0"
+                        >
+                          {copiedCmd === 'cmd1' ? <Check size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
+                        </button>
+                      </div>
+                      
+                      <div className="flex items-center justify-between gap-3 p-2 bg-[var(--bg-tertiary)]/50 rounded border border-[var(--border)]">
+                        <code className="text-xs font-mono text-[var(--text-primary)] select-all">newgrp docker</code>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard('newgrp docker', 'cmd2')}
+                          className="p-1 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-primary)] hover:text-[var(--accent)] transition-colors flex items-center justify-center shrink-0"
+                        >
+                          {copiedCmd === 'cmd2' ? <Check size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => onRefresh?.()}
+                      disabled={loading}
+                      className="flex items-center gap-2 px-4 py-2 rounded-md bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white font-medium transition-colors disabled:opacity-50"
+                    >
+                      {loading ? <Loader2 size={16} className="animate-spin" /> : <RotateCw size={16} />}
+                      Retry
+                    </button>
+                  </div>
+                </motion.div>
+              ) : (
+                <div className="rounded-lg border border-[var(--error)]/50 bg-[var(--error)]/10 text-[var(--error)] px-4 py-3 text-sm">
+                  {error}
+                </div>
+              )
             )}
             {!error && containers.length === 0 && !loading && (
               <div className="flex flex-col items-center justify-center py-12 text-[var(--text-secondary)]">

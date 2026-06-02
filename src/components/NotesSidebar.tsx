@@ -298,84 +298,86 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
         </div>
 
         {/* Section 3: App Debugging Controls */}
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] p-3 shadow-md transition-all hover:border-[var(--border)]/80">
-          <div className="flex items-center justify-between mb-2 gap-2 min-w-0 w-full">
-            <span className="text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 min-w-0 flex-1">
-              <Bug size={14} className="text-[var(--error)] shrink-0" />
-              <span className="truncate whitespace-nowrap">Debugging Tools</span>
-            </span>
-          </div>
+        {process.env.NODE_ENV === 'development' && (
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] p-3 shadow-md transition-all hover:border-[var(--border)]/80">
+            <div className="flex items-center justify-between mb-2 gap-2 min-w-0 w-full">
+              <span className="text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 min-w-0 flex-1">
+                <Bug size={14} className="text-[var(--error)] shrink-0" />
+                <span className="truncate whitespace-nowrap">Debugging Tools</span>
+              </span>
+            </div>
 
-          <div className="space-y-2">
-            {/* DevTools Button */}
-            <Tooltip content="Open Chrome Developer Tools to inspect code, console logs, and errors" position="top">
-              <button
-                type="button"
-                onClick={handleOpenDevTools}
-                className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded border text-xs font-medium transition-all ${
-                  devtoolsStatus === 'opened'
-                    ? 'bg-[var(--success)]/10 border-[var(--success)] text-[var(--success)]'
-                    : 'bg-[var(--bg-secondary)] border-[var(--border)] hover:border-[var(--accent)] text-[var(--text-primary)] hover:text-[var(--accent)]'
-                }`}
-              >
-                <Terminal size={14} />
-                {devtoolsStatus === 'opened' ? 'DevTools Opened!' : 'Open DevTools (Inspect App)'}
-              </button>
-            </Tooltip>
+            <div className="space-y-2">
+              {/* DevTools Button */}
+              <Tooltip content="Open Chrome Developer Tools to inspect code, console logs, and errors" position="top">
+                <button
+                  type="button"
+                  onClick={handleOpenDevTools}
+                  className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded border text-xs font-medium transition-all ${
+                    devtoolsStatus === 'opened'
+                      ? 'bg-[var(--success)]/10 border-[var(--success)] text-[var(--success)]'
+                      : 'bg-[var(--bg-secondary)] border-[var(--border)] hover:border-[var(--accent)] text-[var(--text-primary)] hover:text-[var(--accent)]'
+                  }`}
+                >
+                  <Terminal size={14} />
+                  {devtoolsStatus === 'opened' ? 'DevTools Opened!' : 'Open DevTools (Inspect App)'}
+                </button>
+              </Tooltip>
 
-            {/* Read Logs Button */}
-            <Tooltip content="Open diagnostic log viewer showing app actions and connection events" position="top">
-              <button
-                type="button"
-                onClick={() => {
-                  setLogModalOpen(true);
-                  loadLogs();
-                }}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded border bg-[var(--bg-secondary)] border-[var(--border)] hover:border-[var(--accent)] text-[var(--text-primary)] hover:text-[var(--accent)] text-xs font-medium transition-all"
-              >
-                <RefreshCw size={14} className={logsLoading ? 'animate-spin' : ''} />
-                View Application Logs
-              </button>
-            </Tooltip>
+              {/* Read Logs Button */}
+              <Tooltip content="Open diagnostic log viewer showing app actions and connection events" position="top">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLogModalOpen(true);
+                    loadLogs();
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded border bg-[var(--bg-secondary)] border-[var(--border)] hover:border-[var(--accent)] text-[var(--text-primary)] hover:text-[var(--accent)] text-xs font-medium transition-all"
+                >
+                  <RefreshCw size={14} className={logsLoading ? 'animate-spin' : ''} />
+                  View Application Logs
+                </button>
+              </Tooltip>
 
-            {/* Clear logs shortcut */}
-            <Tooltip content="Wipe all operations and diagnostic logs from the local log file" position="top">
-              <button
-                type="button"
-                onClick={handleClearLogs}
-                className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded border border-transparent hover:border-[var(--error)]/30 hover:bg-[var(--error)]/10 text-[var(--text-secondary)] hover:text-[var(--error)] text-[11px] font-medium transition-all"
-              >
-                <Trash2 size={13} />
-                Clear Log File
-              </button>
-            </Tooltip>
+              {/* Clear logs shortcut */}
+              <Tooltip content="Wipe all operations and diagnostic logs from the local log file" position="top">
+                <button
+                  type="button"
+                  onClick={handleClearLogs}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded border border-transparent hover:border-[var(--error)]/30 hover:bg-[var(--error)]/10 text-[var(--text-secondary)] hover:text-[var(--error)] text-[11px] font-medium transition-all"
+                >
+                  <Trash2 size={13} />
+                  Clear Log File
+                </button>
+              </Tooltip>
 
-            {/* Log path info */}
-            {logPath && (
-              <div className="pt-2 border-t border-[var(--border)] mt-2">
-                <span className="text-[9px] uppercase tracking-wider text-[var(--text-muted)] block mb-0.5">
-                  App Log Path
-                </span>
-                <Tooltip content="Click to copy this path to clipboard" position="top">
-                  <span
-                    className="text-[9px] font-mono text-[var(--text-secondary)] break-all select-all hover:text-[var(--text-primary)] block cursor-pointer"
-                    onClick={() => {
-                      navigator.clipboard.writeText(logPath);
-                      showStatus('Log path copied');
-                    }}
-                  >
-                    {logPath}
+              {/* Log path info */}
+              {logPath && (
+                <div className="pt-2 border-t border-[var(--border)] mt-2">
+                  <span className="text-[9px] uppercase tracking-wider text-[var(--text-muted)] block mb-0.5">
+                    App Log Path
                   </span>
-                </Tooltip>
-                {logsStatusMessage && (
-                  <span className="text-[9px] text-[var(--success)] font-semibold mt-1 block">
-                    ✓ {logsStatusMessage}
-                  </span>
-                )}
-              </div>
-            )}
+                  <Tooltip content="Click to copy this path to clipboard" position="top">
+                    <span
+                      className="text-[9px] font-mono text-[var(--text-secondary)] break-all select-all hover:text-[var(--text-primary)] block cursor-pointer"
+                      onClick={() => {
+                        navigator.clipboard.writeText(logPath);
+                        showStatus('Log path copied');
+                      }}
+                    >
+                      {logPath}
+                    </span>
+                  </Tooltip>
+                  {logsStatusMessage && (
+                    <span className="text-[9px] text-[var(--success)] font-semibold mt-1 block">
+                      ✓ {logsStatusMessage}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Logs Modal View (Visible when logModalOpen === true) */}

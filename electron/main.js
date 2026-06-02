@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
+const { startUpdateChecker, runUpdateCheck } = require('./updateChecker');
 const path = require('path');
 const fs = require('fs');
 const { execSync, spawn } = require('child_process');
@@ -208,8 +209,8 @@ let mainWindow;
 // In many Electron setups speech still fails; then use the app in Chrome (e.g. http://localhost:5173) for voice.
 const CHROME_UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-function getLinuxIconPath() {
-  if (process.platform !== 'linux') return null;
+function getAppIconPath() {
+  if (process.platform !== 'linux' && process.platform !== 'win32') return null;
   const candidates = [
     path.join(process.cwd(), 'build/icons/256x256.png'),
     path.join(app.getAppPath(), 'build/icons/256x256.png'),
@@ -274,19 +275,34 @@ function installApplicationMenu() {
             submenu: [{ role: 'minimize' }, { role: 'close' }],
           },
         ]),
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'Check for Updates…',
+          click: () => runUpdateCheck(() => mainWindow, true),
+        },
+        { type: 'separator' },
+        {
+          label: 'View on GitHub',
+          click: () => shell.openExternal('https://github.com/everest1508/server-operator'),
+        },
+      ],
+    },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
 function createWindow() {
-  const linuxIconPath = getLinuxIconPath();
-  // titleBarStyle 'hiddenInset' is macOS-only; on Linux it can cause crash or broken window
+  const appIconPath = getAppIconPath();
+  const isMac = process.platform === 'darwin';
   const windowOpts = {
     width: 1400,
     height: 900,
     minWidth: 900,
     minHeight: 600,
-    frame: true,
+    frame: isMac,
+    titleBarStyle: isMac ? 'hidden' : undefined,
     backgroundColor: '#1e1e1e',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -294,10 +310,14 @@ function createWindow() {
       nodeIntegration: false,
       sandbox: false,
     },
-    icon: linuxIconPath || undefined,
+    icon: appIconPath || undefined,
     show: false,
   };
   mainWindow = new BrowserWindow(windowOpts);
+
+  if (!isMac) {
+    mainWindow.setMenuBarVisibility(false);
+  }
 
   // Set Chrome user agent before load to improve chance of Web Speech API (mic) working
   mainWindow.webContents.setUserAgent(CHROME_UA);
@@ -315,9 +335,27 @@ function createWindow() {
 
 app.whenReady().then(() => {
   log('started', { logFile: getLogPath() });
+
+  // Set macOS Dock icon (works in both dev and packaged)
+  if (process.platform === 'darwin' && app.dock) {
+    const iconCandidates = [
+      path.join(process.cwd(), 'build/icons/512x512.png'),
+      path.join(process.cwd(), 'build/icons/256x256.png'),
+      path.join(app.getAppPath(), 'build/icons/512x512.png'),
+      path.join(__dirname, '../build/icons/512x512.png'),
+    ];
+    for (const candidate of iconCandidates) {
+      if (fs.existsSync(candidate)) {
+        try { app.dock.setIcon(candidate); } catch (_) {}
+        break;
+      }
+    }
+  }
+
   installApplicationMenu();
   createWindow();
   registerShellHandlers();
+  startUpdateChecker(() => mainWindow);
 });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
@@ -2401,6 +2439,26 @@ ipcMain.handle('features:save', async (_, config) => {
     log('Failed to save features config', { error: String(e) });
     return { ok: false, error: String(e) };
   }
+});
+
+// Window control handlers
+ipcMain.handle('window:minimize', async () => {
+  if (mainWindow) mainWindow.minimize();
+});
+ipcMain.handle('window:maximize', async () => {
+  if (mainWindow) {
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize();
+    } else {
+      mainWindow.maximize();
+    }
+  }
+});
+ipcMain.handle('window:close', async () => {
+  if (mainWindow) mainWindow.close();
+});
+ipcMain.handle('window:isMaximized', async () => {
+  return mainWindow ? mainWindow.isMaximized() : false;
 });
 
 app.on('will-quit', async () => {

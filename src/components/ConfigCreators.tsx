@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Copy, Plus, Trash2, FileCode, Box, Server, Shield, Sparkles, Key, Loader2, Mic, Square, FolderTree, Send } from 'lucide-react';
+import EyeIcon from './icons/EyeIcon';
+import EyeOffIcon from './icons/EyeOffIcon';
 import type { ServerConnection, ProxySettings } from '../types';
 import { Select } from './Select';
 import { loadProjectContext } from '../utils/loadProjectContext';
@@ -268,6 +270,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [llmOutput, setLlmOutput] = useState<string | null>(null);
+  const [showGroqKey, setShowGroqKey] = useState(false);
   const [contextCollapsed, setContextCollapsed] = useState(false);
   const [selectedProjectPath, setSelectedProjectPath] = useState('');
   const [loadingContext, setLoadingContext] = useState(false);
@@ -532,14 +535,23 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                 <div className="p-3 border-b border-[var(--border)] shrink-0 space-y-2">
                   <div className="flex items-center gap-2">
                     <Key size={14} className="text-[var(--text-secondary)] shrink-0" />
-                    <input
-                      type="password"
-                      value={groqApiKey}
-                      onChange={(e) => { setGroqApiKey(e.target.value); setAiError(null); }}
-                      onBlur={() => saveGroqApiKey(groqApiKey)}
-                      placeholder="Groq API key (saved locally)"
-                      className="flex-1 min-w-0 px-3 py-1.5 rounded-md bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)]"
-                    />
+                    <div className="relative flex-1 flex items-center min-w-0">
+                      <input
+                        type={showGroqKey ? 'text' : 'password'}
+                        value={groqApiKey}
+                        onChange={(e) => { setGroqApiKey(e.target.value); setAiError(null); }}
+                        onBlur={() => saveGroqApiKey(groqApiKey)}
+                        placeholder="Groq API key (saved locally)"
+                        className="w-full px-3 py-1.5 pr-10 rounded-md bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowGroqKey(!showGroqKey)}
+                        className="absolute right-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none"
+                      >
+                        {showGroqKey ? <EyeOffIcon size={14} /> : <EyeIcon size={14} />}
+                      </button>
+                    </div>
                   </div>
                   <div className="flex flex-col gap-1.5 w-full">
                     <label className="text-xs font-medium text-[var(--text-secondary)]">Project context</label>
@@ -553,7 +565,12 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                       ]}
                     />
                     <div className="flex items-center gap-2 mt-1">
-                      {loadingContext && <Loader2 size={14} className="animate-spin text-[var(--text-secondary)]" />}
+                      {loadingContext && (
+                        <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+                          <Loader2 size={14} className="animate-spin text-[var(--text-secondary)]" />
+                          <span>Loading project context...</span>
+                        </div>
+                      )}
                       {!projectRepos.length && (
                         <span className="text-xs text-[var(--text-muted)]">Right-click a folder → Add as project</span>
                       )}

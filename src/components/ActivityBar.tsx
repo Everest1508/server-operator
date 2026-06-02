@@ -3,7 +3,7 @@ import FolderIcon from './icons/FolderIcon';
 import DockerIcon from './icons/DockerIcon';
 import CloudUploadIcon from './icons/CloudUploadIcon';
 import FileDescriptionIcon from './icons/FileDescriptionIcon';
-import { PanelLeftClose, PanelBottomClose, LogOut, Activity, Database, Terminal, Lock, Settings } from 'lucide-react';
+import { PanelLeftClose, PanelBottomClose, LogOut, Activity, Database, Terminal, Lock, Settings, BookOpen } from 'lucide-react';
 import type { ViewId, ServerConnection, FeatureFlags } from '../types';
 import { Tooltip } from './Tooltip';
 import { useFeatureFlags } from '../contexts/FeatureFlagContext';
@@ -14,19 +14,17 @@ const items = [
   { id: 'docker' as const, icon: DockerIcon, label: 'Docker' },
   { id: 'database' as const, icon: Database, label: 'Database' },
   { id: 'deploy' as const, icon: CloudUploadIcon, label: 'Deploy' },
-  { id: 'monitoring' as const, icon: Activity, label: 'Monitoring' },
   { id: 'notes' as const, icon: FileDescriptionIcon, label: 'Notes & Debug' },
-  { id: 'snippets' as const, icon: Terminal, label: 'Snippets Library' },
+  { id: 'guide' as const, icon: BookOpen, label: 'Feature Guide' },
 ];
 
 const flagMapping: Record<string, keyof FeatureFlags> = {
   servers: 'servers',
   files: 'files',
   docker: 'docker',
+  database: 'database',
   deploy: 'deployModule',
-  monitoring: 'serverAdmin',
   notes: 'notes',
-  snippets: 'snippetLibrary',
 };
 
 interface ActivityBarProps {
@@ -140,6 +138,12 @@ export function ActivityBar({
             <Settings size={20} strokeWidth={1.8} />
           </button>
         </Tooltip>
+
+        {/* Forged branding and copyright */}
+        <div className="flex flex-col items-center justify-center pt-2 mt-1 border-t border-[var(--border)] w-full select-none pointer-events-none opacity-40">
+          <span className="text-[7px] font-bold tracking-widest text-[var(--text-secondary)] uppercase scale-90 origin-center leading-none">Forged</span>
+          <span className="text-[7px] font-extrabold text-[var(--accent)] tracking-wider leading-none mt-0.5">BeForth</span>
+        </div>
       </div>
     </div>
   );
