@@ -17,13 +17,33 @@
         !/Setup\.exe$/i.test(a.name) &&
         !/blockmap/i.test(a.name)
     );
-    const macDmg =
+    
+    // macOS ARM64 (Apple Silicon)
+    const macArmDmg = assets.find((a) => /arm64.*\.dmg$/i.test(a.name));
+    const macArmZip = assets.find((a) => /arm64.*\.zip$/i.test(a.name));
+    
+    // macOS x64 (Intel)
+    const macX64Dmg = assets.find((a) => /(x64|intel).*\.dmg$/i.test(a.name));
+    const macX64Zip = assets.find((a) => /(x64|intel).*\.zip$/i.test(a.name));
+
+    // Fallbacks
+    const genericMacDmg =
       assets.find((a) => /(darwin|mac|osx).*\.dmg$/i.test(a.name)) ||
       assets.find((a) => /\.dmg$/i.test(a.name));
-    const macZip =
+    const genericMacZip =
       assets.find((a) => /(darwin|mac|osx).*\.zip$/i.test(a.name)) ||
       assets.find((a) => /\.zip$/i.test(a.name));
-    return { deb, setup, portable, macDmg, macZip, names };
+
+    return {
+      deb,
+      setup,
+      portable,
+      macArmDmg: macArmDmg || genericMacDmg,
+      macArmZip: macArmZip || genericMacZip,
+      macX64Dmg: macX64Dmg || genericMacDmg,
+      macX64Zip: macX64Zip || genericMacZip,
+      names
+    };
   }
 
   function setLink(id, asset) {
@@ -44,13 +64,14 @@
       if (!res.ok) throw new Error('GitHub API ' + res.status);
       const data = await res.json();
       const assets = Array.isArray(data.assets) ? data.assets : [];
-      const { deb, setup, portable, macDmg, macZip } = pickAssets(assets);
+      const { deb, setup, portable, macArmDmg, macArmZip, macX64Dmg, macX64Zip } = pickAssets(assets);
       setLink('dl-setup', setup);
       setLink('dl-portable', portable);
       setLink('dl-deb', deb);
-      setLink('dl-mac-dmg', macDmg || macZip);
+      setLink('dl-mac-arm', macArmDmg || macArmZip);
+      setLink('dl-mac-x64', macX64Dmg || macX64Zip);
     } catch (_) {
-      ['dl-setup', 'dl-portable', 'dl-deb', 'dl-mac-dmg'].forEach((id) => {
+      ['dl-setup', 'dl-portable', 'dl-deb', 'dl-mac-arm', 'dl-mac-x64'].forEach((id) => {
         const el = document.getElementById(id);
         if (el) {
           el.href = LATEST;
