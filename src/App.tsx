@@ -1316,8 +1316,8 @@ export default function App() {
           </div>
         )}
         {connectionError && !currentServer && (
-          <div className="absolute top-0 left-0 right-0 z-10 mx-4 mt-4 rounded-lg border-2 border-[var(--error)] bg-[var(--error)]/60 px-4 py-4 shadow-lg">
-            <p className="text-[var(--text-primary)] font-semibold">SSH connection failed</p>
+          <div className="absolute top-0 left-0 right-0 z-10 mx-4 mt-4 rounded-lg border-2 border-[var(--error)] bg-[var(--bg-secondary)] px-4 py-4 shadow-xl">
+            <p className="text-[var(--error)] font-semibold">SSH connection failed</p>
             <p className="text-sm text-[var(--text-primary)] mt-1 whitespace-pre-wrap break-words">{connectionError}</p>
             {proxy?.enabled && /Proxy|proxy|ECONNREFUSED|timed out|Tor/i.test(connectionError) && (
               <p className="text-xs text-[var(--text-secondary)] mt-2">Tip: If using Tor, ensure it is running (e.g. port 9050) and the server is reachable via Tor.</p>

@@ -176,9 +176,17 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
 
   const checkCertbot = useCallback(async () => {
     setCertbotCheckLoading(true);
-    const res = await runCmd('which certbot 2>/dev/null && certbot --version 2>&1');
+    // Check multiple possible certbot locations: snap symlink, /usr/local/bin, /usr/bin
+    const res = await runCmd(
+      'command -v certbot 2>/dev/null || ' +
+      'test -x /snap/bin/certbot && echo /snap/bin/certbot || ' +
+      'test -x /usr/local/bin/certbot && echo /usr/local/bin/certbot || ' +
+      'test -x /usr/bin/certbot && echo /usr/bin/certbot'
+    );
     setCertbotCheckLoading(false);
-    setCertbotInstalled(res.ok && res.stdout != null && res.stdout.trim().length > 0);
+    // Consider installed if any path was found (stdout has content), even if exit code varies
+    const found = (res.stdout ?? '').trim().length > 0 || (res.stderr ?? '').includes('certbot');
+    setCertbotInstalled(found);
   }, [runCmd]);
 
   const loadCertList = useCallback(async () => {

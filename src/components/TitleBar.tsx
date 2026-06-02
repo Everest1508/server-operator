@@ -125,7 +125,7 @@ export function TitleBar({ currentServer, sidebarOpen, onSidebarToggle }: TitleB
     >
       {/* Left Area: Logo & Menus */}
       <div className="flex items-center gap-1 h-full" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties} ref={menuRef}>
-        <img src="/logo.png" alt="Serop Logo" className="h-5 w-auto object-contain mr-2 shrink-0 pointer-events-none" />
+        <img src="logo.png" alt="Serop Logo" className="h-5 w-auto object-contain mr-2 shrink-0 pointer-events-none" />
         
         {/* Menu Bar */}
         <div className="flex items-center gap-0.5 text-xs text-[var(--text-secondary)] font-sans">

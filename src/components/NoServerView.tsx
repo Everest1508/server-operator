@@ -49,7 +49,7 @@ export function NoServerView({
     privateKeyPath: '',
     password: '',
     projectPath: '',
-    useProxy: true,
+    useProxy: false,
   });
 
   const submitAdd = (e: React.FormEvent) => {
@@ -71,7 +71,7 @@ export function NoServerView({
       cwd: form.projectPath.trim() || undefined,
       useProxy: form.useProxy,
     });
-    setForm({ name: '', host: '', username: '', privateKeyPath: '', password: '', projectPath: '', useProxy: true });
+    setForm({ name: '', host: '', username: '', privateKeyPath: '', password: '', projectPath: '', useProxy: false });
   };
 
   return (
@@ -106,12 +106,7 @@ export function NoServerView({
       <div className="flex-1 overflow-auto p-6">
         {activeTab === 'servers' && (
           <div className="space-y-6">
-            {connectionError && (
-              <div className="rounded-lg border border-[var(--error)]/50 bg-[var(--error)]/10 px-4 py-3 text-sm text-[var(--error)] flex items-center justify-between">
-                <span>{connectionError}</span>
-                <button type="button" onClick={onDismissError} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-2">Dismiss</button>
-              </div>
-            )}
+
 
             {/* Add new server */}
             <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-4">
@@ -435,10 +430,12 @@ export function NoServerView({
                                 {s.projectPath || '—'}
                               </td>
                               <td className="px-4 py-2.5">
-                                {s.useProxy !== false ? (
-                                  <span className="text-xs text-[var(--success)]">On</span>
+                                {!proxy.enabled ? (
+                                  <span className="text-xs text-[var(--text-muted)]" title="Global proxy is disabled">Off</span>
+                                ) : s.useProxy !== false ? (
+                                  <span className="text-xs text-[var(--success)]" title="Using global proxy">On</span>
                                 ) : (
-                                  <span className="text-xs text-[var(--text-secondary)]">Off</span>
+                                  <span className="text-xs text-[var(--text-secondary)]" title="Opted out of proxy">Off</span>
                                 )}
                               </td>
                               <td className="px-4 py-2.5">

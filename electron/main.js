@@ -927,9 +927,9 @@ ipcMain.handle('server:run-command', async (_, { host, username, privateKeyPath,
         return { ok: false, stdout: e.stdout || '', stderr: e.stderr || errMsg(e), code: e.status ?? 1 };
       }
     }
-    if (connection && proxy !== undefined) {
-      const conn = await getOrCreateConnection(connection, proxy);
-      const result = await execDockerAwareCommand(conn, command, cwd || connection.cwd, connection, proxy);
+    if (connection) {
+      const conn = await getOrCreateConnection(connection, proxy ?? null);
+      const result = await execDockerAwareCommand(conn, command, cwd || connection.cwd, connection, proxy ?? null);
       return { ok: true, stdout: result.stdout, stderr: result.stderr, code: result.code };
     }
     const conn = await connectSSH(
