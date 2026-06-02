@@ -172,9 +172,9 @@ export function RepoSidebar({
     const isOpen = openSet.has(pathKey);
     if (pathKey === '.' && loading && !listing) {
       return (
-        <div className="flex items-center gap-2 py-1 rounded" style={{ paddingLeft: 8 }}>
-          <Loader2 size={14} className="animate-spin shrink-0 text-[var(--text-secondary)]" />
-          <span className="text-[var(--text-secondary)] text-sm">Loading…</span>
+        <div className="flex items-center gap-2 py-1.5 rounded-lg" style={{ paddingLeft: 8 }}>
+          <Loader2 size={13} className="animate-spin shrink-0 text-text-secondary" />
+          <span className="text-text-secondary text-xs">Loading…</span>
         </div>
       );
     }
@@ -192,7 +192,7 @@ export function RepoSidebar({
         {pathKey !== '.' && (
           <div
             data-repo-tree-row
-            className="group flex items-center gap-0 rounded min-w-0 w-full"
+            className="group flex items-center gap-0.5 rounded-lg min-w-0 w-full"
             onContextMenu={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -203,13 +203,13 @@ export function RepoSidebar({
             <button
               type="button"
               onClick={() => onToggleRepoFolder(repoPath, pathKey)}
-              className="flex-1 min-w-0 text-left rounded hover:bg-[var(--bg-tertiary)] text-[var(--text-primary)] truncate flex items-center gap-2"
-              style={{ paddingLeft: depth * 12 + 8, paddingRight: 8, paddingTop: 4, paddingBottom: 4 }}
+              className="flex-1 min-w-0 text-left rounded-lg hover:bg-bg-tertiary/50 text-text-primary truncate flex items-center gap-2 transition-colors duration-150"
+              style={{ paddingLeft: depth * 12 + 6, paddingRight: 6, paddingTop: 4, paddingBottom: 4 }}
               title={pathKey}
             >
-              <ChevronRight size={14} className={`shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
-              <Folder size={14} className="shrink-0 text-[var(--accent)]" />
-              <span className="truncate">{pathKey.split('/').pop() || pathKey}</span>
+              <ChevronRight size={13} className={`shrink-0 transition-transform text-text-muted ${isOpen ? 'rotate-90 text-text-primary' : ''}`} />
+              <Folder size={13} className="shrink-0 text-accent" />
+              <span className="truncate text-xs">{pathKey.split('/').pop() || pathKey}</span>
             </button>
             {onDeleteEntry && (
               <button
@@ -222,19 +222,19 @@ export function RepoSidebar({
                     onDeleteEntry(fullPath);
                   }
                 }}
-                className="p-1.5 rounded text-[var(--text-secondary)] opacity-0 group-hover:opacity-100 hover:bg-[var(--error)]/20 hover:text-[var(--error)] transition-all shrink-0"
+                className="p-1 rounded-md text-text-secondary opacity-0 group-hover:opacity-100 hover:bg-error/15 hover:text-error transition-all shrink-0 cursor-pointer"
                 title={`Delete folder "${pathKey}"`}
               >
-                <Trash2 size={14} />
+                <Trash2 size={13} />
               </button>
             )}
           </div>
         )}
         {isOpen &&
           (loading && !listing ? (
-            <div className="flex items-center gap-2 py-1 rounded" style={{ paddingLeft: (pathKey === '.' ? 0 : depth + 1) * 12 + 8 }}>
-              <Loader2 size={14} className="animate-spin shrink-0 text-[var(--text-secondary)]" />
-              <span className="text-[var(--text-secondary)] text-sm">Loading…</span>
+            <div className="flex items-center gap-2 py-1.5 rounded-lg" style={{ paddingLeft: (pathKey === '.' ? 0 : depth + 1) * 12 + 8 }}>
+              <Loader2 size={13} className="animate-spin shrink-0 text-text-secondary" />
+              <span className="text-text-secondary text-xs">Loading…</span>
             </div>
           ) : (
             sortedEntries.map((parsed) => {
@@ -256,7 +256,7 @@ export function RepoSidebar({
                 <div
                   key={`${repoPath}-${fullPath}`}
                   data-repo-tree-row
-                  className="group flex items-center gap-0 rounded min-w-0 w-full"
+                  className="group flex items-center gap-0.5 rounded-lg min-w-0 w-full"
                   onContextMenu={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -266,18 +266,18 @@ export function RepoSidebar({
                   <button
                     type="button"
                     onClick={() => onOpenFile?.(fullFilePath)}
-                    className="flex-1 min-w-0 text-left rounded hover:bg-[var(--bg-tertiary)] text-[var(--text-primary)] truncate flex items-center gap-2"
+                    className="flex-1 min-w-0 text-left rounded-lg hover:bg-bg-tertiary/50 text-text-primary truncate flex items-center gap-2 transition-colors duration-150"
                     style={{
                       paddingLeft: (pathKey === '.' ? depth + 1 : depth + 1) * 12 + 8,
-                      paddingRight: 8,
+                      paddingRight: 6,
                       paddingTop: 4,
                       paddingBottom: 4,
                     }}
                     title={fullFilePath}
                   >
-                    <span className="w-[14px] shrink-0" />
-                    <FileCode size={14} className="shrink-0 text-[var(--text-secondary)]" />
-                    <span className="truncate">{name}</span>
+                    <span className="w-[13px] shrink-0" />
+                    <FileCode size={13} className="shrink-0 text-text-muted" />
+                    <span className="truncate text-xs">{name}</span>
                   </button>
                   {onDeleteEntry && (
                     <button
@@ -288,10 +288,10 @@ export function RepoSidebar({
                           onDeleteEntry(fullFilePath);
                         }
                       }}
-                      className="p-1.5 rounded text-[var(--text-secondary)] opacity-0 group-hover:opacity-100 hover:bg-[var(--error)]/20 hover:text-[var(--error)] transition-all shrink-0"
+                      className="p-1 rounded-md text-text-secondary opacity-0 group-hover:opacity-100 hover:bg-error/15 hover:text-error transition-all shrink-0 cursor-pointer"
                       title={`Delete file "${name}"`}
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={13} />
                     </button>
                   )}
                 </div>
@@ -304,41 +304,39 @@ export function RepoSidebar({
 
   if (repos.length === 0) {
     return (
-      <div className="w-full h-full bg-[var(--bg-secondary)] border-l border-[var(--border)] flex flex-col min-w-0">
-        <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border)]">
-          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Projects</span>
+      <div className="w-full h-full bg-bg-secondary/30 border-r border-border/20 flex flex-col min-w-0">
+        <div className="flex items-center justify-between px-4 py-3 shrink-0">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Projects</span>
         </div>
-        <div className="flex-1 overflow-y-auto py-4 px-3 text-[var(--text-muted)] text-xs text-center">
-          Right-click a folder in the file tree and choose &quot;Add as project&quot; to add repos here.
+        <div className="flex-1 overflow-y-auto py-8 px-4 text-text-muted text-xs text-center leading-relaxed">
+          Right-click a folder in the remote file explorer and select &quot;Add as project&quot; to begin tracking directories here.
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full bg-[var(--bg-secondary)] border-l border-[var(--border)] flex flex-col min-w-0">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border)]">
-        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Projects</span>
+    <div className="w-full h-full bg-bg-secondary/30 border-r border-border/20 flex flex-col min-w-0 select-none">
+      <div className="flex items-center justify-between px-4 py-3 shrink-0">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Projects</span>
       </div>
-      <div className="shrink-0 flex border-b border-[var(--border)] overflow-x-auto">
+      <div className="shrink-0 flex overflow-x-auto bg-bg-secondary/40 border-b border-border/20 p-1.5 gap-1.5">
         {repos.map((path) => {
           const label = path.split('/').pop() || path;
           const isSelected = selectedRepoPath === path;
           return (
             <div
               key={path}
-              className={`shrink-0 flex items-center border-b-2 max-w-[160px] group ${
+              className={`shrink-0 flex items-center rounded-lg max-w-[160px] group transition-all duration-200 border ${
                 isSelected
-                  ? 'border-[var(--accent)] bg-[var(--bg-tertiary)]'
-                  : 'border-transparent hover:bg-[var(--bg-tertiary)]'
+                  ? 'bg-bg-tertiary/80 border-border/40 text-accent font-semibold shadow-sm'
+                  : 'bg-transparent border-transparent text-text-secondary hover:bg-bg-tertiary/20 hover:text-text-primary'
               }`}
             >
               <button
                 type="button"
                 onClick={() => onSelectRepo(isSelected ? null : path)}
-                className={`flex-1 min-w-0 px-2 py-2 text-xs font-medium transition-colors truncate text-left ${
-                  isSelected ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                }`}
+                className="flex-1 min-w-0 px-2.5 py-1 text-xs transition-colors truncate text-left focus:outline-none"
                 title={path}
               >
                 {label}
@@ -347,11 +345,11 @@ export function RepoSidebar({
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); onRemoveRepo(path); }}
-                  className="p-1 rounded text-[var(--text-muted)] hover:bg-[var(--bg-primary)] hover:text-[var(--error)] opacity-70 group-hover:opacity-100"
+                  className="p-1 mr-1 rounded-md text-text-muted hover:bg-error/15 hover:text-error opacity-0 group-hover:opacity-100 transition-all shrink-0 cursor-pointer"
                   title="Remove project"
                   aria-label="Remove project"
                 >
-                  <X size={12} />
+                  <X size={11} />
                 </button>
               )}
             </div>
@@ -359,16 +357,16 @@ export function RepoSidebar({
         })}
       </div>
       {canCreate && (
-        <div className="shrink-0 flex items-center gap-1 px-2 py-1.5 border-b border-[var(--border)]">
+        <div className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 border-b border-border/10">
           {onCreateFile && (
             <Tooltip content="New File" position="top">
               <button
                 type="button"
                 onClick={() => setCreatingType('file')}
                 disabled={creating}
-                className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] disabled:opacity-50"
+                className="p-1.5 rounded-md text-text-secondary hover:bg-bg-tertiary hover:text-accent disabled:opacity-50 transition-colors"
               >
-                <FilePlus size={16} />
+                <FilePlus size={14} />
               </button>
             </Tooltip>
           )}
@@ -378,9 +376,9 @@ export function RepoSidebar({
                 type="button"
                 onClick={() => setCreatingType('folder')}
                 disabled={creating}
-                className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] disabled:opacity-50"
+                className="p-1.5 rounded-md text-text-secondary hover:bg-bg-tertiary hover:text-accent disabled:opacity-50 transition-colors"
               >
-                <FolderPlus size={16} />
+                <FolderPlus size={14} />
               </button>
             </Tooltip>
           )}
@@ -389,15 +387,15 @@ export function RepoSidebar({
               <button
                 type="button"
                 onClick={() => onCollapseRepo(selectedRepoPath)}
-                className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)]"
+                className="p-1.5 rounded-md text-text-secondary hover:bg-bg-tertiary hover:text-accent transition-colors"
               >
-                <ChevronsUp size={16} />
+                <ChevronsUp size={14} />
               </button>
             </Tooltip>
           )}
         </div>
       )}
-      <div className="flex-1 overflow-y-auto py-2 px-2 font-mono text-sm min-h-0">
+      <div className="flex-1 overflow-y-auto py-2 px-3 font-mono text-xs min-h-0">
         {selectedRepoPath ? (
           <div
             className="min-h-[120px]"
@@ -416,11 +414,11 @@ export function RepoSidebar({
             }}
           >
             {creatingType && (
-              <div className="flex items-center gap-2 px-2 py-1.5 rounded bg-[var(--bg-tertiary)] mb-1">
+              <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-bg-tertiary border border-border/40 mb-1.5">
                 {creatingType === 'folder' ? (
-                  <Folder size={14} className="shrink-0 text-[var(--accent)]" />
+                  <Folder size={12} className="shrink-0 text-accent" />
                 ) : (
-                  <FileCode size={14} className="shrink-0 text-[var(--text-secondary)]" />
+                  <FileCode size={12} className="shrink-0 text-text-secondary" />
                 )}
                 <input
                   ref={createInputRef}
@@ -429,23 +427,23 @@ export function RepoSidebar({
                   onChange={(e) => setCreatingName(e.target.value)}
                   onKeyDown={handleCreateKeyDown}
                   placeholder={creatingType === 'folder' ? 'Folder name' : 'File name'}
-                  className="flex-1 min-w-0 bg-[var(--bg-primary)] border border-[var(--border)] rounded px-2 py-1 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)]"
+                  className="flex-1 min-w-0 bg-bg-primary/50 border border-border/40 rounded px-2 py-0.5 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                   aria-label={creatingType === 'folder' ? 'Folder name' : 'File name'}
                 />
               </div>
             )}
             {createError && (
-              <p className="text-[var(--error)] text-xs px-2 py-1 mb-1">{createError}</p>
+              <p className="text-error text-xs px-2 py-1 mb-1">{createError}</p>
             )}
             <RepoTreeFolder repoPath={selectedRepoPath} pathKey="." depth={0} />
           </div>
         ) : (
-          <div className="py-4 px-2 text-[var(--text-muted)] text-xs text-center">Select a project tab above.</div>
+          <div className="py-8 px-2 text-text-muted text-xs text-center italic">Select a project tab above to browse folders.</div>
         )}
       </div>
       {fileTreeMenu && selectedRepoPath && (
         <div
-          className="fixed z-50 min-w-[200px] rounded-md border border-[var(--border)] bg-[var(--bg-secondary)] py-1 shadow-lg"
+          className="fixed z-50 min-w-[190px] rounded-xl border border-border/40 bg-bg-tertiary/95 py-1.5 px-1 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-1 duration-100 font-sans"
           style={{ left: fileTreeMenu.x, top: fileTreeMenu.y }}
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.preventDefault()}
@@ -454,7 +452,7 @@ export function RepoSidebar({
             <button
               type="button"
               disabled={!!contextMenuAction}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] disabled:opacity-50"
+              className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
               onClick={async () => {
                 setContextMenuAction('paste');
                 onFileTreeActionMessage?.(null);
@@ -469,7 +467,7 @@ export function RepoSidebar({
                 }
               }}
             >
-              <ClipboardPaste size={14} className="shrink-0" />
+              <ClipboardPaste size={13} className="shrink-0" />
               {contextMenuAction === 'paste' ? 'Pasting…' : 'Paste here'}
             </button>
           )}
@@ -478,13 +476,13 @@ export function RepoSidebar({
               {!fileTreeMenu.isDir && onOpenFile && (
                 <button
                   type="button"
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
+                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg transition-colors cursor-pointer"
                   onClick={() => {
                     onOpenFile(fileTreeMenu.path!);
                     setFileTreeMenu(null);
                   }}
                 >
-                  <FileCode size={14} className="shrink-0" />
+                  <FileCode size={13} className="shrink-0" />
                   Open
                 </button>
               )}
@@ -492,7 +490,7 @@ export function RepoSidebar({
                 <button
                   type="button"
                   disabled={!!contextMenuAction}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] disabled:opacity-50"
+                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
                   onClick={async () => {
                     setContextMenuAction('rename');
                     onFileTreeActionMessage?.(null);
@@ -505,33 +503,33 @@ export function RepoSidebar({
                     }
                   }}
                 >
-                  <Pencil size={14} className="shrink-0" />
+                  <Pencil size={13} className="shrink-0" />
                   {contextMenuAction === 'rename' ? 'Renaming…' : 'Rename'}
                 </button>
               )}
               {onFileTreeCutPaths && (
                 <button
                   type="button"
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
+                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg transition-colors cursor-pointer"
                   onClick={() => {
                     onFileTreeCutPaths([fileTreeMenu.path!]);
                     setFileTreeMenu(null);
                   }}
                 >
-                  <Scissors size={14} className="shrink-0" />
+                  <Scissors size={13} className="shrink-0" />
                   Cut
                 </button>
               )}
               {onFileTreeCopyPaths && (
                 <button
                   type="button"
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
+                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg transition-colors cursor-pointer"
                   onClick={() => {
                     onFileTreeCopyPaths([fileTreeMenu.path!]);
                     setFileTreeMenu(null);
                   }}
                 >
-                  <Copy size={14} className="shrink-0" />
+                  <Copy size={13} className="shrink-0" />
                   Copy
                 </button>
               )}
@@ -539,7 +537,7 @@ export function RepoSidebar({
                 <button
                   type="button"
                   disabled={!!contextMenuAction}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] disabled:opacity-50"
+                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
                   onClick={async () => {
                     const p = fileTreeMenu.path!;
                     const parent = p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '.';
@@ -557,7 +555,7 @@ export function RepoSidebar({
                     }
                   }}
                 >
-                  <ClipboardPaste size={14} className="shrink-0" />
+                  <ClipboardPaste size={13} className="shrink-0" />
                   {contextMenuAction === 'paste' ? 'Pasting…' : 'Paste into'}
                 </button>
               )}
@@ -565,7 +563,7 @@ export function RepoSidebar({
                 <button
                   type="button"
                   disabled={!!contextMenuAction}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] disabled:opacity-50"
+                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
                   onClick={async () => {
                     setContextMenuAction('dup');
                     onFileTreeActionMessage?.(null);
@@ -578,7 +576,7 @@ export function RepoSidebar({
                     }
                   }}
                 >
-                  <CopyPlus size={14} className="shrink-0" />
+                  <CopyPlus size={13} className="shrink-0" />
                   {contextMenuAction === 'dup' ? 'Duplicating…' : 'Duplicate'}
                 </button>
               )}
@@ -586,7 +584,7 @@ export function RepoSidebar({
                 <button
                   type="button"
                   disabled={!!contextMenuAction}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--error)] hover:bg-[var(--error)]/15 disabled:opacity-50"
+                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-error hover:bg-error/15 disabled:opacity-50 rounded-lg transition-colors cursor-pointer"
                   onClick={async () => {
                     const p = fileTreeMenu.path!;
                     const label = p.split('/').pop() || p;
@@ -605,7 +603,7 @@ export function RepoSidebar({
                     }
                   }}
                 >
-                  <Trash2 size={14} className="shrink-0" />
+                  <Trash2 size={13} className="shrink-0" />
                   {contextMenuAction === 'del' ? 'Deleting…' : 'Delete'}
                 </button>
               )}

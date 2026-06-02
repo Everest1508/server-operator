@@ -119,49 +119,49 @@ export function TitleBar({ currentServer, sidebarOpen, onSidebarToggle }: TitleB
   return (
     <div
       style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
-      className={`h-10 shrink-0 bg-[var(--bg-secondary)] border-b border-[var(--border)] flex items-center justify-between select-none relative z-50 ${
+      className={`h-10 shrink-0 bg-bg-secondary/40 border-b border-border/30 backdrop-blur-md flex items-center justify-between select-none relative z-50 ${
         isMac ? 'pl-[80px]' : 'pl-3'
       }`}
     >
       {/* Left Area: Logo & Menus */}
-      <div className="flex items-center gap-1 h-full" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties} ref={menuRef}>
-        <img src="logo.png" alt="Serop Logo" className="h-5 w-auto object-contain mr-2 shrink-0 pointer-events-none" />
+      <div className="flex items-center gap-1.5 h-full" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties} ref={menuRef}>
+        <img src="logo.png" alt="Serop Logo" className="h-4.5 w-auto object-contain mr-1.5 shrink-0 pointer-events-none opacity-90" />
         
         {/* Menu Bar */}
-        <div className="flex items-center gap-0.5 text-xs text-[var(--text-secondary)] font-sans">
+        <div className="flex items-center gap-1 text-[11px] text-text-secondary font-sans">
           {/* File Menu */}
           <div className="relative">
             <button
               onClick={() => setActiveMenu(activeMenu === 'file' ? null : 'file')}
-              className={`px-3 py-1.5 rounded hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors ${
-                activeMenu === 'file' ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] font-medium' : ''
+              className={`px-2.5 py-1 rounded-md hover:bg-bg-tertiary/50 hover:text-text-primary transition-all duration-150 ${
+                activeMenu === 'file' ? 'bg-bg-tertiary text-text-primary font-semibold' : ''
               }`}
             >
               File
             </button>
             {activeMenu === 'file' && (
-              <div className="absolute top-[105%] left-0 w-52 bg-[var(--bg-tertiary)] border border-[var(--border)] shadow-2xl rounded-md py-1 flex flex-col z-50 text-[var(--text-primary)] font-sans animate-in fade-in slide-in-from-top-1 duration-100">
+              <div className="absolute top-[110%] left-0 w-52 bg-bg-tertiary/95 border border-border/50 shadow-2xl rounded-lg py-1 flex flex-col z-50 text-text-primary font-sans backdrop-blur-md animate-in fade-in slide-in-from-top-1 duration-100">
                 <button
                   onClick={() => triggerMenuAction('reload-window')}
-                  className="px-4 py-2 hover:bg-[var(--accent)] hover:text-white text-left flex justify-between items-center w-full"
+                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
                 >
                   <span>Reload Window</span>
-                  <span className="text-[10px] text-[var(--text-muted)] group-hover:text-white">Ctrl+R</span>
+                  <span className="text-[10px] text-text-muted">Ctrl+R</span>
                 </button>
                 <button
                   onClick={() => triggerMenuAction('toggle-devtools')}
-                  className="px-4 py-2 hover:bg-[var(--accent)] hover:text-white text-left flex justify-between items-center w-full"
+                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
                 >
                   <span>Developer Tools</span>
-                  <span className="text-[10px] text-[var(--text-muted)]">F12</span>
+                  <span className="text-[10px] text-text-muted">F12</span>
                 </button>
-                <div className="h-[1px] bg-[var(--border)] my-1" />
+                <div className="h-[1px] bg-border/40 my-1" />
                 <button
                   onClick={() => triggerMenuAction('exit')}
-                  className="px-4 py-2 hover:bg-[var(--accent)] hover:text-white text-left flex justify-between items-center w-full text-[var(--error)] hover:text-white font-medium"
+                  className="px-3 py-1.5 hover:bg-error/15 hover:text-error text-left flex justify-between items-center w-full transition-colors text-xs font-semibold"
                 >
                   <span>Exit</span>
-                  <span className="text-[10px] text-[var(--text-muted)] group-hover:text-white">Alt+F4</span>
+                  <span className="text-[10px] text-text-muted group-hover:text-error/70">Alt+F4</span>
                 </button>
               </div>
             )}
@@ -171,49 +171,49 @@ export function TitleBar({ currentServer, sidebarOpen, onSidebarToggle }: TitleB
           <div className="relative">
             <button
               onClick={() => setActiveMenu(activeMenu === 'edit' ? null : 'edit')}
-              className={`px-3 py-1.5 rounded hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors ${
-                activeMenu === 'edit' ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] font-medium' : ''
+              className={`px-2.5 py-1 rounded-md hover:bg-bg-tertiary/50 hover:text-text-primary transition-all duration-150 ${
+                activeMenu === 'edit' ? 'bg-bg-tertiary text-text-primary font-semibold' : ''
               }`}
             >
               Edit
             </button>
             {activeMenu === 'edit' && (
-              <div className="absolute top-[105%] left-0 w-48 bg-[var(--bg-tertiary)] border border-[var(--border)] shadow-2xl rounded-md py-1 flex flex-col z-50 text-[var(--text-primary)] font-sans">
+              <div className="absolute top-[110%] left-0 w-48 bg-bg-tertiary/95 border border-border/50 shadow-2xl rounded-lg py-1 flex flex-col z-50 text-text-primary font-sans backdrop-blur-md">
                 <button
                   onClick={() => triggerMenuAction('undo')}
-                  className="px-4 py-2 hover:bg-[var(--accent)] hover:text-white text-left flex justify-between items-center w-full"
+                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
                 >
                   <span>Undo</span>
-                  <span className="text-[10px] text-[var(--text-muted)]">Ctrl+Z</span>
+                  <span className="text-[10px] text-text-muted">Ctrl+Z</span>
                 </button>
                 <button
                   onClick={() => triggerMenuAction('redo')}
-                  className="px-4 py-2 hover:bg-[var(--accent)] hover:text-white text-left flex justify-between items-center w-full"
+                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
                 >
                   <span>Redo</span>
-                  <span className="text-[10px] text-[var(--text-muted)]">Ctrl+Y</span>
+                  <span className="text-[10px] text-text-muted">Ctrl+Y</span>
                 </button>
-                <div className="h-[1px] bg-[var(--border)] my-1" />
+                <div className="h-[1px] bg-border/40 my-1" />
                 <button
                   onClick={() => triggerMenuAction('cut')}
-                  className="px-4 py-2 hover:bg-[var(--accent)] hover:text-white text-left flex justify-between items-center w-full"
+                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
                 >
                   <span>Cut</span>
-                  <span className="text-[10px] text-[var(--text-muted)]">Ctrl+X</span>
+                  <span className="text-[10px] text-text-muted">Ctrl+X</span>
                 </button>
                 <button
                   onClick={() => triggerMenuAction('copy')}
-                  className="px-4 py-2 hover:bg-[var(--accent)] hover:text-white text-left flex justify-between items-center w-full"
+                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
                 >
                   <span>Copy</span>
-                  <span className="text-[10px] text-[var(--text-muted)]">Ctrl+C</span>
+                  <span className="text-[10px] text-text-muted">Ctrl+C</span>
                 </button>
                 <button
                   onClick={() => triggerMenuAction('paste')}
-                  className="px-4 py-2 hover:bg-[var(--accent)] hover:text-white text-left flex justify-between items-center w-full"
+                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
                 >
                   <span>Paste</span>
-                  <span className="text-[10px] text-[var(--text-muted)]">Ctrl+V</span>
+                  <span className="text-[10px] text-text-muted">Ctrl+V</span>
                 </button>
               </div>
             )}
@@ -223,27 +223,27 @@ export function TitleBar({ currentServer, sidebarOpen, onSidebarToggle }: TitleB
           <div className="relative">
             <button
               onClick={() => setActiveMenu(activeMenu === 'view' ? null : 'view')}
-              className={`px-3 py-1.5 rounded hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors ${
-                activeMenu === 'view' ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] font-medium' : ''
+              className={`px-2.5 py-1 rounded-md hover:bg-bg-tertiary/50 hover:text-text-primary transition-all duration-150 ${
+                activeMenu === 'view' ? 'bg-bg-tertiary text-text-primary font-semibold' : ''
               }`}
             >
               View
             </button>
             {activeMenu === 'view' && (
-              <div className="absolute top-[105%] left-0 w-52 bg-[var(--bg-tertiary)] border border-[var(--border)] shadow-2xl rounded-md py-1 flex flex-col z-50 text-[var(--text-primary)] font-sans">
+              <div className="absolute top-[110%] left-0 w-52 bg-bg-tertiary/95 border border-border/50 shadow-2xl rounded-lg py-1 flex flex-col z-50 text-text-primary font-sans backdrop-blur-md">
                 <button
                   onClick={() => triggerMenuAction('toggle-sidebar')}
-                  className="px-4 py-2 hover:bg-[var(--accent)] hover:text-white text-left flex justify-between items-center w-full"
+                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
                 >
                   <span>{sidebarOpen ? 'Hide' : 'Show'} Sidebar</span>
-                  <span className="text-[10px] text-[var(--text-muted)]">Ctrl+B</span>
+                  <span className="text-[10px] text-text-muted">Ctrl+B</span>
                 </button>
                 <button
                   onClick={() => triggerMenuAction('toggle-fullscreen')}
-                  className="px-4 py-2 hover:bg-[var(--accent)] hover:text-white text-left flex justify-between items-center w-full"
+                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
                 >
                   <span>Toggle Fullscreen</span>
-                  <span className="text-[10px] text-[var(--text-muted)]">F11</span>
+                  <span className="text-[10px] text-text-muted">F11</span>
                 </button>
               </div>
             )}
@@ -253,30 +253,30 @@ export function TitleBar({ currentServer, sidebarOpen, onSidebarToggle }: TitleB
           <div className="relative">
             <button
               onClick={() => setActiveMenu(activeMenu === 'help' ? null : 'help')}
-              className={`px-3 py-1.5 rounded hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors ${
-                activeMenu === 'help' ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] font-medium' : ''
+              className={`px-2.5 py-1 rounded-md hover:bg-bg-tertiary/50 hover:text-text-primary transition-all duration-150 ${
+                activeMenu === 'help' ? 'bg-bg-tertiary text-text-primary font-semibold' : ''
               }`}
             >
               Help
             </button>
             {activeMenu === 'help' && (
-              <div className="absolute top-[105%] left-0 w-48 bg-[var(--bg-tertiary)] border border-[var(--border)] shadow-2xl rounded-md py-1 flex flex-col z-50 text-[var(--text-primary)] font-sans">
+              <div className="absolute top-[110%] left-0 w-48 bg-bg-tertiary/95 border border-border/50 shadow-2xl rounded-lg py-1 flex flex-col z-50 text-text-primary font-sans backdrop-blur-md">
                 <button
                   onClick={() => triggerMenuAction('github')}
-                  className="px-4 py-2 hover:bg-[var(--accent)] hover:text-white text-left flex justify-between items-center w-full"
+                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
                 >
                   <span className="flex items-center gap-1.5">
                     View on GitHub
-                    <ExternalLink className="h-3 w-3" />
+                    <ExternalLink className="h-3 w-3 opacity-80" />
                   </span>
                 </button>
                 <button
                   onClick={() => triggerMenuAction('about')}
-                  className="px-4 py-2 hover:bg-[var(--accent)] hover:text-white text-left flex justify-between items-center w-full"
+                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
                 >
                   <span className="flex items-center gap-1.5">
                     About Server Operator
-                    <Info className="h-3 w-3" />
+                    <Info className="h-3 w-3 opacity-80" />
                   </span>
                 </button>
               </div>
@@ -288,13 +288,13 @@ export function TitleBar({ currentServer, sidebarOpen, onSidebarToggle }: TitleB
       {/* Center Area: App Title & Connected Server Status */}
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 max-w-[40%] truncate pointer-events-none">
         {currentServer ? (
-          <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border)] text-xs font-mono font-medium max-w-full truncate shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-[var(--success)] animate-pulse shrink-0" />
-            <span className="text-[var(--text-primary)] truncate">{currentServer.name}</span>
-            <span className="text-[var(--text-muted)] text-[10px] hidden md:inline truncate">({currentServer.host})</span>
+          <div className="flex items-center gap-2 px-3.5 py-1 rounded-full bg-bg-tertiary/60 border border-border/40 text-[11px] font-mono font-medium max-w-full truncate shadow-inner backdrop-blur-md">
+            <span className="w-1.5 h-1.5 rounded-full bg-success/80 shadow-[0_0_8px_rgba(78,201,176,0.6)] animate-pulse shrink-0" />
+            <span className="text-text-primary truncate">{currentServer.name}</span>
+            <span className="text-text-muted text-[9px] hidden md:inline truncate opacity-90">({currentServer.host})</span>
           </div>
         ) : (
-          <span className="text-xs font-sans font-semibold text-[var(--text-secondary)] tracking-wider">
+          <span className="text-[10px] font-sans font-bold text-text-muted tracking-widest opacity-85">
             SERVER OPERATOR
           </span>
         )}
@@ -307,7 +307,7 @@ export function TitleBar({ currentServer, sidebarOpen, onSidebarToggle }: TitleB
           <button
             onClick={handleMinimize}
             title="Minimize"
-            className="w-12 h-full flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+            className="w-11 h-full flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/60 transition-colors"
           >
             <Minus className="w-3.5 h-3.5" />
           </button>
@@ -316,18 +316,18 @@ export function TitleBar({ currentServer, sidebarOpen, onSidebarToggle }: TitleB
           <button
             onClick={handleMaximize}
             title={isMaximized ? 'Restore' : 'Maximize'}
-            className="w-12 h-full flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+            className="w-11 h-full flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/60 transition-colors"
           >
-            <Square className="w-3 h-3" />
+            <Square className="w-2.5 h-2.5" />
           </button>
           
           {/* Close */}
           <button
             onClick={handleClose}
             title="Close"
-            className="w-12 h-full flex items-center justify-center text-[var(--text-secondary)] hover:text-white hover:bg-[var(--error)] transition-colors"
+            className="w-11 h-full flex items-center justify-center text-text-secondary hover:text-white hover:bg-error transition-colors"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}

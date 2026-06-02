@@ -27,24 +27,20 @@ function UpToDateToast({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl border"
+      className="flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl border border-success/20 bg-bg-secondary/95 backdrop-blur-md"
       style={{
-        background: 'linear-gradient(135deg, rgba(16,24,32,0.97) 0%, rgba(20,30,40,0.97) 100%)',
-        borderColor: 'rgba(52,211,153,0.25)',
-        backdropFilter: 'blur(12px)',
         animation: 'slideDown 0.3s cubic-bezier(0.34,1.56,0.64,1)',
       }}
     >
-      <CheckCircle2 size={18} className="shrink-0" style={{ color: '#34d399' }} />
-      <span className="text-sm font-medium" style={{ color: '#e2e8f0' }}>
-        You&apos;re up to date! Running the latest version.
+      <CheckCircle2 size={16} className="shrink-0 text-success" />
+      <span className="text-xs font-semibold text-text-primary">
+        You&apos;re up to date! Running latest release.
       </span>
       <button
         onClick={onClose}
-        className="ml-2 shrink-0 p-0.5 rounded hover:bg-white/10 transition-colors"
-        style={{ color: '#94a3b8' }}
+        className="ml-2 shrink-0 p-1 rounded-lg hover:bg-bg-tertiary text-text-secondary hover:text-text-primary transition-all"
       >
-        <X size={14} />
+        <X size={12} />
       </button>
     </div>
   );
@@ -70,37 +66,21 @@ function UpdateBannerInner({
   };
 
   return (
-    <div
-      className="flex flex-col w-full rounded-lg shadow-xl border overflow-hidden"
-      style={{
-        background: 'var(--bg-secondary)',
-        borderColor: 'var(--border)',
-        fontFamily: 'var(--font-sans)',
-      }}
-    >
-      {/* Accent glow strip */}
-      <div
-        className="h-[2px] w-full shrink-0"
-        style={{ background: 'var(--accent)' }}
-      />
-
+    <div className="flex flex-col w-full rounded-2xl shadow-2xl border border-border/40 bg-bg-secondary/95 backdrop-blur-md overflow-hidden font-sans p-1 animate-slide-down">
       {/* Main row */}
       <div className="flex items-start gap-2.5 p-3">
         {/* Icon */}
-        <div
-          className="w-7 h-7 rounded flex items-center justify-center shrink-0 mt-0.5"
-          style={{ background: 'rgba(0,120,212,0.15)', color: 'var(--accent)' }}
-        >
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 bg-accent/10 text-accent border border-accent/20 shadow-sm">
           <Sparkles size={14} />
         </div>
 
         {/* Text */}
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold leading-normal text-[var(--text-primary)]">
+          <p className="text-xs font-semibold leading-normal text-text-primary">
             Update Available:{' '}
-            <span className="font-bold text-[var(--accent)]">{info.version}</span>
+            <span className="font-bold text-accent">{info.version}</span>
           </p>
-          <p className="text-[10px] mt-1 leading-normal text-[var(--text-secondary)]">
+          <p className="text-[10px] mt-0.5 leading-normal text-text-secondary">
             A new release has been published to GitHub.
           </p>
         </div>
@@ -108,19 +88,19 @@ function UpdateBannerInner({
         {/* Dismiss Button */}
         <button
           onClick={handleDismiss}
-          className="shrink-0 p-1 rounded hover:bg-[var(--bg-tertiary)] transition-colors text-[var(--text-secondary)]"
+          className="shrink-0 p-1 rounded-lg hover:bg-bg-tertiary text-text-secondary hover:text-text-primary transition-all"
           title="Dismiss"
         >
-          <X size={14} />
+          <X size={13} />
         </button>
       </div>
 
       {/* Action Buttons */}
-      <div className="flex items-center gap-1.5 px-3 pb-3 border-t border-[var(--border)] pt-2.5 bg-[var(--bg-secondary)]/40">
+      <div className="flex items-center gap-1.5 px-3 py-2 border-t border-border/30 bg-bg-secondary/40 rounded-xl mt-1">
         {info.releaseNotes && (
           <button
             onClick={() => setNotesOpen((o) => !o)}
-            className="flex items-center gap-0.5 px-2 py-1 rounded text-[10px] font-semibold transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
+            className="flex items-center gap-0.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-colors text-text-secondary hover:text-text-primary hover:bg-bg-tertiary"
           >
             Changelog
             {notesOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
@@ -131,7 +111,7 @@ function UpdateBannerInner({
 
         <button
           onClick={handleDownload}
-          className="flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-bold transition-all duration-100 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white"
+          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-100 bg-accent hover:bg-accent-hover text-white shadow-md shadow-accent/15"
         >
           <Download size={11} />
           Download
@@ -141,18 +121,9 @@ function UpdateBannerInner({
       {/* Expandable release notes */}
       {notesOpen && info.releaseNotes && (
         <div
-          className="px-3 pb-3 border-t border-[var(--border)] bg-black/15"
+          className="px-3 pb-3 border-t border-border/20 bg-black/10"
         >
-          <pre
-            className="text-[10px] leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto rounded p-2 mt-2"
-            style={{
-              color: 'var(--text-primary)',
-              background: 'var(--bg-primary)',
-              borderColor: 'var(--border)',
-              borderWidth: '1px',
-              fontFamily: 'var(--font-sans)',
-            }}
-          >
+          <pre className="text-[9px] leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto rounded-lg p-2 mt-2 border border-border/30 bg-bg-primary/60 text-text-primary font-mono scrollbar-vs">
             {info.releaseNotes}
           </pre>
         </div>

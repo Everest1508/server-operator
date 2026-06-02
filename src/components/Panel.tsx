@@ -447,35 +447,37 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
   }, [currentServer?.id, composePaths]);
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 border-t border-[var(--border)] bg-[var(--bg-secondary)]">
-      <div className="flex items-center border-b border-[var(--border)]">
-        <button
-          type="button"
-          onClick={() => onTabChange('logs')}
-          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            panelTab === 'logs'
-              ? 'border-[var(--accent)] text-[var(--accent)]'
-              : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-          }`}
-        >
-          <FileText size={16} />
-          Logs
-        </button>
-        <button
-          type="button"
-          onClick={() => onTabChange('terminal')}
-          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            panelTab === 'terminal'
-              ? 'border-[var(--accent)] text-[var(--accent)]'
-              : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-          }`}
-        >
-          <TerminalIcon size={16} />
-          Terminal
-        </button>
+    <div className="flex-1 flex flex-col min-h-0 border-t border-border/20 bg-bg-secondary/35 select-none">
+      <div className="flex items-center justify-between border-b border-border/20 bg-bg-secondary/45 px-3 py-1.5 gap-1 shrink-0">
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => onTabChange('logs')}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all border duration-150 cursor-pointer ${
+              panelTab === 'logs'
+                ? 'bg-bg-primary border-border/40 text-accent shadow-sm'
+                : 'bg-transparent border-transparent text-text-secondary hover:bg-bg-tertiary/20 hover:text-text-primary'
+            }`}
+          >
+            <FileText size={13} />
+            Logs
+          </button>
+          <button
+            type="button"
+            onClick={() => onTabChange('terminal')}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all border duration-150 cursor-pointer ${
+              panelTab === 'terminal'
+                ? 'bg-bg-primary border-border/40 text-accent shadow-sm'
+                : 'bg-transparent border-transparent text-text-secondary hover:bg-bg-tertiary/20 hover:text-text-primary'
+            }`}
+          >
+            <TerminalIcon size={13} />
+            Terminal
+          </button>
+        </div>
         {panelTab === 'logs' && currentServer && composePaths && composePaths.length > 0 && (
-          <div className="ml-4 flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-[var(--text-secondary)]">Tail:</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Tail:</span>
             <input
               type="number"
               value={tail}
@@ -493,14 +495,14 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                   setTail(200);
                 }
               }}
-              className="w-16 px-2 py-1 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+              className="w-14 px-2 py-0.5 rounded-lg bg-bg-primary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent text-center font-mono"
               title="Tail lines for new streams"
             />
           </div>
         )}
         {panelTab === 'terminal' && currentServer && (
-          <div className="ml-auto mr-4 text-xs font-semibold text-[var(--text-secondary)] font-mono">
-            ↓ Active Shell — {currentServer.username || 'erp'}@{currentServer.host || 'hrms'}
+          <div className="text-[10px] font-bold text-text-muted font-mono tracking-wide uppercase">
+            {currentServer.username || 'erp'}@{currentServer.host || 'hrms'}
           </div>
         )}
       </div>
@@ -508,30 +510,30 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
         {panelTab === 'logs' && (
           <>
             {currentServer && (
-              <div className="shrink-0 border-b border-[var(--border)] p-3 space-y-3 bg-[var(--bg-secondary)]">
-                <div className="flex items-center gap-2 flex-wrap">
+              <div className="shrink-0 border-b border-border/20 p-3 space-y-3 bg-bg-secondary/20">
+                <div className="flex items-center gap-2 flex-wrap max-w-3xl">
                   <input
                     type="text"
                     value={newComposePath}
                     onChange={(e) => setNewComposePath(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && addComposePath()}
                     placeholder="Compose file path (e.g. docker-compose.yml)"
-                    className="flex-1 min-w-[200px] px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)]"
+                    className="flex-1 min-w-[200px] px-3 py-1.5 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent font-mono"
                   />
                   <button
                     type="button"
                     onClick={addComposePath}
                     disabled={!newComposePath.trim() || loadingServicesForPath !== null}
-                    className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-[var(--bg-tertiary)] border border-[var(--border)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-50 text-sm"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-bg-tertiary border border-border/30 text-text-primary hover:border-accent/40 hover:text-accent disabled:opacity-50 text-xs font-semibold cursor-pointer transition-colors"
                   >
-                    <Plus size={14} />
-                    Add
+                    <Plus size={13} />
+                    Add Path
                   </button>
                 </div>
                 {composePaths.length > 0 && (
                   <div className="space-y-2">
-                    <p className="text-xs text-[var(--text-secondary)] font-medium">Compose files · click a service to open a streaming log tab</p>
-                    <div className="flex flex-wrap gap-2">
+                    <p className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Registered Compose Projects</p>
+                    <div className="flex flex-wrap gap-3">
                       {composePaths.map((p) => {
                         const services = servicesByPath[p] ?? [];
                         const isLoading = loadingServicesForPath === p;
@@ -539,55 +541,57 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                         return (
                           <div
                             key={p}
-                            className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2"
+                            className="flex items-center gap-3 rounded-xl border border-border/20 bg-bg-primary/50 px-3.5 py-2 shadow-sm backdrop-blur-sm"
                           >
                             <div className="flex flex-col gap-0.5 min-w-0 max-w-[240px]">
-                              <span className="text-xs font-medium text-[var(--text-primary)] truncate" title={p}>
+                              <span className="text-xs font-bold text-text-primary truncate" title={p}>
                                 {shortName}
                               </span>
-                              <span className="text-[10px] text-[var(--text-muted)] truncate" title={p}>
+                              <span className="text-[10px] text-text-muted truncate font-mono" title={p}>
                                 {p}
                               </span>
-                              <span className="text-[10px] text-[var(--text-secondary)]">
-                                {isLoading ? '…' : `${services.length} service${services.length !== 1 ? 's' : ''}`}
+                              <span className="text-[9px] font-semibold text-text-secondary mt-0.5">
+                                {isLoading ? 'fetching services…' : `${services.length} active service${services.length !== 1 ? 's' : ''}`}
                               </span>
                             </div>
                             <div className="flex flex-wrap gap-1">
                               <button
                                 type="button"
                                 onClick={() => openLogTab(p, '')}
-                                className="px-2 py-0.5 rounded bg-[var(--bg-tertiary)] border border-[var(--border)] text-[10px] text-[var(--text-primary)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                                className="px-2.5 py-0.5 rounded-lg bg-bg-tertiary border border-border/30 text-[10px] text-text-primary hover:border-accent hover:text-accent font-semibold transition-all duration-150 cursor-pointer"
                               >
-                                All
+                                All Logs
                               </button>
                               {services.map((s) => (
                                 <button
                                   key={s}
                                   type="button"
                                   onClick={() => openLogTab(p, s)}
-                                  className="px-2 py-0.5 rounded bg-[var(--bg-tertiary)] border border-[var(--border)] text-[10px] text-[var(--text-primary)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                                  className="px-2.5 py-0.5 rounded-lg bg-bg-tertiary border border-border/30 text-[10px] text-text-primary hover:border-accent hover:text-accent font-semibold transition-all duration-150 cursor-pointer"
                                 >
                                   {s}
                                 </button>
                               ))}
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => refreshServicesForPath(p)}
-                              disabled={loadingServicesForPath !== null}
-                              className="p-1 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] disabled:opacity-50"
-                              title="Refresh service list"
-                            >
-                              {loadingServicesForPath === p ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => removeComposePath(p)}
-                              className="p-1 rounded text-[var(--text-secondary)] hover:bg-[var(--error)]/20 hover:text-[var(--error)]"
-                              title="Remove compose file"
-                            >
-                              <Trash2 size={12} />
-                            </button>
+                            <div className="flex items-center gap-0.5 border-l border-border/20 pl-2 ml-1">
+                              <button
+                                type="button"
+                                onClick={() => refreshServicesForPath(p)}
+                                disabled={loadingServicesForPath !== null}
+                                className="p-1 rounded-md text-text-secondary hover:bg-bg-tertiary hover:text-accent disabled:opacity-50 cursor-pointer transition-colors"
+                                title="Refresh service list"
+                              >
+                                {loadingServicesForPath === p ? <Loader2 size={12} className="animate-spin text-accent" /> : <RefreshCw size={12} />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeComposePath(p)}
+                                className="p-1 rounded-md text-text-secondary hover:bg-error/15 hover:text-error cursor-pointer transition-colors"
+                                title="Remove compose file"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
                           </div>
                         );
                       })}
@@ -598,52 +602,56 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
             )}
             {currentServer && logTabs.length > 0 && (
               <>
-                <div className="shrink-0 flex items-center gap-0 border-b border-[var(--border)] bg-[var(--bg-secondary)] overflow-x-auto">
+                <div className="shrink-0 flex items-center gap-1.5 border-b border-border/20 bg-bg-secondary/35 px-2 py-1.5 overflow-x-auto">
                   {logTabs.map((t) => (
                     <div
                       key={t.id}
                       role="tab"
-                      className={`flex items-center gap-1.5 px-3 py-2 border-r border-[var(--border)] cursor-pointer shrink-0 max-w-[200px] min-w-0 group ${
-                        activeLogTabId === t.id ? 'bg-[var(--bg-primary)] text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer shrink-0 max-w-[200px] min-w-0 group border transition-all duration-150 text-xs ${
+                        activeLogTabId === t.id
+                          ? 'bg-bg-primary border-border/40 text-accent font-semibold shadow-sm'
+                          : 'bg-transparent border-transparent text-text-secondary hover:bg-bg-tertiary/20 hover:text-text-primary'
                       }`}
                       onClick={() => setActiveLogTabId(t.id)}
                       title={t.label}
                     >
                       <FileText size={12} className="shrink-0" />
-                      <span className="text-xs truncate min-w-0 flex-1">{t.label}</span>
+                      <span className="truncate min-w-0 flex-1 font-sans">{t.label}</span>
                       <button
                         type="button"
-                        className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        className="opacity-0 group-hover:opacity-100 p-0.5 rounded-md hover:bg-bg-tertiary text-text-muted hover:text-text-primary transition-all duration-100 shrink-0 cursor-pointer"
                         onClick={(e) => {
                           e.stopPropagation();
                           closeLogTab(t.id);
                         }}
                         aria-label="Close tab"
                       >
-                        <X size={12} />
+                        <X size={11} />
                       </button>
                     </div>
                   ))}
                 </div>
-                <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-[var(--bg-primary)]">
+                <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-primary">
                   <pre
                     ref={logPreRef}
-                    className="flex-1 p-4 font-mono text-xs text-[var(--text-primary)] whitespace-pre-wrap break-words overflow-auto min-h-0"
+                    className="flex-1 p-4 font-mono text-xs text-text-primary whitespace-pre-wrap break-words overflow-auto min-h-0 select-text selection:bg-accent/30 selection:text-white"
                   >
-                    {activeLogTabId ? (logContentByTabId[activeLogTabId] ?? 'Connecting…') : '(Select a tab)'}
+                    {activeLogTabId ? (logContentByTabId[activeLogTabId] ?? 'Connecting log stream…') : '(Select a log tab above)'}
                   </pre>
                 </div>
               </>
             )}
             {currentServer && logTabs.length === 0 && (
-              <div className="flex-1 p-4 flex items-center justify-center text-[var(--text-secondary)] text-sm">
-                {composePaths.length === 0
-                  ? 'Add a compose file path above, then click a service to open a streaming log tab.'
-                  : 'Click a service (or All) above to open a streaming log tab.'}
+              <div className="flex-1 p-6 flex flex-col items-center justify-center text-text-secondary text-xs text-center max-w-md mx-auto gap-1">
+                <p className="text-text-muted">
+                  {composePaths.length === 0
+                    ? 'Register a docker-compose.yml file above to begin scanning and streaming microservice container outputs.'
+                    : 'Select a microservice or the entire compose recipe above to open a live stream logs tab.'}
+                </p>
               </div>
             )}
             {!currentServer && panelTab === 'logs' && (
-              <div className="flex-1 p-4 flex items-center justify-center text-[var(--text-secondary)] text-sm">
+              <div className="flex-1 p-6 flex items-center justify-center text-text-secondary text-xs">
                 Select a server to view Docker Compose logs.
               </div>
             )}
@@ -652,24 +660,24 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
         {panelTab === 'terminal' && (
           <div className="flex flex-col h-full min-h-0 flex-1 flex">
             {!currentServer ? (
-              <div className="flex-1 p-4 flex items-center">
-                <p className="text-[var(--text-secondary)]">Select a server to open an SSH shell.</p>
+              <div className="flex-1 p-6 flex items-center justify-center text-xs text-text-secondary">
+                <p>Select a server to open an SSH shell terminal.</p>
               </div>
             ) : (
               <>
                 <div className={`flex-1 flex min-h-0 ${resizingTerminalStrip ? 'select-none cursor-col-resize' : ''}`}>
                   {/* Terminal content area - one container per tab, only active visible */}
-                  <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                  <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-[#1e1e1e]">
                     {terminalTabs.length === 0 ? (
-                      <div className="flex-1 p-4 flex flex-col items-center justify-center gap-3 text-[var(--text-secondary)] text-sm">
-                        <p>Connect to a shell from Docker (e.g. Shell, Connect Redis) or add a terminal below.</p>
+                      <div className="flex-1 p-6 flex flex-col items-center justify-center gap-4 text-text-secondary text-xs select-none bg-bg-primary">
+                        <p className="text-text-muted text-center max-w-sm">No active terminal session. Spawn a remote SSH command shell or container debug console.</p>
                         <button
                           type="button"
                           onClick={addTerminalTab}
-                          className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
+                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-border/30 bg-bg-secondary text-text-primary font-semibold hover:border-border/60 hover:bg-bg-tertiary transition-all cursor-pointer shadow-sm"
                         >
-                          <Plus size={16} />
-                          New terminal
+                          <Plus size={14} />
+                          New Shell Session
                         </button>
                       </div>
                     ) : (
@@ -684,18 +692,18 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                             }}
                           >
                             {t.error ? (
-                              <div className="p-4 text-[var(--error)] text-sm">{t.error}</div>
+                              <div className="p-4 text-error text-xs font-mono">{t.error}</div>
                             ) : t.connecting ? (
-                              <div className="flex items-center gap-2 p-4">
-                                <Loader2 size={18} className="animate-spin text-[var(--accent)]" />
-                                <span className="text-[var(--text-secondary)]">Connecting…</span>
+                              <div className="flex items-center gap-2 p-4 text-xs font-mono">
+                                <Loader2 size={13} className="animate-spin text-accent" />
+                                <span className="text-text-secondary">Establishing secure SSH stream…</span>
                               </div>
                             ) : null}
                             <div
                               ref={(el) => {
-                                if (el) terminalContainerRefs.current.set(t.id, el);
-                                else terminalContainerRefs.current.delete(t.id);
-                              }}
+                                  if (el) terminalContainerRefs.current.set(t.id, el);
+                                  else terminalContainerRefs.current.delete(t.id);
+                                }}
                               className="flex-1 min-h-0 w-full"
                               style={{ display: t.shellId ? 'block' : 'none' }}
                             />
@@ -709,7 +717,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                     <div
                       role="separator"
                       aria-orientation="vertical"
-                      className="w-1 shrink-0 cursor-col-resize bg-[var(--border)] hover:bg-[var(--accent)]/50 transition-colors"
+                      className="w-1 shrink-0 cursor-col-resize bg-transparent hover:bg-accent/40 active:bg-accent transition-colors"
                       onMouseDown={(e) => {
                         e.preventDefault();
                         terminalStripResizeStart.current = { x: e.clientX, w: terminalStripWidth };
@@ -721,7 +729,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                   {/* Terminal tabs on the right - VS Code style box tabs */}
                   {terminalTabs.length > 0 && (
                     <div
-                      className="shrink-0 flex flex-col gap-1 py-2 pr-2 pl-1 border-l border-[var(--border)] bg-[var(--bg-secondary)] min-w-0"
+                      className="shrink-0 flex flex-col gap-1.5 py-3 pr-3 pl-1.5 border-l border-border/20 bg-bg-secondary/45 min-w-0"
                       style={{ width: terminalStripWidth }}
                     >
                       {terminalTabs.map((t) => (
@@ -736,35 +744,35 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                               setActiveTerminalTabId(t.id);
                             }
                           }}
-                          className={`flex items-center gap-1.5 w-full min-w-0 px-2 py-2 rounded-md border text-left group transition-colors cursor-pointer overflow-hidden ${
+                          className={`flex items-center gap-1.5 w-full min-w-0 px-2.5 py-2 rounded-xl border text-left group transition-all duration-200 cursor-pointer overflow-hidden ${
                             activeTerminalTabId === t.id
-                              ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
-                              : 'border-transparent hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                              ? 'border-accent/35 bg-accent/8 text-accent font-semibold shadow-sm'
+                              : 'border-transparent hover:bg-bg-tertiary/40 text-text-secondary hover:text-text-primary'
                           }`}
                           title={t.label}
                         >
-                          <TerminalIcon size={14} className="shrink-0" />
-                          <span className="text-xs truncate min-w-0 flex-1">{t.label}</span>
+                          <TerminalIcon size={13} className="shrink-0" />
+                          <span className="text-xs truncate min-w-0 flex-1 font-sans">{t.label}</span>
                           <button
                             type="button"
-                            className="shrink-0 flex items-center justify-center w-5 h-5 opacity-0 group-hover:opacity-100 rounded hover:bg-[var(--border)]"
+                            className="shrink-0 flex items-center justify-center w-5 h-5 opacity-0 group-hover:opacity-100 rounded-lg hover:bg-bg-tertiary transition-all cursor-pointer text-text-muted hover:text-text-primary"
                             onClick={(e) => {
                               e.stopPropagation();
                               closeTerminalTab(t.id);
                             }}
                             aria-label="Close terminal"
                           >
-                            <X size={12} />
+                            <X size={11} />
                           </button>
                         </div>
                       ))}
                       <button
                         type="button"
                         onClick={addTerminalTab}
-                        className="flex items-center justify-center w-full py-2 rounded-md border border-dashed border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
+                        className="flex items-center justify-center w-full py-2.5 rounded-xl border border-dashed border-border/30 text-text-muted hover:border-accent/40 hover:text-accent transition-colors cursor-pointer"
                         title="New terminal"
                       >
-                        <Plus size={16} />
+                        <Plus size={14} />
                       </button>
                     </div>
                   )}

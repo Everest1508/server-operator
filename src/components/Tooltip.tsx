@@ -137,13 +137,13 @@ export function Tooltip({ content, children, position = 'top' }: TooltipProps) {
           }}
         >
           {/* Bubble */}
-          <div className="relative w-max max-w-[280px] px-2 py-1 rounded bg-[var(--bg-tertiary)] border border-[var(--border)] text-[10px] leading-tight text-[var(--text-primary)] shadow-xl font-sans whitespace-normal break-words">
+          <div className="relative w-max max-w-[280px] px-2.5 py-1.5 rounded-lg bg-bg-tertiary/95 border border-border/40 text-[10.5px] leading-tight text-text-primary shadow-2xl backdrop-blur-md font-sans whitespace-normal break-words">
             {content}
             {/* Arrow */}
             {coords && (
               <div
                 style={arrowStyle}
-                className={`absolute w-1.5 h-1.5 rotate-45 bg-[var(--bg-tertiary)] border-[var(--border)] ${arrow[position]}`}
+                className={`absolute w-1.5 h-1.5 rotate-45 bg-bg-tertiary/95 border-border/40 ${arrow[position]}`}
               />
             )}
           </div>
@@ -152,8 +152,8 @@ export function Tooltip({ content, children, position = 'top' }: TooltipProps) {
       )}
       <style>{`
         @keyframes tooltip-fade-in {
-          from { opacity: 0; }
-          to   { opacity: 1; }
+          from { opacity: 0; transform: scale(0.96); }
+          to   { opacity: 1; transform: scale(1); }
         }
       `}</style>
     </div>

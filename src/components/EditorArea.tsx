@@ -219,17 +219,17 @@ export function EditorArea({
       .finally(() => setSaving(false));
     setFileMenuOpen(false);
   }, [activeContent, activeTabPath, onSaveFile]);
+
   if (!currentServer && activeView !== 'guide') {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[var(--bg-primary)] text-[var(--text-secondary)]">
-        <p>No server selected.</p>
+      <div className="flex-1 flex flex-col items-center justify-center bg-bg-primary text-text-secondary select-none">
+        <p className="text-xs font-mono text-text-muted">Select a server to view analytics, configurations, and logs.</p>
       </div>
     );
   }
 
-  // Single layout: keep DeployView mounted when not active so its terminal stays connected
   return (
-    <div className="flex-1 flex flex-col min-h-0">
+    <div className="flex-1 flex flex-col min-h-0 bg-bg-primary">
       {currentServer && (
         <div
           className="flex-1 flex flex-col min-h-0"
@@ -280,11 +280,11 @@ export function EditorArea({
         </div>
       )}
       {activeView === 'files' && (
-        <div className="flex-1 flex flex-col bg-[var(--bg-primary)] min-h-0">
+        <div className="flex-1 flex flex-col bg-bg-primary min-h-0 relative">
           {pathDialogOpen && (
-            <div className="absolute inset-0 z-30 bg-black/40 flex items-center justify-center p-4">
-              <div className="w-full max-w-lg rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-4">
-                <p className="text-sm font-medium text-[var(--text-primary)] mb-2">
+            <div className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
+              <div className="w-full max-w-lg rounded-2xl border border-border/40 bg-bg-secondary/95 shadow-2xl p-6">
+                <p className="text-sm font-semibold text-text-primary mb-3">
                   {pathDialogMode === 'open'
                     ? (pathDialogSudo ? 'Open file as sudo' : 'Open file')
                     : (pathDialogSudo ? 'Create file as sudo' : 'Create file')}
@@ -298,20 +298,20 @@ export function EditorArea({
                     if (e.key === 'Escape') setPathDialogOpen(false);
                   }}
                   placeholder="e.g. /etc/nginx/nginx.conf or app/config.json"
-                  className="w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-border/40 bg-bg-primary/50 text-text-primary text-xs placeholder-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all duration-150 font-mono"
                 />
-                <div className="mt-3 flex items-center justify-end gap-2">
+                <div className="mt-4 flex items-center justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => setPathDialogOpen(false)}
-                    className="px-3 py-1.5 rounded border border-[var(--border)] text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    className="px-4 py-2 rounded-xl border border-border/40 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/30 transition-all cursor-pointer font-medium"
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
                     onClick={submitPathDialog}
-                    className="px-3 py-1.5 rounded bg-[var(--accent)] text-white text-sm font-medium hover:bg-[var(--accent-hover)]"
+                    className="px-4 py-2 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent-hover shadow-sm transition-all cursor-pointer"
                   >
                     {pathDialogMode === 'open' ? 'Open' : 'Create'}
                   </button>
@@ -321,175 +321,180 @@ export function EditorArea({
           )}
           {openTabs.length > 0 ? (
             <>
-              <div className="flex items-center gap-0 border-b border-[var(--border)] bg-[var(--bg-secondary)] shrink-0 min-h-0">
-                <div className="flex items-center gap-0 overflow-x-auto min-w-0 flex-1">
+              <div className="flex items-center justify-between bg-bg-secondary/35 border-b border-border/20 px-2 py-1.5 shrink-0 min-h-0 select-none">
+                <div className="flex items-center gap-1.5 overflow-x-auto min-w-0 flex-1 pr-4">
                   {openTabs.map((path) => {
                     const active = path === activeTabPath;
                     return (
                       <div
                         key={path}
                         role="tab"
-                        className={`flex items-center gap-1.5 px-3 py-2 border-r border-[var(--border)] cursor-pointer shrink-0 max-w-[200px] min-w-0 group ${
-                          active ? 'bg-[var(--bg-primary)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer shrink-0 max-w-[200px] min-w-0 group transition-all duration-150 border text-xs ${
+                          active
+                            ? 'bg-bg-primary border-border/40 text-accent font-semibold shadow-sm'
+                            : 'bg-transparent border-transparent text-text-secondary hover:bg-bg-tertiary/20 hover:text-text-primary'
                         }`}
                         onClick={() => onSelectTab?.(path)}
                         title={path}
                       >
-                        <FileCode size={14} className="text-[var(--accent)] shrink-0" />
-                        <span className="text-sm truncate min-w-0 flex-1">{basename(path)}</span>
+                        <FileCode size={13} className={active ? 'text-accent shrink-0' : 'text-text-muted shrink-0'} />
+                        <span className="truncate min-w-0 flex-1 font-sans">{basename(path)}</span>
                         {onCloseTab && (
                           <button
                             type="button"
-                            className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                            className="opacity-0 group-hover:opacity-100 p-0.5 rounded-md hover:bg-bg-tertiary text-text-muted hover:text-text-primary transition-all duration-100 shrink-0 cursor-pointer"
                             onClick={(e) => {
                               e.stopPropagation();
                               onCloseTab(path);
                             }}
                             aria-label="Close tab"
                           >
-                            <X size={12} />
+                            <X size={11} />
                           </button>
                         )}
                       </div>
                     );
                   })}
                 </div>
-                {activeTabPath && onDownloadRemoteFile && (
-                  <button
-                    type="button"
-                    onClick={handleDownload}
-                    disabled={downloading}
-                    className="flex items-center gap-1.5 px-3 py-1.5 m-2 rounded border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm font-medium hover:border-[var(--accent)]/50 disabled:opacity-50 shrink-0"
-                    title="Download a copy to your computer"
-                  >
-                    {downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-                    Download
-                  </button>
-                )}
-                {onOpenFileByPath && (
-                  <button
-                    type="button"
-                    onClick={() => handleOpenFromPath(false)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 m-2 rounded border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm font-medium hover:border-[var(--accent)]/50 shrink-0"
-                    title="Edit file by path"
-                  >
-                    <FolderOpen size={14} />
-                    Edit
-                  </button>
-                )}
-                {onCreateFileByPath && (
-                  <button
-                    type="button"
-                    onClick={() => handleCreateFromPath(false)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 m-2 rounded border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm font-medium hover:border-[var(--accent)]/50 shrink-0"
-                    title="Create file by path"
-                  >
-                    <Plus size={14} />
-                    Create
-                  </button>
-                )}
-                {(onOpenFileByPath || onCreateFileByPath || (activeTabPath && onSaveFile)) && (
-                  <div className="relative shrink-0" ref={menuRef}>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {activeTabPath && activeTabUsesSudo && (
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-error/10 text-error uppercase tracking-wider border border-error/20 mr-1 animate-pulse">
+                      sudo mode
+                    </span>
+                  )}
+                  {activeTabPath && onDownloadRemoteFile && (
                     <button
                       type="button"
-                      onClick={() => setFileMenuOpen((v) => !v)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 m-2 rounded border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm font-medium hover:border-[var(--accent)]/50"
-                      title="File actions"
+                      onClick={handleDownload}
+                      disabled={downloading}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/30 bg-bg-primary/40 text-text-primary text-xs font-semibold hover:bg-bg-tertiary/60 hover:border-border/60 disabled:opacity-50 transition-all duration-150 shrink-0 cursor-pointer"
+                      title="Download a copy to your computer"
                     >
-                      File
-                      <ChevronDown size={14} />
+                      {downloading ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                      Download
                     </button>
-                    {fileMenuOpen && (
-                      <div className="absolute right-2 top-full mt-1 py-1 min-w-[190px] rounded-md border border-[var(--border)] bg-[var(--bg-secondary)] shadow-lg z-20">
-                        {onOpenFileByPath && (
-                          <>
-                            <button type="button" onClick={() => handleOpenFromPath(false)} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
-                              <FolderOpen size={12} />
-                              Open by path
-                            </button>
-                            <button type="button" onClick={() => handleOpenFromPath(true)} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
-                              <Shield size={12} />
-                              Open as sudo
-                            </button>
-                          </>
-                        )}
-                        {onCreateFileByPath && (
-                          <>
-                            <button type="button" onClick={() => handleCreateFromPath(false)} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
-                              <Plus size={12} />
-                              Create by path
-                            </button>
-                            <button type="button" onClick={() => handleCreateFromPath(true)} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
-                              <Shield size={12} />
-                              Create as sudo
-                            </button>
-                          </>
-                        )}
-                        {activeTabPath && onSaveFile && (
-                          <>
-                            <div className="border-t border-[var(--border)] my-1" />
-                            <button type="button" onClick={handleSaveAsSudo} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
-                              <Shield size={12} />
-                              Save as sudo
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-                {activeTabPath && onSaveFile && (
-                  <button
-                    type="button"
-                    onClick={handleSave}
-                    disabled={saving || !isDirty}
-                    className="flex items-center gap-1.5 px-3 py-1.5 m-2 rounded bg-[var(--accent)] text-white text-sm font-medium hover:bg-[var(--accent-hover)] disabled:opacity-50 disabled:pointer-events-none shrink-0"
-                    title="Save to server"
-                  >
-                    {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                    Save
-                  </button>
-                )}
-                {activeTabPath && activeTabUsesSudo && (
-                  <span className="mr-2 px-2 py-1 rounded-full text-[10px] font-medium bg-[var(--accent)]/15 text-[var(--accent)] shrink-0">
-                    sudo mode
-                  </span>
-                )}
+                  )}
+                  {onOpenFileByPath && (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenFromPath(false)}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/30 bg-bg-primary/40 text-text-primary text-xs font-semibold hover:bg-bg-tertiary/60 hover:border-border/60 shrink-0 transition-all duration-150 cursor-pointer"
+                      title="Edit file by path"
+                    >
+                      <FolderOpen size={12} />
+                      Edit
+                    </button>
+                  )}
+                  {onCreateFileByPath && (
+                    <button
+                      type="button"
+                      onClick={() => handleCreateFromPath(false)}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/30 bg-bg-primary/40 text-text-primary text-xs font-semibold hover:bg-bg-tertiary/60 hover:border-border/60 shrink-0 transition-all duration-150 cursor-pointer"
+                      title="Create file by path"
+                    >
+                      <Plus size={12} />
+                      Create
+                    </button>
+                  )}
+                  {(onOpenFileByPath || onCreateFileByPath || (activeTabPath && onSaveFile)) && (
+                    <div className="relative shrink-0" ref={menuRef}>
+                      <button
+                        type="button"
+                        onClick={() => setFileMenuOpen((v) => !v)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border/30 bg-bg-primary/40 text-text-primary text-xs font-semibold hover:bg-bg-tertiary/60 hover:border-border/60 shrink-0 transition-all duration-150 cursor-pointer"
+                        title="File actions"
+                      >
+                        File
+                        <ChevronDown size={12} />
+                      </button>
+                      {fileMenuOpen && (
+                        <div className="absolute right-0 top-full mt-1.5 py-1.5 px-1 min-w-[190px] rounded-xl border border-border/40 bg-bg-tertiary/95 shadow-2xl backdrop-blur-md z-50 animate-in fade-in slide-in-from-top-1 duration-100">
+                          {onOpenFileByPath && (
+                            <>
+                              <button type="button" onClick={() => handleOpenFromPath(false)} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg transition-colors cursor-pointer">
+                                <FolderOpen size={12} />
+                                Open by path
+                              </button>
+                              <button type="button" onClick={() => handleOpenFromPath(true)} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg transition-colors cursor-pointer">
+                                <Shield size={12} />
+                                Open as sudo
+                              </button>
+                            </>
+                          )}
+                          {onCreateFileByPath && (
+                            <>
+                              <button type="button" onClick={() => handleCreateFromPath(false)} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg transition-colors cursor-pointer">
+                                <Plus size={12} />
+                                Create by path
+                              </button>
+                              <button type="button" onClick={() => handleCreateFromPath(true)} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg transition-colors cursor-pointer">
+                                <Shield size={12} />
+                                Create as sudo
+                              </button>
+                            </>
+                          )}
+                          {activeTabPath && onSaveFile && (
+                            <>
+                              <div className="border-t border-border/20 my-1" />
+                              <button type="button" onClick={handleSaveAsSudo} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg transition-colors cursor-pointer">
+                                <Shield size={12} />
+                                Save as sudo
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {activeTabPath && onSaveFile && (
+                    <button
+                      type="button"
+                      onClick={handleSave}
+                      disabled={saving || !isDirty}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent text-white text-xs font-semibold hover:bg-accent-hover shadow-sm disabled:opacity-40 disabled:pointer-events-none transition-all duration-150 shrink-0 cursor-pointer"
+                      title="Save to server"
+                    >
+                      {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                      Save
+                    </button>
+                  )}
+                </div>
               </div>
               {(saveError || downloadError) && (
-                <div className="px-4 py-2 bg-[var(--error)]/20 border-b border-[var(--error)]/40 text-[var(--error)] text-sm shrink-0">
+                <div className="px-4 py-2 bg-error/10 border-b border-error/20 text-error text-xs shrink-0 select-none font-mono">
                   {saveError || downloadError}
                 </div>
               )}
               {fileLoadError && (
-                <div className="px-4 py-3 bg-[var(--error)]/15 border-b border-[var(--error)]/40 text-[var(--error)] text-sm shrink-0">
-                  <p className="font-medium">Could not load file</p>
-                  <p className="mt-1 text-[var(--text-primary)] break-words">{fileLoadError}</p>
+                <div className="px-4 py-3 bg-error/10 border-b border-error/20 text-error text-xs shrink-0 select-none">
+                  <p className="font-semibold text-error">Could not load file</p>
+                  <p className="mt-1 text-text-primary break-words font-mono">{fileLoadError}</p>
                 </div>
               )}
-               <div className="flex-1 min-h-0 min-w-0" style={{ minHeight: 200 }}>
+              <div className="flex-1 min-h-[200px] min-w-0">
                 {isLoading ? (
-                  <div className="flex items-center justify-center h-full text-[var(--text-secondary)]">
-                    <Loader2 size={24} className="animate-spin mr-2" /> Loading...
+                  <div className="flex flex-col items-center justify-center h-full text-text-secondary gap-3 select-none">
+                    <Loader2 size={24} className="animate-spin text-accent" />
+                    <span className="text-xs font-mono text-text-muted">Fetching file content...</span>
                   </div>
                 ) : fileLoadError ? (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="flex flex-col items-center justify-center h-full p-6 text-center text-[var(--text-secondary)] gap-4"
+                    className="flex flex-col items-center justify-center h-full p-6 text-center text-text-secondary gap-4 select-none"
                   >
-                    <div className="p-3 rounded-full bg-[var(--error)]/10 text-[var(--error)]">
-                      <FileCode size={32} />
+                    <div className="p-3 rounded-full bg-error/10 text-error border border-error/20">
+                      <FileCode size={24} />
                     </div>
                     <div className="max-w-md">
-                      <h3 className="text-base font-semibold text-[var(--text-primary)] mb-1">Failed to load file</h3>
-                      <p className="text-xs text-[var(--text-muted)] mb-4 font-mono whitespace-pre-wrap break-all bg-[var(--bg-tertiary)]/50 p-2.5 rounded border border-[var(--border)]">{fileLoadError}</p>
+                      <h3 className="text-sm font-bold text-text-primary mb-1">Failed to load file</h3>
+                      <p className="text-[11px] text-text-muted mb-4 font-mono whitespace-pre-wrap break-all bg-bg-tertiary/50 p-2.5 rounded-xl border border-border/40">{fileLoadError}</p>
                       <button
                         type="button"
                         onClick={() => activeTabPath && onOpenFileByPath?.(activeTabPath, { useSudo: activeTabUsesSudo })}
-                        className="px-4 py-2 rounded-md bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold transition-colors"
+                        className="px-4 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
                       >
-                        Failed to load file — click to retry
+                        Retry Loading File
                       </button>
                     </div>
                   </motion.div>
@@ -516,27 +521,27 @@ export function EditorArea({
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-[var(--text-secondary)] text-sm gap-3">
-              <p>Select a file from the left to view or edit (e.g. Dockerfile, docker-compose.yml)</p>
+            <div className="flex-1 flex flex-col items-center justify-center text-text-secondary text-xs gap-4 select-none">
+              <p className="text-text-muted font-sans text-center max-w-sm px-4">Select a configuration or project file in the sidebar explorer to edit, or access direct paths below.</p>
               <div className="flex items-center gap-2">
                 {onOpenFileByPath && (
                   <button
                     type="button"
                     onClick={() => handleOpenFromPath(false)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm font-medium hover:border-[var(--accent)]/50"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/30 bg-bg-secondary text-text-primary text-xs font-semibold hover:border-border/60 hover:bg-bg-tertiary transition-all cursor-pointer shadow-sm"
                   >
-                    <FolderOpen size={14} />
-                    Edit by path
+                    <FolderOpen size={12} />
+                    Open by Path
                   </button>
                 )}
                 {onCreateFileByPath && (
                   <button
                     type="button"
                     onClick={() => handleCreateFromPath(false)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm font-medium hover:border-[var(--accent)]/50"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/30 bg-bg-secondary text-text-primary text-xs font-semibold hover:border-border/60 hover:bg-bg-tertiary transition-all cursor-pointer shadow-sm"
                   >
-                    <Plus size={14} />
-                    Create by path
+                    <Plus size={12} />
+                    Create by Path
                   </button>
                 )}
               </div>
@@ -546,7 +551,7 @@ export function EditorArea({
       )}
 
       {activeView === 'guide' && (
-        <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-primary)] p-6 overflow-y-auto select-none">
+        <div className="flex-1 flex flex-col min-h-0 bg-bg-primary p-6 overflow-y-auto select-none">
           {(() => {
             const guides = [
               {
@@ -556,7 +561,7 @@ export function EditorArea({
                 badge: 'SQL Client',
                 color: '#4ec9b0',
                 description: 'Establish end-to-end encrypted connections to remote PostgreSQL, MySQL/MariaDB, and Redis instances. Write and execute queries inside Monaco Editor with dynamic schema autocompletion, query timers, and instant CSV exports—fully offline-ready without exposing ports to the public Internet.',
-                howItWorks: 'Instead of requiring you to expose raw database ports (like 5432 or 3306) on your firewalls or configure complex VPC security groups, Server Operator uses your active SSH connection to establish secure local TCP port forwarding. When you initiate a connection, our Node.js main process starts a temporary local TCP server on your machine on a randomized free port. Any traffic received on this local port is intercepted, encrypted, and safely encapsulated inside the active SSH tunnel, before being forwarded directly to the target database host relative to the remote server itself. Once the tunnel is open, the app initiates a direct database driver connection to the local port, meaning your data travels securely inside the SSH stream. Furthermore, the schema explorer immediately executes specialized system catalog queries to discover available tables, columns, and Redis keys, dynamically injecting them into Monaco Editor\'s autocomplete provider.',
+                howItWorks: 'Instead of requiring you to expose raw database ports (like 5432 or 3306) on your firewalls or configure complex VPC security groups, Server Operator uses your active SSH connection to establish secure local TCP port forwarding. When you initiate a connection, our Node.js main process starts a temporary local TCP server on your machine on a randomized free port. Any traffic received on this local port is intercepted, encrypted, and safely encapsulated inside the active SSH tunnel, before being forwarded directly to the target database host relative to the remote server itself. When the tunnel is open, the app initiates a direct database driver connection to the local port, meaning your data travels securely inside the SSH stream. Furthermore, the schema explorer immediately executes specialized system catalog queries to discover available tables, columns, and Redis keys, dynamically injecting them into Monaco Editor\'s autocomplete provider.',
                 steps: [
                   'Open the Feature Guide or navigate to the Database tab in the left-hand Activity Bar.',
                   'Select your database engine (PostgreSQL, MySQL, or Redis) from the engine selector. The default port and connection user fields will automatically populate.',
@@ -623,22 +628,22 @@ export function EditorArea({
             const ActiveIcon = active.icon;
 
             return (
-              <div className="flex-1 flex flex-col min-h-0 space-y-6 max-w-4xl mx-auto w-full">
-                <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] pb-5">
+              <div className="flex-1 flex flex-col min-h-0 space-y-6 max-w-4xl mx-auto w-full select-text selection:bg-accent/30 selection:text-white">
+                <div className="flex items-start justify-between gap-4 border-b border-border/20 pb-5 select-none">
                   <div>
                     <div className="flex items-center gap-2">
                       <span
                         style={{ color: active.color, backgroundColor: `${active.color}15`, borderColor: `${active.color}30` }}
-                        className="text-[9px] font-extrabold px-2 py-0.5 rounded border uppercase tracking-wider"
+                        className="text-[9px] font-extrabold px-2.5 py-0.5 rounded-lg border uppercase tracking-wider"
                       >
                         {active.badge}
                       </span>
                     </div>
-                    <h2 className="text-xl font-extrabold text-[var(--text-primary)] flex items-center gap-2.5 mt-2.5">
+                    <h2 className="text-xl font-bold text-text-primary flex items-center gap-2.5 mt-2.5">
                       <ActiveIcon size={22} style={{ color: active.color }} />
                       {active.title}
                     </h2>
-                    <p className="text-sm text-[var(--text-secondary)] mt-2 leading-relaxed">
+                    <p className="text-xs text-text-secondary mt-2 leading-relaxed">
                       {active.description}
                     </p>
                   </div>
@@ -646,24 +651,24 @@ export function EditorArea({
 
                 <div className="space-y-6">
                   {/* How It Works */}
-                  <div className="p-5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)]">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)] mb-2.5 flex items-center gap-2">
+                  <div className="p-5 rounded-xl bg-bg-secondary/40 border border-border/20 backdrop-blur-sm shadow-sm">
+                    <h3 className="text-[10px] font-extrabold uppercase tracking-widest text-text-primary mb-2.5 flex items-center gap-2 select-none">
                       <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: active.color }} />
-                      How It Works
+                      Under the Hood
                     </h3>
-                    <p className="text-xs text-[var(--text-secondary)] leading-relaxed font-sans">{active.howItWorks}</p>
+                    <p className="text-xs text-text-secondary leading-relaxed font-sans">{active.howItWorks}</p>
                   </div>
 
                   {/* Usage Steps */}
-                  <div className="p-6 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] space-y-4">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)] flex items-center gap-2">
+                  <div className="p-5 rounded-xl bg-bg-secondary/40 border border-border/20 backdrop-blur-sm shadow-sm space-y-4">
+                    <h3 className="text-[10px] font-extrabold uppercase tracking-widest text-text-primary flex items-center gap-2 select-none">
                       <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: active.color }} />
-                      Step-by-Step Usage Guide
+                      Step-by-Step Instructions
                     </h3>
-                    <ol className="space-y-3.5">
+                    <ol className="space-y-3">
                       {active.steps.map((step, i) => (
-                        <li key={i} className="flex gap-3 text-xs leading-relaxed text-[var(--text-secondary)] align-top">
-                          <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[var(--bg-primary)] border border-[var(--border)] text-[10px] font-bold text-[var(--text-primary)] shrink-0 mt-0.5">
+                        <li key={i} className="flex gap-3 text-xs leading-relaxed text-text-secondary align-top">
+                          <span className="flex items-center justify-center w-5 h-5 rounded-full bg-bg-primary border border-border/40 text-[9px] font-bold text-text-primary shrink-0 mt-0.5 select-none">
                             {i + 1}
                           </span>
                           <span className="pt-0.5">{step}</span>
@@ -674,11 +679,11 @@ export function EditorArea({
 
                   {/* Pro Tips */}
                   {active.tips && (
-                    <div className="p-5 rounded-lg bg-[var(--bg-tertiary)]/20 border border-[var(--border)] border-dashed">
-                      <span className="text-[10px] font-extrabold text-[var(--accent)] uppercase tracking-wider block mb-1">
+                    <div className="p-5 rounded-xl bg-accent/5 border border-accent/20 border-dashed">
+                      <span className="text-[9px] font-extrabold text-accent uppercase tracking-widest block mb-1.5 select-none">
                         ✦ Pro Tip
                       </span>
-                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed italic">{active.tips}</p>
+                      <p className="text-xs text-text-secondary leading-relaxed italic">{active.tips}</p>
                     </div>
                   )}
                 </div>

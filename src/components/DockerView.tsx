@@ -321,9 +321,9 @@ export function DockerView({
 
   if (!hasServerOperator) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-[var(--bg-primary)] text-[var(--text-secondary)] p-8 text-center">
+      <div className="flex-1 flex flex-col items-center justify-center bg-bg-primary text-text-secondary p-8 text-center">
         <Box size={48} className="mb-4 opacity-50" />
-        <p className="font-medium text-[var(--text-primary)]">Docker view</p>
+        <p className="font-medium text-text-primary">Docker view</p>
         <p className="text-sm mt-2 max-w-md">Run the app in Electron to connect to servers and see containers. This URL is for development only.</p>
       </div>
     );
@@ -338,29 +338,30 @@ export function DockerView({
   );
 
   return (
-    <div className="flex-1 flex flex-col bg-[var(--bg-primary)] min-h-0">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
-        <div className="flex items-center gap-0 overflow-x-auto min-w-0 flex-1">
+    <div className="flex-1 flex flex-col bg-bg-primary min-h-0">
+      {/* Header View Tabs */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/30 bg-bg-secondary/30 backdrop-blur-sm shrink-0">
+        <div className="flex items-center gap-1.5 overflow-x-auto min-w-0 flex-1 p-0.5 scrollbar-none">
           <button
             type="button"
             onClick={() => setActiveTab(TAB_ALL)}
-            className={`shrink-0 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150 ${
               showAllContainers
-                ? 'border-[var(--accent)] text-[var(--accent)]'
-                : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                ? 'bg-bg-tertiary text-text-primary shadow-md shadow-black/10 border border-border/20'
+                : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/40'
             }`}
           >
-            All containers
+            All Containers
           </button>
           {composePaths.map((p) => (
             <Tooltip key={p} content={p} position="bottom">
               <button
                 type="button"
                 onClick={() => setActiveTab(p)}
-                className={`shrink-0 px-3 py-2 text-sm font-medium border-b-2 transition-colors truncate max-w-[180px] ${
+                className={`shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150 truncate max-w-[160px] ${
                   activeTab === p
-                    ? 'border-[var(--accent)] text-[var(--accent)]'
-                    : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                    ? 'bg-bg-tertiary text-text-primary shadow-md shadow-black/10 border border-border/20'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/40'
                 }`}
               >
                 {shortName(p)}
@@ -368,16 +369,16 @@ export function DockerView({
             </Tooltip>
           ))}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0 ml-4">
           <Tooltip content={activeTab === TAB_ALL ? 'Restart all running containers' : 'Restart all services in this compose project'} position="bottom">
             <button
               type="button"
               onClick={runRestartAll}
               disabled={restartAllInProgress || loading || (activeTab !== TAB_ALL && !!loadingServicesForPath)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-text-secondary hover:bg-bg-tertiary hover:text-accent border border-border/30 hover:border-accent/30 bg-bg-primary/20 transition-all duration-150 disabled:opacity-50"
             >
-              {restartAllInProgress ? <Loader2 size={16} className="animate-spin" /> : <RotateCw size={16} />}
-              Restart all
+              {restartAllInProgress ? <Loader2 size={13} className="animate-spin" /> : <RotateCw size={13} />}
+              Restart All
             </button>
           </Tooltip>
           <Tooltip content="Refresh status" position="bottom">
@@ -385,15 +386,16 @@ export function DockerView({
               type="button"
               onClick={() => onRefresh?.()}
               disabled={loading || (activeTab !== TAB_ALL && !!loadingServicesForPath)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-text-secondary hover:bg-bg-tertiary hover:text-accent border border-border/30 hover:border-accent/30 bg-bg-primary/20 transition-all duration-150 disabled:opacity-50"
             >
-              {(loading || loadingServices) ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+              {(loading || loadingServices) ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
               Refresh
             </button>
           </Tooltip>
         </div>
       </div>
-      <div className="flex-1 overflow-auto p-4">
+
+      <div className="flex-1 overflow-auto p-4 space-y-4">
         {showAllContainers && (
           <>
             {error && (
@@ -401,71 +403,73 @@ export function DockerView({
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="p-6 rounded-xl border border-[var(--error)]/30 bg-[var(--error)]/5 flex flex-col gap-4 text-sm mb-4"
+                  className="p-5 rounded-xl border border-error/20 bg-error/5 flex flex-col gap-4 text-xs"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-lg bg-[var(--error)]/10 text-[var(--error)] shrink-0">
-                      <AlertCircle size={20} />
+                    <div className="p-2 rounded-lg bg-error/10 text-error shrink-0">
+                      <AlertCircle size={18} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-[var(--text-primary)] text-base">Docker Permission Error</h3>
-                      <p className="text-[var(--text-secondary)] mt-1 font-mono text-xs whitespace-pre-wrap break-all bg-[var(--bg-tertiary)]/30 p-2.5 rounded border border-[var(--border)]">{error}</p>
+                      <h3 className="font-semibold text-text-primary text-sm">Docker Permission Error</h3>
+                      <p className="text-text-secondary mt-1 font-mono text-[11px] whitespace-pre-wrap break-all bg-bg-primary/50 p-3 rounded-lg border border-border/30">{error}</p>
                     </div>
                   </div>
 
-                  <div className="border-t border-[var(--border)] pt-4">
-                    <h4 className="font-medium text-[var(--text-primary)] mb-2">How to fix:</h4>
-                    <p className="text-xs text-[var(--text-secondary)] mb-3">
-                      Add your user to the <code>docker</code> group by running these commands in your server terminal:
+                  <div className="border-t border-border/30 pt-4">
+                    <h4 className="font-semibold text-text-primary mb-2">How to fix:</h4>
+                    <p className="text-[11px] text-text-secondary mb-3">
+                      Add your user to the <code className="text-text-primary bg-bg-tertiary px-1 py-0.5 rounded">docker</code> group by running these commands in your server terminal:
                     </p>
                     
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-3 p-2 bg-[var(--bg-tertiary)]/50 rounded border border-[var(--border)]">
-                        <code className="text-xs font-mono text-[var(--text-primary)] select-all">sudo usermod -aG docker $USER</code>
+                      <div className="flex items-center justify-between gap-3 p-2 bg-bg-tertiary/40 rounded-lg border border-border/20">
+                        <code className="text-[11px] font-mono text-text-primary select-all">sudo usermod -aG docker $USER</code>
                         <button
                           type="button"
                           onClick={() => copyToClipboard('sudo usermod -aG docker $USER', 'cmd1')}
-                          className="p-1 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-primary)] hover:text-[var(--accent)] transition-colors flex items-center justify-center shrink-0"
+                          className="p-1.5 rounded-md text-text-secondary hover:bg-bg-primary hover:text-accent transition-colors flex items-center justify-center shrink-0"
                         >
-                          {copiedCmd === 'cmd1' ? <Check size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
+                          {copiedCmd === 'cmd1' ? <Check size={13} className="text-success" /> : <Copy size={13} />}
                         </button>
                       </div>
                       
-                      <div className="flex items-center justify-between gap-3 p-2 bg-[var(--bg-tertiary)]/50 rounded border border-[var(--border)]">
-                        <code className="text-xs font-mono text-[var(--text-primary)] select-all">newgrp docker</code>
+                      <div className="flex items-center justify-between gap-3 p-2 bg-bg-tertiary/40 rounded-lg border border-border/20">
+                        <code className="text-[11px] font-mono text-text-primary select-all">newgrp docker</code>
                         <button
                           type="button"
                           onClick={() => copyToClipboard('newgrp docker', 'cmd2')}
-                          className="p-1 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-primary)] hover:text-[var(--accent)] transition-colors flex items-center justify-center shrink-0"
+                          className="p-1.5 rounded-md text-text-secondary hover:bg-bg-primary hover:text-accent transition-colors flex items-center justify-center shrink-0"
                         >
-                          {copiedCmd === 'cmd2' ? <Check size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
+                          {copiedCmd === 'cmd2' ? <Check size={13} className="text-success" /> : <Copy size={13} />}
                         </button>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex justify-end gap-3 pt-2">
+                  <div className="flex justify-end gap-2 pt-2">
                     <button
                       type="button"
                       onClick={() => onRefresh?.()}
                       disabled={loading}
-                      className="flex items-center gap-2 px-4 py-2 rounded-md bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white font-medium transition-colors disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white font-semibold transition-colors disabled:opacity-50 shadow-lg shadow-accent/10 text-xs"
                     >
-                      {loading ? <Loader2 size={16} className="animate-spin" /> : <RotateCw size={16} />}
-                      Retry
+                      {loading ? <Loader2 size={13} className="animate-spin" /> : <RotateCw size={13} />}
+                      Retry Connection
                     </button>
                   </div>
                 </motion.div>
               ) : (
-                <div className="rounded-lg border border-[var(--error)]/50 bg-[var(--error)]/10 text-[var(--error)] px-4 py-3 text-sm">
-                  {error}
+                <div className="rounded-xl border border-error/20 bg-error/5 text-error px-4 py-3 text-xs flex items-center gap-2">
+                  <AlertCircle size={14} className="shrink-0" />
+                  <span>{error}</span>
                 </div>
               )
             )}
             {!error && containers.length === 0 && !loading && (
-              <div className="flex flex-col items-center justify-center py-12 text-[var(--text-secondary)]">
-                <Box size={48} className="mb-4 opacity-50" />
-                <p>No containers found. Run docker compose up or add a server with Docker.</p>
+              <div className="flex flex-col items-center justify-center py-16 text-text-secondary text-center">
+                <Box size={40} className="mb-3 opacity-30 text-text-muted" />
+                <p className="font-medium text-text-primary text-sm">No containers found</p>
+                <p className="text-xs text-text-muted mt-1 max-w-sm">Start containers via docker compose or log into a server running active Docker daemons.</p>
               </div>
             )}
             {!error && containers.length > 0 && (
@@ -484,16 +488,19 @@ export function DockerView({
                   return (
                     <div
                       key={c.ID || c.Names || i}
-                      className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] overflow-visible hover:border-[var(--accent)]/40 transition-colors"
+                      className="rounded-xl border border-border/30 bg-bg-secondary/40 overflow-hidden hover:border-accent/30 hover:bg-bg-secondary/65 transition-all duration-200"
                     >
-                      <div className="flex items-center justify-between gap-4 p-4">
+                      <div className="flex items-center justify-between gap-4 p-3.5">
                         <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div className="w-10 h-10 rounded-lg bg-[var(--bg-tertiary)] flex items-center justify-center shrink-0">
-                            <Box size={20} className="text-[var(--accent)]" />
+                          <div className="w-9 h-9 rounded-lg bg-bg-tertiary flex items-center justify-center shrink-0 border border-border/20">
+                            <Box size={16} className={isRunning ? "text-success" : "text-text-muted"} />
                           </div>
                           <div className="min-w-0">
-                            <p className="font-medium text-[var(--text-primary)] truncate">{c.Names || c.ID || 'unnamed'}</p>
-                            <p className="text-sm text-[var(--text-secondary)] truncate">{c.Image || '-'}</p>
+                            <p className="font-semibold text-text-primary text-xs truncate flex items-center gap-1.5">
+                              {c.Names || c.ID || 'unnamed'}
+                              {isRunning && <span className="inline-block w-1.5 h-1.5 bg-success rounded-full animate-pulse" />}
+                            </p>
+                            <p className="text-[10px] font-mono text-text-secondary truncate mt-0.5">{c.Image || '-'}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
@@ -503,93 +510,93 @@ export function DockerView({
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); setOpenActionsKey((k) => (k === actionsKey ? null : actionsKey)); }}
                                 disabled={!!containerAction}
-                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] disabled:opacity-50"
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-text-secondary hover:bg-bg-tertiary hover:text-accent border border-border/20 transition-all duration-150 disabled:opacity-50"
                               >
-                                <MoreVertical size={14} />
+                                <MoreVertical size={13} />
                                 Actions
                               </button>
                             </Tooltip>
                             {isActionsOpen && (
-                              <div className="absolute right-0 top-full mt-1 py-1 min-w-[130px] rounded-md border border-[var(--border)] bg-[var(--bg-secondary)] shadow-lg z-20 max-h-[70vh] overflow-y-auto">
+                              <div className="absolute right-0 top-full mt-1.5 py-1 min-w-[150px] rounded-xl border border-border/40 bg-bg-tertiary/95 shadow-2xl backdrop-blur-md z-30 overflow-y-auto flex flex-col p-1 gap-0.5 max-h-[70vh]">
                                 {!isRunning && !isPaused && (
-                                  <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runContainerAction(containerId, containerKey, 'start'); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]" disabled={!!containerAction}>
-                                    {containerAction === `${containerKey}-start` ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+                                  <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runContainerAction(containerId, containerKey, 'start'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors" disabled={!!containerAction}>
+                                    {containerAction === `${containerKey}-start` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Play size={12} className="text-success" />}
                                     Start
                                   </button>
                                 )}
                                 {isRunning && (
                                   <>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runContainerAction(containerId, containerKey, 'stop'); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]" disabled={!!containerAction}>
-                                      {containerAction === `${containerKey}-stop` ? <Loader2 size={12} className="animate-spin" /> : <Square size={12} />}
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runContainerAction(containerId, containerKey, 'stop'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors" disabled={!!containerAction}>
+                                      {containerAction === `${containerKey}-stop` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Square size={12} className="text-text-muted" />}
                                       Stop
                                     </button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runContainerAction(containerId, containerKey, 'restart'); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]" disabled={!!containerAction}>
-                                      {containerAction === `${containerKey}-restart` ? <Loader2 size={12} className="animate-spin" /> : <RotateCw size={12} />}
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runContainerAction(containerId, containerKey, 'restart'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors" disabled={!!containerAction}>
+                                      {containerAction === `${containerKey}-restart` ? <Loader2 size={12} className="animate-spin text-accent" /> : <RotateCw size={12} className="text-accent" />}
                                       Restart
                                     </button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runContainerAction(containerId, containerKey, 'pause'); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]" disabled={!!containerAction}>
-                                      {containerAction === `${containerKey}-pause` ? <Loader2 size={12} className="animate-spin" /> : <Pause size={12} />}
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runContainerAction(containerId, containerKey, 'pause'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors" disabled={!!containerAction}>
+                                      {containerAction === `${containerKey}-pause` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Pause size={12} className="text-warning" />}
                                       Pause
                                     </button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runContainerAction(containerId, containerKey, 'kill'); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--error)]" disabled={!!containerAction}>
-                                      {containerAction === `${containerKey}-kill` ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runContainerAction(containerId, containerKey, 'kill'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 hover:text-error rounded-lg transition-colors animate-pulse-once" disabled={!!containerAction}>
+                                      {containerAction === `${containerKey}-kill` ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} className="text-error" />}
                                       Kill
                                     </button>
                                   </>
                                 )}
                                 {isPaused && (
-                                  <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runContainerAction(containerId, containerKey, 'unpause'); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]" disabled={!!containerAction}>
-                                    {containerAction === `${containerKey}-unpause` ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+                                  <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runContainerAction(containerId, containerKey, 'unpause'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors" disabled={!!containerAction}>
+                                    {containerAction === `${containerKey}-unpause` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Play size={12} className="text-success" />}
                                     Unpause
                                   </button>
                                 )}
-                                <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runContainerAction(containerId, containerKey, 'remove'); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--error)]" disabled={!!containerAction}>
-                                  {containerAction === `${containerKey}-remove` ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                                <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runContainerAction(containerId, containerKey, 'remove'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 hover:text-error rounded-lg transition-colors" disabled={!!containerAction}>
+                                  {containerAction === `${containerKey}-remove` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Trash2 size={12} className="text-error" />}
                                   Remove
                                 </button>
                                 {onOpenTerminalAndRun && (() => {
                                     const containerLabel = c.Names || c.ID || 'container';
                                     return (
                                   <>
-                                    <div className="border-t border-[var(--border)] my-1" />
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`docker exec -it '${shellEsc(containerId)}' sh`, containerLabel); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
-                                      <Terminal size={12} />
+                                    <div className="border-t border-border/30 my-1" />
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`docker exec -it '${shellEsc(containerId)}' sh`, containerLabel); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
+                                      <Terminal size={12} className="text-text-secondary" />
                                       Shell
                                     </button>
                                     {imageLooksLike(c.Image || '', 'redis') && (
-                                      <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`docker exec -it '${shellEsc(containerId)}' redis-cli`, `${containerLabel} · redis`); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
-                                        <Database size={12} />
+                                      <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`docker exec -it '${shellEsc(containerId)}' redis-cli`, `${containerLabel} · redis`); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
+                                        <Database size={12} className="text-text-secondary" />
                                         Connect Redis
                                       </button>
                                     )}
                                     {imageLooksLike(c.Image || '', 'mysql', 'mariadb') && (
-                                      <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`docker exec -it '${shellEsc(containerId)}' mysql -u root -p`, `${containerLabel} · mysql`); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
-                                        <Database size={12} />
+                                      <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`docker exec -it '${shellEsc(containerId)}' mysql -u root -p`, `${containerLabel} · mysql`); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
+                                        <Database size={12} className="text-text-secondary" />
                                         Connect MySQL
                                       </button>
                                     )}
                                     {imageLooksLike(c.Image || '', 'postgres') && (
-                                      <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`docker exec -it '${shellEsc(containerId)}' psql -U postgres`, `${containerLabel} · postgres`); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
-                                        <Database size={12} />
+                                      <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`docker exec -it '${shellEsc(containerId)}' psql -U postgres`, `${containerLabel} · postgres`); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
+                                        <Database size={12} className="text-text-secondary" />
                                         Connect Postgres
                                       </button>
                                     )}
                                   </>
                                     );
                                   })()}
-                                <div className="border-t border-[var(--border)] my-1" />
-                                <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); toggleLogsForContainer(containerId); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
-                                  {isLoadingLogs ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
+                                <div className="border-t border-border/30 my-1" />
+                                <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); toggleLogsForContainer(containerId); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
+                                  {isLoadingLogs ? <Loader2 size={12} className="animate-spin text-accent" /> : <FileText size={12} className="text-text-secondary" />}
                                   Logs
                                 </button>
                               </div>
                             )}
                           </div>
                           <span
-                            className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-medium ${
+                            className={`shrink-0 px-2.5 py-0.5 rounded-full text-[10px] font-medium border transition-all ${
                               isRunning
-                                ? 'bg-[var(--success)]/20 text-[var(--success)]'
-                                : 'bg-[var(--text-secondary)]/20 text-[var(--text-secondary)]'
+                                ? 'bg-success/8 text-success border-success/15'
+                                : 'bg-text-secondary/8 text-text-secondary border-border/20'
                             }`}
                           >
                             {c.Status || c.State || 'unknown'}
@@ -597,22 +604,22 @@ export function DockerView({
                         </div>
                       </div>
                       {isLogsExpanded && (
-                        <div className="border-t border-[var(--border)] bg-[var(--bg-primary)]">
-                          <div className="flex items-center justify-between px-3 py-1.5 border-b border-[var(--border)]">
-                            <span className="text-[10px] text-[var(--text-muted)]">Logs: {c.Names || c.ID || 'container'}</span>
+                        <div className="border-t border-border/30 bg-bg-primary/90">
+                          <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/30">
+                            <span className="text-[10px] font-mono text-text-muted">Logs: {c.Names || c.ID || 'container'}</span>
                             <Tooltip content="Close logs" position="left">
                               <button
                                 type="button"
                                 onClick={() => toggleLogsForContainer(containerId)}
-                                className="p-1 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center"
+                                className="p-1 rounded text-text-secondary hover:bg-bg-tertiary hover:text-text-primary flex items-center justify-center transition-colors"
                               >
-                                <X size={14} />
+                                <X size={13} />
                               </button>
                             </Tooltip>
                           </div>
                           <pre
                             ref={logPreRef}
-                            className="p-3 font-mono text-[11px] text-[var(--text-primary)] whitespace-pre-wrap break-words overflow-auto max-h-[280px] min-h-[120px]"
+                            className="p-3 font-mono text-[10px] text-text-primary whitespace-pre-wrap break-words overflow-auto max-h-[280px] min-h-[120px] scrollbar-vs"
                           >
                             {logContent}
                           </pre>
@@ -628,17 +635,17 @@ export function DockerView({
         {!showAllContainers && activeTab && (
           <>
             {loadingServices ? (
-              <div className="flex items-center gap-2 py-8 text-[var(--text-secondary)]">
-                <Loader2 size={20} className="animate-spin shrink-0" />
-                <span>Loading services…</span>
+              <div className="flex items-center gap-2 py-8 text-text-secondary text-xs">
+                <Loader2 size={16} className="animate-spin shrink-0 text-accent" />
+                <span>Loading Compose services…</span>
               </div>
             ) : (
               <>
-                <p className="text-xs text-[var(--text-muted)] mb-2 truncate" title={activeTab}>{activeTab}</p>
+                <p className="text-[10px] font-mono text-text-muted mb-2 truncate" title={activeTab}>{activeTab}</p>
                 {currentServices.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-[var(--text-secondary)]">
-                    <Box size={48} className="mb-4 opacity-50" />
-                    <p>No services in this compose project.</p>
+                  <div className="flex flex-col items-center justify-center py-12 text-text-secondary text-center">
+                    <Box size={40} className="mb-3 opacity-30 text-text-muted" />
+                    <p className="text-xs font-semibold text-text-primary">No services in this compose project</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -648,14 +655,14 @@ export function DockerView({
                       return (
                         <div
                           key={s}
-                          className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] overflow-visible hover:border-[var(--accent)]/40 transition-colors"
+                          className="rounded-xl border border-border/30 bg-bg-secondary/40 overflow-hidden hover:border-accent/30 hover:bg-bg-secondary/65 transition-all duration-200"
                         >
-                          <div className="flex items-center justify-between gap-2 p-4">
+                          <div className="flex items-center justify-between gap-2 p-3.5">
                             <div className="flex items-center gap-3 min-w-0 flex-1">
-                              <div className="w-10 h-10 rounded-lg bg-[var(--bg-tertiary)] flex items-center justify-center shrink-0">
-                                <Box size={20} className="text-[var(--accent)]" />
+                              <div className="w-9 h-9 rounded-lg bg-bg-tertiary flex items-center justify-center shrink-0 border border-border/20">
+                                <Box size={16} className="text-accent" />
                               </div>
-                              <p className="font-medium text-[var(--text-primary)] truncate">{s}</p>
+                              <p className="font-semibold text-text-primary text-xs truncate">{s}</p>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
                               <div className="relative flex items-center" ref={openActionsKey === `compose:${key}` ? actionsMenuRef : undefined}>
@@ -664,40 +671,40 @@ export function DockerView({
                                     type="button"
                                     onClick={(e) => { e.stopPropagation(); setOpenActionsKey((k) => (k === `compose:${key}` ? null : `compose:${key}`)); }}
                                     disabled={!!composeServiceAction}
-                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] disabled:opacity-50"
+                                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-text-secondary hover:bg-bg-tertiary hover:text-accent border border-border/20 transition-all duration-150 disabled:opacity-50"
                                   >
-                                    <MoreVertical size={14} />
+                                    <MoreVertical size={13} />
                                     Actions
                                   </button>
                                 </Tooltip>
                                 {openActionsKey === `compose:${key}` && (
-                                  <div className="absolute right-0 top-full mt-1 py-1 min-w-[130px] rounded-md border border-[var(--border)] bg-[var(--bg-secondary)] shadow-lg z-20 max-h-[70vh] overflow-y-auto">
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceAction(activeTab, s, 'start'); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]" disabled={!!composeServiceAction}>
-                                      {composeServiceAction === `${key}-start` ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+                                  <div className="absolute right-0 top-full mt-1.5 py-1 min-w-[150px] rounded-xl border border-border/40 bg-bg-tertiary/95 shadow-2xl backdrop-blur-md z-30 overflow-y-auto flex flex-col p-1 gap-0.5 max-h-[70vh]">
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceAction(activeTab, s, 'start'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors" disabled={!!composeServiceAction}>
+                                      {composeServiceAction === `${key}-start` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Play size={12} className="text-success" />}
                                       Start
                                     </button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceAction(activeTab, s, 'stop'); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]" disabled={!!composeServiceAction}>
-                                      {composeServiceAction === `${key}-stop` ? <Loader2 size={12} className="animate-spin" /> : <Square size={12} />}
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceAction(activeTab, s, 'stop'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors" disabled={!!composeServiceAction}>
+                                      {composeServiceAction === `${key}-stop` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Square size={12} className="text-text-muted" />}
                                       Stop
                                     </button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceAction(activeTab, s, 'restart'); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]" disabled={!!composeServiceAction}>
-                                      {composeServiceAction === `${key}-restart` ? <Loader2 size={12} className="animate-spin" /> : <RotateCw size={12} />}
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceAction(activeTab, s, 'restart'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors" disabled={!!composeServiceAction}>
+                                      {composeServiceAction === `${key}-restart` ? <Loader2 size={12} className="animate-spin text-accent" /> : <RotateCw size={12} className="text-accent" />}
                                       Restart
                                     </button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceAction(activeTab, s, 'pause'); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]" disabled={!!composeServiceAction}>
-                                      {composeServiceAction === `${key}-pause` ? <Loader2 size={12} className="animate-spin" /> : <Pause size={12} />}
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceAction(activeTab, s, 'pause'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors" disabled={!!composeServiceAction}>
+                                      {composeServiceAction === `${key}-pause` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Pause size={12} className="text-warning" />}
                                       Pause
                                     </button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceAction(activeTab, s, 'unpause'); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]" disabled={!!composeServiceAction}>
-                                      {composeServiceAction === `${key}-unpause` ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceAction(activeTab, s, 'unpause'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors" disabled={!!composeServiceAction}>
+                                      {composeServiceAction === `${key}-unpause` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Play size={12} className="text-success" />}
                                       Unpause
                                     </button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceAction(activeTab, s, 'kill'); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--error)]" disabled={!!composeServiceAction}>
-                                      {composeServiceAction === `${key}-kill` ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceAction(activeTab, s, 'kill'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 hover:text-error rounded-lg transition-colors" disabled={!!composeServiceAction}>
+                                      {composeServiceAction === `${key}-kill` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Zap size={12} className="text-error" />}
                                       Kill
                                     </button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceRemove(activeTab, s); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--error)]" disabled={!!composeServiceAction}>
-                                      {composeServiceAction === `${key}-remove` ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceRemove(activeTab, s); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 hover:text-error rounded-lg transition-colors" disabled={!!composeServiceAction}>
+                                      {composeServiceAction === `${key}-remove` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Trash2 size={12} className="text-error" />}
                                       Remove
                                     </button>
                                     {onOpenTerminalAndRun && (() => {
@@ -708,35 +715,35 @@ export function DockerView({
                                       const sLower = (s || '').toLowerCase();
                                       return (
                                         <>
-                                          <div className="border-t border-[var(--border)] my-1" />
-                                          <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`${execBase} sh`, s); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
-                                            <Terminal size={12} />
+                                          <div className="border-t border-border/30 my-1" />
+                                          <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`${execBase} sh`, s); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
+                                            <Terminal size={12} className="text-text-secondary" />
                                             Shell
                                           </button>
                                           {sLower.includes('redis') && (
-                                            <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`${execBase} redis-cli`, `${s} · redis`); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
-                                              <Database size={12} />
+                                            <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`${execBase} redis-cli`, `${s} · redis`); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
+                                              <Database size={12} className="text-text-secondary" />
                                               Connect Redis
                                             </button>
                                           )}
                                           {(sLower.includes('mysql') || sLower.includes('mariadb') || sLower.includes('db')) && (
-                                            <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`${execBase} mysql -u root -p`, `${s} · mysql`); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
-                                              <Database size={12} />
+                                            <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`${execBase} mysql -u root -p`, `${s} · mysql`); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
+                                              <Database size={12} className="text-text-secondary" />
                                               Connect MySQL
                                             </button>
                                           )}
                                           {(sLower.includes('postgres') || sLower.includes('psql')) && (
-                                            <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`${execBase} psql -U postgres`, `${s} · postgres`); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
-                                              <Database size={12} />
+                                            <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`${execBase} psql -U postgres`, `${s} · postgres`); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
+                                              <Database size={12} className="text-text-secondary" />
                                               Connect Postgres
                                             </button>
                                           )}
                                         </>
                                       );
                                     })()}
-                                    <div className="border-t border-[var(--border)] my-1" />
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); toggleLogs(activeTab, s); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
-                                      <FileText size={12} />
+                                    <div className="border-t border-border/30 my-1" />
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); toggleLogs(activeTab, s); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
+                                      <FileText size={12} className="text-text-secondary" />
                                       Logs
                                     </button>
                                   </div>
@@ -745,22 +752,22 @@ export function DockerView({
                             </div>
                           </div>
                           {isLogsExpanded && (
-                            <div className="border-t border-[var(--border)] bg-[var(--bg-primary)]">
-                              <div className="flex items-center justify-between px-3 py-1.5 border-b border-[var(--border)]">
-                                <span className="text-[10px] text-[var(--text-muted)]">Logs: {s}</span>
+                            <div className="border-t border-border/30 bg-bg-primary/90">
+                              <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/30">
+                                <span className="text-[10px] font-mono text-text-muted">Logs: {s}</span>
                                 <Tooltip content="Close logs" position="left">
                                   <button
                                     type="button"
                                     onClick={() => toggleLogs(activeTab, s)}
-                                    className="p-1 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] flex items-center justify-center"
+                                    className="p-1 rounded text-text-secondary hover:bg-bg-tertiary hover:text-text-primary flex items-center justify-center transition-colors"
                                   >
-                                    <X size={14} />
+                                    <X size={13} />
                                   </button>
                                 </Tooltip>
                               </div>
                               <pre
                                 ref={logPreRef}
-                                className="p-3 font-mono text-[11px] text-[var(--text-primary)] whitespace-pre-wrap break-words overflow-auto max-h-[280px] min-h-[120px]"
+                                className="p-3 font-mono text-[10px] text-text-primary whitespace-pre-wrap break-words overflow-auto max-h-[280px] min-h-[120px] scrollbar-vs"
                               >
                                 {logContent}
                               </pre>
@@ -776,13 +783,13 @@ export function DockerView({
           </>
         )}
       </div>
-      <div className="px-4 py-2 border-t border-[var(--border)] bg-[var(--bg-secondary)] flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-        <FileText size={14} />
+      <div className="px-4 py-2.5 border-t border-border/30 bg-bg-secondary/40 flex items-center gap-2 text-xs text-text-secondary shrink-0">
+        <FileText size={13} className="text-text-muted" />
         <span>View compose logs in the bottom panel (Logs tab).</span>
         <button
           type="button"
           onClick={onOpenLogs}
-          className="text-[var(--accent)] hover:underline ml-1"
+          className="text-accent hover:text-accent-hover font-semibold transition-colors ml-1"
         >
           Open logs
         </button>

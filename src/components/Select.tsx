@@ -104,21 +104,21 @@ export function Select({ value, onChange, options, disabled = false, className =
         onClick={toggleDropdown}
         disabled={disabled}
         title={title}
-        className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)] font-sans text-left transition-all duration-150 focus:outline-none focus:border-[var(--accent)] hover:border-[var(--border-hover,var(--accent))] disabled:opacity-50 disabled:cursor-not-allowed select-none ${className}`}
+        className={`w-full flex items-center justify-between gap-2 px-3.5 py-2 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-primary font-sans text-left transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent/40 disabled:opacity-50 disabled:cursor-not-allowed select-none ${className}`}
       >
         <span className="truncate flex-1">
           {selectedOption ? selectedOption.label : ''}
         </span>
         <ChevronDown
-          size={16}
-          className={`text-[var(--text-secondary)] shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180 text-[var(--accent)]' : ''}`}
+          size={14}
+          className={`text-text-secondary shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180 text-accent' : ''}`}
         />
       </button>
 
       {isOpen && createPortal(
         <div
           ref={setDropdownEl}
-          className="fixed z-[99999] overflow-hidden rounded-md border border-[var(--border)] bg-[var(--bg-tertiary)] shadow-2xl font-sans"
+          className="fixed z-[99999] overflow-hidden rounded-xl border border-border/40 bg-bg-tertiary/95 shadow-2xl backdrop-blur-md font-sans p-1"
           style={{
             top: coords ? `${coords.top}px` : '0px',
             left: coords ? `${coords.left}px` : '0px',
@@ -129,7 +129,7 @@ export function Select({ value, onChange, options, disabled = false, className =
             animation: coords ? 'select-dropdown-enter 0.12s cubic-bezier(0.16, 1, 0.3, 1) forwards' : 'none',
           }}
         >
-          <div className="max-h-60 overflow-y-auto py-1 scrollbar-vs">
+          <div className="max-h-60 overflow-y-auto py-0.5 flex flex-col gap-0.5 scrollbar-vs">
             {options.map((opt) => {
               const isSelected = opt.value === value;
               return (
@@ -139,14 +139,14 @@ export function Select({ value, onChange, options, disabled = false, className =
                     onChange(opt.value);
                     setIsOpen(false);
                   }}
-                  className={`flex items-center justify-between gap-2 px-3 py-1.5 text-sm cursor-pointer select-none transition-colors duration-100 ${
+                  className={`flex items-center justify-between gap-2 px-2.5 py-1.5 text-xs cursor-pointer select-none rounded-lg transition-colors duration-100 ${
                     isSelected
-                      ? 'bg-[var(--accent)]/15 text-[var(--accent)] font-medium'
-                      : 'text-[var(--text-primary)] hover:bg-[var(--accent)] hover:text-white'
+                      ? 'bg-accent/10 text-accent font-semibold'
+                      : 'text-text-primary hover:bg-bg-primary/60'
                   }`}
                 >
                   <span className="truncate flex-1">{opt.label}</span>
-                  {isSelected && <Check size={14} className="shrink-0 text-[var(--accent)]" />}
+                  {isSelected && <Check size={13} className="shrink-0 text-accent" />}
                 </div>
               );
             })}
@@ -163,17 +163,17 @@ export function Select({ value, onChange, options, disabled = false, className =
               }
             }
             .scrollbar-vs::-webkit-scrollbar {
-              width: 6px;
+              width: 5px;
             }
             .scrollbar-vs::-webkit-scrollbar-track {
               background: transparent;
             }
             .scrollbar-vs::-webkit-scrollbar-thumb {
-              background: var(--border);
+              background: var(--color-border);
               border-radius: 3px;
             }
             .scrollbar-vs::-webkit-scrollbar-thumb:hover {
-              background: var(--text-secondary);
+              background: var(--color-text-secondary);
             }
           `}</style>
         </div>,

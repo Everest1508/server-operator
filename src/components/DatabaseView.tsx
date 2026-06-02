@@ -227,7 +227,6 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
     if (dbType === 'redis') {
       const query = `GET ${item}`;
       setQueryText(query);
-      // Auto run Redis GET keys
       setTimeout(() => {
         handleRunQuery();
       }, 50);
@@ -248,7 +247,6 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
         const val = row[header];
         if (val === null || val === undefined) return '';
         const str = typeof val === 'object' ? JSON.stringify(val) : String(val);
-        // Escape quotes
         return `"${str.replace(/"/g, '""')}"`;
       });
       csv += values.join(',') + '\n';
@@ -291,58 +289,58 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
 
   if (!currentServer) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-[var(--text-secondary)] text-sm font-sans gap-3">
-        <ServerIcon size={32} className="text-[var(--text-muted)]" />
+      <div className="flex-grow flex flex-col items-center justify-center text-text-secondary text-xs font-sans gap-3 bg-bg-primary select-none">
+        <ServerIcon size={32} className="text-text-muted animate-pulse" />
         <p>Please select an active SSH server from the sidebar to establish database tunnels.</p>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-[var(--bg-primary)] text-[var(--text-primary)] min-h-0 overflow-hidden font-sans">
+    <div className="flex-grow flex flex-col bg-bg-primary text-text-primary min-h-0 overflow-hidden font-sans">
       {/* Top Header Controls bar */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between border-b border-[var(--border)] bg-[var(--bg-secondary)] px-6 py-4 gap-4 shrink-0">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between border-b border-border/20 bg-bg-secondary/35 px-6 py-4 gap-4 shrink-0 select-none">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-[var(--bg-tertiary)] text-[var(--accent)] shrink-0">
-            <Database size={20} />
+          <div className="p-2.5 rounded-xl bg-bg-tertiary text-accent border border-border/15 shrink-0">
+            <Database size={18} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-semibold">Database Tunnel Manager</h2>
+              <h2 className="text-sm font-bold text-text-primary">Database Tunnel Manager</h2>
               {status === 'connected' ? (
-                <span className="flex items-center gap-1 text-[10px] text-[var(--success)] bg-[var(--success)]/10 border border-[var(--success)]/25 px-2 py-0.5 rounded-full font-semibold">
+                <span className="inline-flex items-center gap-1.5 text-[9px] font-extrabold bg-success/10 text-success border border-success/20 px-2.5 py-0.5 rounded-xl uppercase tracking-wider animate-pulse">
                   <Wifi size={10} /> Active Tunnel (LPort: {localPort})
                 </span>
               ) : status === 'connecting' ? (
-                <span className="flex items-center gap-1 text-[10px] text-[var(--warning)] bg-[var(--warning)]/10 border border-[var(--warning)]/20 px-2 py-0.5 rounded-full font-semibold animate-pulse">
+                <span className="inline-flex items-center gap-1.5 text-[9px] font-extrabold bg-warning/10 text-warning border border-warning/20 px-2.5 py-0.5 rounded-xl uppercase tracking-wider animate-pulse">
                   <RefreshCw size={10} className="animate-spin" /> Forwarding...
                 </span>
               ) : (
-                <span className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] bg-[var(--bg-tertiary)] border border-[var(--border)] px-2 py-0.5 rounded-full font-semibold">
+                <span className="inline-flex items-center gap-1.5 text-[9px] font-extrabold bg-bg-tertiary border border-border/30 text-text-muted px-2.5 py-0.5 rounded-xl uppercase tracking-wider">
                   <WifiOff size={10} /> Disconnected
                 </span>
               )}
             </div>
-            <p className="text-xs text-[var(--text-secondary)]">{currentServer.name} — {currentServer.username}@{currentServer.host}</p>
+            <p className="text-[11px] text-text-secondary mt-0.5">{currentServer.name} — {currentServer.username}@{currentServer.host}</p>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 flex min-h-0 divide-x divide-[var(--border)]">
+      <div className="flex-1 flex min-h-0 divide-x divide-border/20">
         {/* Connection Form & Schema Sidebar */}
-        <div className="w-[300px] flex flex-col shrink-0 min-h-0 bg-[var(--bg-secondary)] overflow-y-auto">
+        <div className="w-[300px] flex flex-col shrink-0 min-h-0 bg-bg-secondary/25 border-r border-border/20 overflow-y-auto select-none">
           {/* Connection settings form */}
           {status !== 'connected' && status !== 'connecting' ? (
-            <form onSubmit={handleConnect} className="p-4 border-b border-[var(--border)] flex flex-col gap-3.5">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">Connection Settings</h3>
+            <form onSubmit={handleConnect} className="p-4 border-b border-border/20 flex flex-col gap-3">
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Connection Settings</h3>
               
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-[var(--text-secondary)]" htmlFor="engine-select">DB Engine</label>
+              <div className="flex flex-col gap-1">
+                <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-0.5" htmlFor="engine-select">DB Engine</label>
                 <select
                   id="engine-select"
                   value={dbType}
                   onChange={(e) => setDbType(e.target.value as any)}
-                  className="w-full px-2.5 py-1.5 border border-[var(--border)] bg-[var(--bg-primary)] rounded text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                  className="w-full px-3 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent"
                 >
                   <option value="mysql">MySQL</option>
                   <option value="postgres">PostgreSQL</option>
@@ -351,43 +349,43 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
               </div>
 
               <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-2 flex flex-col gap-1.5">
-                  <label className="text-xs text-[var(--text-secondary)]" htmlFor="host-input">Host</label>
+                <div className="col-span-2 flex flex-col gap-1">
+                  <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-0.5" htmlFor="host-input">Host</label>
                   <input
                     id="host-input"
                     type="text"
                     value={host}
                     onChange={(e) => setHost(e.target.value)}
-                    className="w-full px-2.5 py-1.5 border border-[var(--border)] bg-[var(--bg-primary)] rounded text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                    className="w-full px-3 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent"
                   />
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-[var(--text-secondary)]" htmlFor="port-input">Port</label>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-0.5" htmlFor="port-input">Port</label>
                   <input
                     id="port-input"
-                    type="number"
+                    type="text"
                     value={port}
                     onChange={(e) => setPort(e.target.value)}
-                    className="w-full px-2.5 py-1.5 border border-[var(--border)] bg-[var(--bg-primary)] rounded text-xs text-[var(--text-primary)] focus:outline-none"
+                    className="w-full px-3 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none"
                   />
                 </div>
               </div>
 
               {dbType !== 'redis' && (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-[var(--text-secondary)]" htmlFor="user-input">Username</label>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-0.5" htmlFor="user-input">Username</label>
                   <input
                     id="user-input"
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="w-full px-2.5 py-1.5 border border-[var(--border)] bg-[var(--bg-primary)] rounded text-xs text-[var(--text-primary)] focus:outline-none"
+                    className="w-full px-3 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none"
                   />
                 </div>
               )}
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-[var(--text-secondary)]" htmlFor="pass-input">Password</label>
+              <div className="flex flex-col gap-1">
+                <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-0.5" htmlFor="pass-input">Password</label>
                 <div className="relative flex items-center">
                   <input
                     id="pass-input"
@@ -395,20 +393,20 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Optional"
-                    className="w-full px-2.5 py-1.5 pr-10 border border-[var(--border)] bg-[var(--bg-primary)] rounded text-xs text-[var(--text-primary)] focus:outline-none"
+                    className="w-full px-3 py-1.5 pr-10 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none"
+                    className="absolute right-3 text-text-secondary hover:text-text-primary focus:outline-none cursor-pointer"
                   >
                     {showPassword ? <EyeOffIcon size={14} /> : <EyeIcon size={14} />}
                   </button>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-[var(--text-secondary)]" htmlFor="db-input">
+              <div className="flex flex-col gap-1">
+                <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-0.5" htmlFor="db-input">
                   {dbType === 'redis' ? 'DB Index' : 'Database'}
                 </label>
                 <input
@@ -417,40 +415,40 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                   value={database}
                   onChange={(e) => setDatabase(e.target.value)}
                   placeholder={dbType === 'redis' ? '0' : 'Database Name'}
-                  className="w-full px-2.5 py-1.5 border border-[var(--border)] bg-[var(--bg-primary)] rounded text-xs text-[var(--text-primary)] focus:outline-none"
+                  className="w-full px-3 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full mt-2 py-1.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold rounded transition-all cursor-pointer shadow-sm"
+                className="w-full mt-3 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-sm"
               >
                 Establish DB Tunnel
               </button>
 
               {status === 'error' && error && (
-                <div className="mt-2 p-2.5 rounded bg-[var(--error)]/10 border border-[var(--error)]/30 text-[var(--error)] text-xs flex gap-1.5 items-start">
-                  <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-                  <span className="break-all font-mono">{error}</span>
+                <div className="mt-2 p-3 rounded-xl bg-error/10 border border-error/20 text-error text-xs flex gap-1.5 items-start font-mono break-all select-text">
+                  <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+                  <span>{error}</span>
                 </div>
               )}
             </form>
           ) : (
-            <div className="p-4 border-b border-[var(--border)] flex flex-col gap-2.5 bg-[var(--bg-tertiary)]/30">
-              <div className="flex justify-between items-center">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">Connected Engine</h3>
-                <span className="px-2 py-0.5 rounded text-[10px] font-semibold uppercase bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/20">
+            <div className="p-4 border-b border-border/20 flex flex-col gap-2 bg-bg-tertiary/20 select-text">
+              <div className="flex justify-between items-center select-none">
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Connected Engine</h3>
+                <span className="px-2.5 py-0.5 rounded-lg text-[9px] font-extrabold uppercase bg-accent/15 text-accent border border-accent/20">
                   {dbType}
                 </span>
               </div>
-              <p className="text-xs font-mono text-[var(--text-primary)] break-all mt-1">
+              <p className="text-xs font-mono text-text-primary break-all mt-1 leading-relaxed">
                 Target: {host}:{port} <br />
                 {database && `DB: ${database}`}
               </p>
               <button
                 type="button"
                 onClick={handleDisconnect}
-                className="w-full py-1.5 bg-[var(--error)]/15 hover:bg-[var(--error)] hover:text-white border border-[var(--error)]/30 hover:border-transparent text-[var(--error)] text-xs font-semibold rounded transition-all cursor-pointer mt-2"
+                className="w-full py-2 bg-error/15 hover:bg-error hover:text-white border border-error/25 hover:border-transparent text-error text-xs font-semibold rounded-xl transition-all cursor-pointer mt-2 select-none"
               >
                 Disconnect DB Tunnel
               </button>
@@ -459,42 +457,42 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
 
           {/* Schema Explorer */}
           {status === 'connected' && (
-            <div className="flex-1 flex flex-col min-h-[300px]">
-              <div className="p-4 pb-2 flex justify-between items-center">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+            <div className="flex-grow flex flex-col min-h-[300px]">
+              <div className="p-4 pb-2 flex justify-between items-center select-none">
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
                   {dbType === 'redis' ? 'Keys Explorer' : 'Tables Explorer'}
                 </h3>
                 <button
                   type="button"
                   onClick={fetchSchema}
                   disabled={metadataLoading}
-                  className="p-1 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] disabled:opacity-50"
+                  className="p-1 rounded-md text-text-secondary hover:bg-bg-tertiary disabled:opacity-50 cursor-pointer"
                   title="Reload Schema"
                 >
-                  <RefreshCw size={12} className={metadataLoading ? 'animate-spin' : ''} />
+                  <RefreshCw size={12} className={metadataLoading ? 'animate-spin text-accent' : ''} />
                 </button>
               </div>
 
               {/* Search filter for explorer list */}
-              <div className="px-4 mb-3 relative">
-                <Search size={12} className="absolute left-6.5 top-2.5 text-[var(--text-muted)]" />
+              <div className="px-4 mb-3 relative select-none">
+                <Search size={12} className="absolute left-7 top-2.5 text-text-muted" />
                 <input
                   type="text"
                   placeholder={dbType === 'redis' ? 'Filter keys…' : 'Filter tables…'}
                   value={metadataSearch}
                   onChange={(e) => setMetadataSearch(e.target.value)}
-                  className="w-full pl-7 pr-2 py-1.5 border border-[var(--border)] bg-[var(--bg-primary)] rounded text-xs text-[var(--text-primary)] focus:outline-none"
+                  className="w-full pl-8 pr-3 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent"
                 />
               </div>
 
               {/* List */}
-              <div className="flex-1 overflow-y-auto px-2 pb-4">
+              <div className="flex-1 overflow-y-auto px-2 pb-4 select-text">
                 {metadataLoading && filteredMetadata.length === 0 ? (
-                  <div className="text-center py-8 text-xs text-[var(--text-muted)]">
+                  <div className="text-center py-8 text-xs text-text-muted select-none">
                     Loading database outline…
                   </div>
                 ) : filteredMetadata.length === 0 ? (
-                  <div className="text-center py-8 text-xs text-[var(--text-muted)]">
+                  <div className="text-center py-8 text-xs text-text-muted select-none">
                     {metadataSearch ? 'No matches found.' : (dbType === 'redis' ? 'No keys detected.' : 'No public tables detected.')}
                   </div>
                 ) : (
@@ -504,10 +502,10 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                         <button
                           type="button"
                           onClick={() => handleMetadataItemClick(item)}
-                          className="w-full text-left px-2 py-1.5 rounded text-xs font-mono text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent-hover)] transition-colors truncate flex items-center gap-1.5"
+                          className="w-full text-left px-3 py-1.5 rounded-xl text-xs font-mono text-text-primary hover:bg-bg-tertiary/50 hover:text-accent transition-all duration-150 truncate flex items-center gap-1.5 cursor-pointer"
                           title={item}
                         >
-                          <ChevronRight size={10} className="text-[var(--text-secondary)] shrink-0" />
+                          <ChevronRight size={10} className="text-text-secondary shrink-0" />
                           <span className="truncate">{item}</span>
                         </button>
                       </li>
@@ -520,30 +518,30 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
         </div>
 
         {/* Query Editor & Result Grid Workspace */}
-        <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-primary)]">
+        <div className="flex-1 flex flex-col min-h-0 bg-bg-primary">
           {status !== 'connected' ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-[var(--text-secondary)] text-sm font-sans gap-2 p-6 text-center">
-              <Database size={24} className="text-[var(--text-muted)] mb-1" />
-              <p className="font-semibold text-[var(--text-primary)]">SSH Tunnel Connection Required</p>
-              <p className="text-xs text-[var(--text-secondary)] max-w-sm">
-                Enter your remote database parameters on the left and connect. The app will open a local forwarding port over your active SSH session to secure traffic.
+            <div className="flex-1 flex flex-col items-center justify-center text-text-secondary text-xs font-sans gap-2.5 p-6 text-center select-none max-w-lg mx-auto">
+              <Database size={24} className="text-accent/60 animate-pulse mb-1" />
+              <p className="font-bold text-text-primary text-sm">SSH Tunnel Required</p>
+              <p className="text-text-muted leading-relaxed">
+                Connect your remote database engine using the parameters on the left. Traffic will route locally over active port forward encryptions.
               </p>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col min-h-0">
+            <div className="flex-grow flex flex-col min-h-0">
               {/* Query input editor */}
-              <div className="border-b border-[var(--border)] p-4 flex flex-col gap-3 shrink-0">
+              <div className="border-b border-border/20 p-4 flex flex-col gap-3 shrink-0">
                 {dbType === 'redis' ? (
                   <>
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-                        Redis command console
+                    <div className="flex justify-between items-center select-none">
+                      <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                        Redis Console
                       </h3>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => setQueryText('')}
-                          className="px-2.5 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded transition-all"
+                          className="px-2.5 py-1 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-secondary rounded-lg transition-all cursor-pointer font-semibold"
                         >
                           Clear
                         </button>
@@ -551,7 +549,7 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                           type="button"
                           onClick={handleRunQuery}
                           disabled={queryLoading || !queryText.trim()}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold rounded disabled:opacity-50 cursor-pointer shadow-sm"
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-xl disabled:opacity-40 cursor-pointer shadow-sm transition-all"
                         >
                           {queryLoading ? <RefreshCw size={12} className="animate-spin" /> : <Play size={12} />}
                           Run Query
@@ -563,19 +561,19 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                       value={queryText}
                       onChange={(e) => setQueryText(e.target.value)}
                       placeholder="e.g. GET mykey&#10;     HGETALL user:100&#10;     KEYS *"
-                      className="w-full h-24 p-3 border border-[var(--border)] bg-[var(--bg-secondary)] rounded-md font-mono text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] resize-none"
+                      className="w-full h-24 p-3 border border-border/30 bg-bg-secondary/40 rounded-xl font-mono text-xs text-text-primary focus:outline-none focus:border-accent resize-none select-text"
                     />
                   </>
                 ) : (
                   <>
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-                        SQL Query Workspace
+                    <div className="flex justify-between items-center select-none">
+                      <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                        SQL Command Workspace
                       </h3>
                     </div>
 
-                    <div className="border border-[var(--border)] bg-[var(--bg-secondary)] rounded-md overflow-hidden flex flex-col">
-                      <div className="h-32">
+                    <div className="border border-border/20 bg-bg-secondary/35 rounded-xl overflow-hidden flex flex-col shadow-sm">
+                      <div className="h-36">
                         <Editor
                           height="100%"
                           language="sql"
@@ -601,15 +599,15 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                           }}
                         />
                       </div>
-                      <div className="flex items-center justify-between border-t border-[var(--border)] px-3 py-2 bg-[var(--bg-tertiary)]/40 text-xs">
+                      <div className="flex items-center justify-between border-t border-border/20 px-4 py-2.5 bg-bg-secondary/45 text-xs select-none">
                         <div className="flex items-center gap-3">
                           {executionTime !== null && filteredResults && (
-                            <div className="flex items-center gap-2.5 text-xs font-mono text-[var(--text-secondary)]">
-                              <span>Duration: <strong className="text-[var(--text-primary)]">{executionTime}ms</strong></span>
-                              <span className="w-[1px] h-3 bg-[var(--border)]" />
-                              <span>Total Rows: <strong className="text-[var(--text-primary)]">{filteredResults.length}</strong></span>
-                              <span className="w-[1px] h-3 bg-[var(--border)]" />
-                              <span>Page: <strong className="text-[var(--text-primary)]">{activePage}/{totalPages}</strong></span>
+                            <div className="flex items-center gap-2.5 text-xs font-mono text-text-secondary">
+                              <span>Duration: <strong className="text-text-primary">{executionTime}ms</strong></span>
+                              <span className="w-[1px] h-3 bg-border/20" />
+                              <span>Total Rows: <strong className="text-text-primary">{filteredResults.length}</strong></span>
+                              <span className="w-[1px] h-3 bg-border/20" />
+                              <span>Page: <strong className="text-text-primary">{activePage}/{totalPages}</strong></span>
                             </div>
                           )}
                         </div>
@@ -617,7 +615,7 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                           <button
                             type="button"
                             onClick={() => setQueryText('')}
-                            className="px-2.5 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded transition-all"
+                            className="px-2.5 py-1 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-secondary rounded-lg transition-all cursor-pointer font-semibold"
                           >
                             Clear
                           </button>
@@ -625,7 +623,7 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                             type="button"
                             onClick={handleRunQuery}
                             disabled={queryLoading || !queryText.trim()}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold rounded disabled:opacity-50 cursor-pointer shadow-sm"
+                            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-xl disabled:opacity-40 cursor-pointer shadow-sm transition-all"
                           >
                             {queryLoading ? <RefreshCw size={12} className="animate-spin" /> : <Play size={12} />}
                             Run Query
@@ -637,21 +635,21 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                 )}
 
                 {queryError && (
-                  <div className="p-2.5 rounded bg-[var(--error)]/10 border border-[var(--error)]/30 text-[var(--error)] text-xs flex gap-1.5 items-start font-mono">
-                    <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                  <div className="p-3 rounded-xl bg-error/10 border border-error/20 text-error text-xs flex gap-1.5 items-start font-mono select-text">
+                    <AlertTriangle size={14} className="shrink-0 mt-0.5 text-error" />
                     <span>{queryError}</span>
                   </div>
                 )}
               </div>
 
               {/* Query Results View Grid */}
-              <div className="flex-1 flex flex-col min-h-0">
+              <div className="flex-grow flex flex-col min-h-0">
                 {/* Results controls */}
                 {filteredResults && (
-                  <div className="border-b border-[var(--border)] px-4 py-2.5 bg-[var(--bg-secondary)]/50 flex flex-wrap items-center justify-between gap-3 shrink-0">
+                  <div className="border-b border-border/20 px-4 py-2.5 bg-bg-secondary/35 flex flex-wrap items-center justify-between gap-3 shrink-0 select-none">
                     <div className="flex items-center gap-2">
-                      <h4 className="text-xs font-semibold text-[var(--text-primary)]">Query Output</h4>
-                      <span className="text-[10px] px-1.5 py-0.5 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded text-[var(--text-secondary)] font-mono">
+                      <h4 className="text-xs font-bold text-text-primary">Query Output</h4>
+                      <span className="text-[9px] font-extrabold px-2 py-0.5 bg-bg-tertiary border border-border/30 rounded-xl text-text-secondary font-sans uppercase tracking-wider">
                         {filteredResults.length} records
                       </span>
                     </div>
@@ -659,13 +657,13 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                     <div className="flex items-center gap-2">
                       {/* Filter records input */}
                       <div className="relative">
-                        <Search size={10} className="absolute left-2.5 top-2.5 text-[var(--text-muted)]" />
+                        <Search size={10} className="absolute left-2.5 top-2.5 text-text-muted" />
                         <input
                           type="text"
-                          placeholder="Filter results…"
+                          placeholder="Filter rows…"
                           value={resultsSearch}
                           onChange={(e) => setResultsSearch(e.target.value)}
-                          className="pl-6.5 pr-2 py-1 border border-[var(--border)] bg-[var(--bg-primary)] rounded text-[10px] text-[var(--text-primary)] w-36 focus:outline-none"
+                          className="pl-6.5 pr-2.5 py-1 border border-border/30 bg-bg-primary/50 rounded-xl text-[10px] text-text-primary w-36 focus:outline-none focus:border-accent"
                         />
                       </div>
                       
@@ -673,7 +671,7 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                         type="button"
                         onClick={exportQueryResultToCSV}
                         disabled={filteredResults.length === 0}
-                        className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold border border-[var(--border)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] rounded disabled:opacity-50 transition-colors cursor-pointer"
+                        className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold border border-border/30 bg-bg-secondary hover:bg-bg-tertiary rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
                       >
                         <Download size={10} /> Export CSV
                       </button>
@@ -682,51 +680,51 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                 )}
 
                 {/* Spreadsheet-like Table Grid */}
-                <div className="flex-1 overflow-auto min-h-0 bg-[var(--bg-primary)]">
+                <div className="flex-1 overflow-auto min-h-0 bg-bg-primary">
                   {!filteredResults ? (
-                    <div className="h-full flex flex-col items-center justify-center text-[var(--text-secondary)] text-xs p-6 text-center font-sans">
-                      <HelpCircle size={20} className="text-[var(--text-muted)] mb-1" />
-                      <p>Workspace is ready.</p>
-                      <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">
-                        Write a query above or click a schema table/key on the left to execute.
+                    <div className="h-full flex flex-col items-center justify-center text-text-secondary text-xs p-6 text-center font-sans select-none max-w-sm mx-auto gap-2">
+                      <HelpCircle size={18} className="text-text-muted" />
+                      <p className="font-semibold text-text-primary">Console is Ready</p>
+                      <p className="text-[10px] text-text-muted leading-relaxed">
+                        Input commands inside the query workspace above or double-click items in the schema list to run select statements.
                       </p>
                     </div>
                   ) : filteredResults.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-[var(--text-muted)] text-xs p-6 font-sans">
-                      No records returned. (Query ran successfully, returned 0 rows)
+                    <div className="h-full flex items-center justify-center text-text-muted text-xs p-6 font-sans italic select-none">
+                      No records returned. (Statement completed successfully, 0 rows returned)
                     </div>
                   ) : (
-                    <table className="w-full border-collapse text-left font-mono text-xs">
+                    <table className="w-full border-collapse text-left font-mono text-[11px] leading-relaxed select-text">
                       <thead>
-                        <tr className="border-b border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] sticky top-0 z-10">
-                          <th className="px-3 py-2 font-semibold border-r border-[var(--border)]">#</th>
+                        <tr className="border-b border-border/20 bg-bg-secondary/35 text-text-secondary sticky top-0 z-10 select-none">
+                          <th className="px-3.5 py-2 font-bold border-r border-border/20">#</th>
                           {Object.keys(filteredResults[0]).map((header) => (
-                            <th key={header} className="px-3 py-2 font-semibold border-r border-[var(--border)] max-w-xs truncate" title={header}>
+                            <th key={header} className="px-3.5 py-2 font-bold border-r border-border/20 max-w-xs truncate" title={header}>
                               {header}
                             </th>
                           ))}
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[var(--border)] text-[var(--text-primary)]">
+                      <tbody className="divide-y divide-border/10 text-text-primary">
                         {displayResults && displayResults.map((row, idx) => {
                           const rowNum = dbType === 'redis' 
                             ? idx + 1 
                             : (activePage - 1) * pageSize + idx + 1;
                           return (
-                            <tr key={idx} className="hover:bg-[var(--bg-tertiary)]/40 transition-colors">
-                              <td className="px-3 py-1.5 border-r border-[var(--border)] text-[var(--text-muted)] select-none">
+                            <tr key={idx} className="hover:bg-bg-tertiary/20 transition-colors duration-150">
+                              <td className="px-3.5 py-1.5 border-r border-border/10 text-text-muted select-none">
                                 {rowNum}
                               </td>
                               {Object.keys(filteredResults[0]).map((header) => {
                                 const val = row[header];
                                 const renderVal = val === null || val === undefined 
-                                  ? <span className="text-[var(--text-muted)] italic">NULL</span>
+                                  ? <span className="text-text-muted italic">NULL</span>
                                   : typeof val === 'object' 
                                     ? JSON.stringify(val) 
                                     : String(val);
                                 
                                 return (
-                                  <td key={header} className="px-3 py-1.5 border-r border-[var(--border)] truncate max-w-md" title={String(renderVal)}>
+                                  <td key={header} className="px-3.5 py-1.5 border-r border-border/10 truncate max-w-md" title={String(renderVal)}>
                                     {renderVal}
                                   </td>
                                 );
@@ -741,17 +739,17 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
 
                 {/* Pagination footer for SQL engines */}
                 {dbType !== 'redis' && filteredResults && filteredResults.length > 0 && (
-                  <div className="border-t border-[var(--border)] px-4 py-2 bg-[var(--bg-secondary)] flex flex-wrap items-center justify-between gap-3 shrink-0 text-xs text-[var(--text-secondary)]">
+                  <div className="border-t border-border/20 px-4 py-2 bg-bg-secondary/45 flex flex-wrap items-center justify-between gap-3 shrink-0 text-xs text-text-secondary font-sans select-none">
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-1.5">
-                        <span>Rows per page:</span>
+                        <span>Page Limit:</span>
                         <select
                           value={pageSize}
                           onChange={(e) => {
                             setPageSize(Number(e.target.value));
                             setCurrentPage(1);
                           }}
-                          className="px-2 py-0.5 border border-[var(--border)] bg-[var(--bg-primary)] rounded text-xs text-[var(--text-primary)] focus:outline-none"
+                          className="px-2.5 py-0.5 border border-border/30 bg-bg-primary/50 rounded-lg text-xs text-text-primary focus:outline-none"
                         >
                           <option value={10}>10</option>
                           <option value={25}>25</option>
@@ -760,11 +758,11 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                         </select>
                       </div>
                       <span>
-                        Showing <strong className="text-[var(--text-primary)]">{(activePage - 1) * pageSize + 1}</strong> to{' '}
-                        <strong className="text-[var(--text-primary)] font-semibold">
+                        Showing <strong className="text-text-primary">{(activePage - 1) * pageSize + 1}</strong> to{' '}
+                        <strong className="text-text-primary font-semibold">
                           {Math.min(activePage * pageSize, totalRows)}
                         </strong>{' '}
-                        of <strong className="text-[var(--text-primary)]">{totalRows}</strong> rows
+                        of <strong className="text-text-primary">{totalRows}</strong> rows
                       </span>
                     </div>
 
@@ -773,7 +771,7 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                         type="button"
                         onClick={() => setCurrentPage(1)}
                         disabled={activePage === 1}
-                        className="px-2.5 py-1 border border-[var(--border)] hover:bg-[var(--bg-tertiary)] disabled:opacity-40 disabled:hover:bg-transparent rounded text-xs transition-colors cursor-pointer"
+                        className="px-3 py-1.5 border border-border/30 hover:bg-bg-tertiary disabled:opacity-40 disabled:hover:bg-transparent rounded-xl text-xs transition-colors cursor-pointer font-semibold shadow-xs"
                         title="First Page"
                       >
                         First
@@ -782,19 +780,19 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                         type="button"
                         onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                         disabled={activePage === 1}
-                        className="px-2.5 py-1 border border-[var(--border)] hover:bg-[var(--bg-tertiary)] disabled:opacity-40 disabled:hover:bg-transparent rounded text-xs transition-colors cursor-pointer"
+                        className="px-3 py-1.5 border border-border/30 hover:bg-bg-tertiary disabled:opacity-40 disabled:hover:bg-transparent rounded-xl text-xs transition-colors cursor-pointer font-semibold shadow-xs"
                         title="Previous Page"
                       >
                         Prev
                       </button>
-                      <span className="px-2 font-mono">
-                        Page {activePage} of {totalPages}
+                      <span className="px-2.5 font-mono text-text-primary font-bold">
+                        {activePage} / {totalPages}
                       </span>
                       <button
                         type="button"
                         onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                         disabled={activePage === totalPages}
-                        className="px-2.5 py-1 border border-[var(--border)] hover:bg-[var(--bg-tertiary)] disabled:opacity-40 disabled:hover:bg-transparent rounded text-xs transition-colors cursor-pointer"
+                        className="px-3 py-1.5 border border-border/30 hover:bg-bg-tertiary disabled:opacity-40 disabled:hover:bg-transparent rounded-xl text-xs transition-colors cursor-pointer font-semibold shadow-xs"
                         title="Next Page"
                       >
                         Next
@@ -803,7 +801,7 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                         type="button"
                         onClick={() => setCurrentPage(totalPages)}
                         disabled={activePage === totalPages}
-                        className="px-2.5 py-1 border border-[var(--border)] hover:bg-[var(--bg-tertiary)] disabled:opacity-40 disabled:hover:bg-transparent rounded text-xs transition-colors cursor-pointer"
+                        className="px-3 py-1.5 border border-border/30 hover:bg-bg-tertiary disabled:opacity-40 disabled:hover:bg-transparent rounded-xl text-xs transition-colors cursor-pointer font-semibold shadow-xs"
                         title="Last Page"
                       >
                         Last

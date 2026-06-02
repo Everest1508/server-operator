@@ -2,35 +2,37 @@
 
 @theme {
   --font-sans: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, monospace;
-}
-
-/* VS Code Dark theme colors */
-:root {
-  --bg-primary: #1e1e1e;
-  --bg-secondary: #252526;
-  --bg-tertiary: #2a2d2e;
-  --bg-activity: #333333;
-  --border: #3c3c3c;
-  --text-primary: #cccccc;
-  --text-secondary: #858585;
-  --text-muted: #6e7681;
-  --accent: #0078d4;
-  --accent-hover: #3794ff;
-  --success: #4ec9b0;
-  --warning: #dcdcaa;
-  --error: #f14c4c;
-  --input-bg: #3c3c3c;
+  --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, monospace;
+  --color-bg-primary: #1e1e1e;
+  --color-bg-secondary: #252526;
+  --color-bg-tertiary: #2a2d2e;
+  --color-bg-activity: #333333;
+  --color-border: #3c3c3c;
+  --color-text-primary: #cccccc;
+  --color-text-secondary: #858585;
+  --color-text-muted: #6e7681;
+  --color-accent: #0078d4;
+  --color-accent-hover: #3794ff;
+  --color-success: #4ec9b0;
+  --color-warning: #dcdcaa;
+  --color-error: #f14c4c;
+  --color-input-bg: #3c3c3c;
 }
 
 * {
   box-sizing: border-box;
 }
 
+::selection {
+  background: rgba(0, 120, 212, 0.25);
+  color: #cccccc;
+}
+
 body {
   margin: 0;
   font-family: var(--font-sans);
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
 }
@@ -41,20 +43,23 @@ body {
   flex-direction: column;
 }
 
-/* Scrollbar - VS Code style */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
-}
-::-webkit-scrollbar-thumb {
-  background: var(--bg-tertiary);
-  border-radius: 5px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #505050;
+/* Scrollbars in base layer */
+@layer base {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-bg-tertiary);
+    border-radius: 3px;
+    transition: background 0.2s ease;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-border);
+  }
 }
 
 /* Hide number input spinners for a cleaner, VS Code-like look */
@@ -81,5 +86,3 @@ input[type="number"] {
   opacity: 1;
   visibility: visible;
 }
-
-

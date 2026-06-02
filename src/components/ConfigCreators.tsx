@@ -482,40 +482,46 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="flex items-center gap-1 border-b border-[var(--border)] bg-[var(--bg-secondary)] overflow-x-auto shrink-0">
+      <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-border/30 bg-bg-secondary/30 backdrop-blur-sm overflow-x-auto shrink-0 scrollbar-none">
         {creatorTabs.map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => { setActiveTab(t.id); setLlmOutput(null); setAiError(null); setChatMessages([]); }}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors shrink-0 ${
-              activeTab === t.id ? 'border-[var(--accent)] text-[var(--accent)]' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150 shrink-0 ${
+              activeTab === t.id
+                ? 'bg-bg-tertiary text-text-primary border border-border/20 shadow-md shadow-black/10'
+                : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/40'
             }`}
           >
-            <t.icon size={16} />
+            <t.icon size={13} />
             {t.label}
           </button>
         ))}
       </div>
-      <div className="flex items-center gap-0 border-b border-[var(--border)] bg-[var(--bg-primary)] px-4 py-2">
-        <span className="text-xs font-medium text-[var(--text-secondary)] mr-2">Mode:</span>
+      <div className="flex items-center gap-1.5 border-b border-border/30 bg-bg-primary px-4 py-2 shrink-0">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted mr-1.5">Mode:</span>
         <button
           type="button"
           onClick={() => setMode('form')}
-          className={`px-3 py-1.5 rounded-t text-sm font-medium transition-colors ${
-            mode === 'form' ? 'bg-[var(--bg-secondary)] text-[var(--accent)] border border-[var(--border)] border-b-transparent -mb-px' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+          className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all duration-150 ${
+            mode === 'form'
+              ? 'bg-bg-tertiary text-accent border border-border/20 shadow-sm shadow-black/10'
+              : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/40'
           }`}
         >
-          Form builder
+          Form Builder
         </button>
         <button
           type="button"
           onClick={() => setMode('ai')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-t text-sm font-medium transition-colors ${
-            mode === 'ai' ? 'bg-[var(--bg-secondary)] text-[var(--accent)] border border-[var(--border)] border-b-transparent -mb-px' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+          className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition-all duration-150 ${
+            mode === 'ai'
+              ? 'bg-bg-tertiary text-accent border border-border/20 shadow-sm shadow-black/10'
+              : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/40'
           }`}
         >
-          <Sparkles size={14} />
+          <Sparkles size={12} />
           Generate with AI
         </button>
       </div>
@@ -531,10 +537,10 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
           >
             <div className="p-4 space-y-4">
             {mode === 'ai' ? (
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] flex flex-col min-h-0 flex-1">
-                <div className="p-3 border-b border-[var(--border)] shrink-0 space-y-2">
+              <div className="rounded-lg border border-border bg-bg-secondary flex flex-col min-h-0 flex-1">
+                <div className="p-3 border-b border-border shrink-0 space-y-2">
                   <div className="flex items-center gap-2">
-                    <Key size={14} className="text-[var(--text-secondary)] shrink-0" />
+                    <Key size={14} className="text-text-secondary shrink-0" />
                     <div className="relative flex-1 flex items-center min-w-0">
                       <input
                         type={showGroqKey ? 'text' : 'password'}
@@ -542,19 +548,19 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                         onChange={(e) => { setGroqApiKey(e.target.value); setAiError(null); }}
                         onBlur={() => saveGroqApiKey(groqApiKey)}
                         placeholder="Groq API key (saved locally)"
-                        className="w-full px-3 py-1.5 pr-10 rounded-md bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none"
+                        className="w-full px-3 py-1.5 pr-10 rounded-md bg-bg-primary border border-border text-sm text-text-primary placeholder-text-muted focus:outline-none"
                       />
                       <button
                         type="button"
                         onClick={() => setShowGroqKey(!showGroqKey)}
-                        className="absolute right-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none"
+                        className="absolute right-3 text-text-secondary hover:text-text-primary focus:outline-none"
                       >
                         {showGroqKey ? <EyeOffIcon size={14} /> : <EyeIcon size={14} />}
                       </button>
                     </div>
                   </div>
                   <div className="flex flex-col gap-1.5 w-full">
-                    <label className="text-xs font-medium text-[var(--text-secondary)]">Project context</label>
+                    <label className="text-xs font-medium text-text-secondary">Project context</label>
                     <Select
                       value={selectedProjectPath}
                       onChange={onSelectProjectForContext}
@@ -566,20 +572,20 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                     />
                     <div className="flex items-center gap-2 mt-1">
                       {loadingContext && (
-                        <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
-                          <Loader2 size={14} className="animate-spin text-[var(--text-secondary)]" />
+                        <div className="flex items-center gap-1.5 text-xs text-text-secondary">
+                          <Loader2 size={14} className="animate-spin text-text-secondary" />
                           <span>Loading project context...</span>
                         </div>
                       )}
                       {!projectRepos.length && (
-                        <span className="text-xs text-[var(--text-muted)]">Right-click a folder → Add as project</span>
+                        <span className="text-xs text-text-muted">Right-click a folder → Add as project</span>
                       )}
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setContextCollapsed((c) => !c)}
-                    className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    className="flex items-center gap-2 text-xs font-medium text-text-secondary hover:text-text-primary"
                   >
                     <FolderTree size={14} />
                     {contextCollapsed ? 'Show context' : 'Hide context'}
@@ -591,16 +597,16 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                       onChange={(e) => { setContextText(e.target.value); setAiError(null); }}
                       placeholder="Select a project above to load tree (level 3) + Dockerfile, compose, .env, etc. Or paste your own context."
                       rows={4}
-                      className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-xs font-mono text-[var(--text-primary)] placeholder-[var(--text-muted)] resize-y"
+                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-xs font-mono text-text-primary placeholder-text-muted resize-y"
                     />
                   )}
                 </div>
-                <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-[var(--bg-primary)]/30">
+                <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-bg-primary/30">
                   <div className="flex-1 overflow-auto px-4 py-4 space-y-4 min-h-[120px]">
                     {chatMessages.length === 0 && (
                       <div className="flex flex-col items-center justify-center py-8 text-center">
-                        <Sparkles size={32} className="text-[var(--accent)]/60 mb-2" />
-                        <p className="text-sm text-[var(--text-muted)]">Describe what you want. Context (project tree + deployment files) is sent with each message.</p>
+                        <Sparkles size={32} className="text-accent/60 mb-2" />
+                        <p className="text-sm text-text-muted">Describe what you want. Context (project tree + deployment files) is sent with each message.</p>
                       </div>
                     )}
                     {chatMessages.map((m, i) => (
@@ -611,8 +617,8 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                         <div
                           className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap break-words ${
                             m.role === 'user'
-                              ? 'bg-[var(--accent)] text-white rounded-br-md'
-                              : 'bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-primary)] font-mono rounded-bl-md'
+                              ? 'bg-accent text-white rounded-br-md'
+                              : 'bg-bg-secondary border border-border text-text-primary font-mono rounded-bl-md'
                           }`}
                         >
                           {m.content}
@@ -621,7 +627,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                     ))}
                     {aiLoading && (
                       <div className="flex justify-start">
-                        <div className="max-w-[85%] rounded-2xl rounded-bl-md px-4 py-2.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-muted)] flex items-center gap-2">
+                        <div className="max-w-[85%] rounded-2xl rounded-bl-md px-4 py-2.5 text-sm bg-bg-secondary border border-border text-text-muted flex items-center gap-2">
                           <Loader2 size={16} className="animate-spin shrink-0" />
                           <span>Generating…</span>
                         </div>
@@ -629,7 +635,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                     )}
                   </div>
                   <div className="shrink-0 p-3 pt-0">
-                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-primary)] focus-within:ring-1 focus-within:ring-[var(--accent)] overflow-hidden">
+                    <div className="rounded-2xl border border-border bg-bg-primary focus-within:ring-1 focus-within:ring-accent overflow-hidden">
                       <textarea
                         value={aiPrompt}
                         onChange={(e) => { setAiPrompt(e.target.value); setAiError(null); }}
@@ -642,7 +648,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                               : 'Ask for config changes…'
                         }
                         rows={2}
-                        className="w-full px-4 py-3 bg-transparent border-0 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] resize-none focus:outline-none focus:ring-0"
+                        className="w-full px-4 py-3 bg-transparent border-0 text-sm text-text-primary placeholder-text-muted resize-none focus:outline-none focus:ring-0"
                       />
                       <div className="flex items-center justify-end gap-1 px-2 pb-2">
                         <button
@@ -652,7 +658,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           title={isTranscribing ? 'Transcribing…' : isListening ? 'Record voice' : 'Record voice (Groq)'}
                           className={`p-2 rounded-lg transition-colors ${
                             isTranscribing ? 'opacity-70' : ''
-                          } ${isListening ? 'bg-[var(--error)]/20 text-[var(--error)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'}`}
+                          } ${isListening ? 'bg-error/20 text-error' : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'}`}
                         >
                           {isTranscribing ? <Loader2 size={18} className="animate-spin" /> : isListening ? <Square size={18} fill="currentColor" /> : <Mic size={18} />}
                         </button>
@@ -660,7 +666,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           type="button"
                           onClick={handleSendMessage}
                           disabled={aiLoading || !aiPrompt.trim()}
-                          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Send"
                         >
                           {aiLoading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
@@ -669,20 +675,20 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                       </div>
                     </div>
                     {aiError && (
-                      <p className="mt-2 text-xs text-[var(--error)]">{aiError}</p>
+                      <p className="mt-2 text-xs text-error">{aiError}</p>
                     )}
                   </div>
                 </div>
               </div>
             ) : (
               <>
-                <p className="text-xs text-[var(--text-secondary)]">
+                <p className="text-xs text-text-secondary">
                   Add services, blocks, or steps below. The config updates live on the right.
                 </p>
             {activeTab === 'compose' && (
               <>
                 <div>
-                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Compose version</label>
+                  <label className="block text-xs font-medium text-text-secondary mb-1">Compose version</label>
                   <Select
                     value={composeVersion}
                     onChange={setComposeVersion}
@@ -693,13 +699,13 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                   />
                 </div>
                 {composeServices.map((s, i) => (
-                  <div key={i} className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-3 space-y-2">
+                  <div key={i} className="rounded-lg border border-border bg-bg-secondary p-3 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-[var(--text-primary)]">Service {i + 1}</span>
+                      <span className="text-sm font-medium text-text-primary">Service {i + 1}</span>
                       <button
                         type="button"
                         onClick={() => setComposeServices((prev) => prev.filter((_, j) => j !== i))}
-                        className="p-1 rounded text-[var(--text-secondary)] hover:bg-[var(--error)]/20 hover:text-[var(--error)]"
+                        className="p-1 rounded text-text-secondary hover:bg-error/20 hover:text-error"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -715,7 +721,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                     />
                     <input
                       type="text"
@@ -728,7 +734,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                     />
                     <input
                       type="text"
@@ -741,7 +747,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                     />
                     <input
                       type="text"
@@ -754,7 +760,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                     />
                     <textarea
                       placeholder="Environment (one per line: KEY=value)"
@@ -767,7 +773,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                         })
                       }
                       rows={2}
-                      className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)] resize-y"
+                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary resize-y"
                     />
                     <input
                       type="text"
@@ -780,7 +786,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                     />
                     <Select
                       value={s.restart || 'no'}
@@ -803,7 +809,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                 <button
                   type="button"
                   onClick={() => setComposeServices((prev) => [...prev, defaultComposeService()])}
-                  className="flex items-center gap-2 px-3 py-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border)] text-sm text-[var(--text-primary)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                  className="flex items-center gap-2 px-3 py-2 rounded-md bg-bg-tertiary border border-border text-sm text-text-primary hover:border-accent hover:text-accent"
                 >
                   <Plus size={16} />
                   Add service
@@ -838,12 +844,12 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                         })
                       }
                       placeholder={step.type === 'FROM' ? 'node:20-alpine' : step.type === 'COPY' ? '. .' : ''}
-                      className="flex-1 min-w-0 px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)] font-mono"
+                      className="flex-1 min-w-0 px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary font-mono"
                     />
                     <button
                       type="button"
                       onClick={() => setDockerfileSteps((prev) => prev.filter((_, j) => j !== i))}
-                      className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--error)]/20 hover:text-[var(--error)] shrink-0"
+                      className="p-1.5 rounded text-text-secondary hover:bg-error/20 hover:text-error shrink-0"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -852,7 +858,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                 <button
                   type="button"
                   onClick={() => setDockerfileSteps((prev) => [...prev, { type: 'RUN', value: '' }])}
-                  className="flex items-center gap-2 px-3 py-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border)] text-sm text-[var(--text-primary)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                  className="flex items-center gap-2 px-3 py-2 rounded-md bg-bg-tertiary border border-border text-sm text-text-primary hover:border-accent hover:text-accent"
                 >
                   <Plus size={16} />
                   Add step
@@ -863,15 +869,15 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
             {activeTab === 'nginx' && (
               <>
                 {nginxServers.map((s, i) => (
-                  <div key={i} className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-3 space-y-2">
+                  <div key={i} className="rounded-lg border border-border bg-bg-secondary p-3 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-[var(--text-primary)]">
+                      <span className="text-sm font-medium text-text-primary">
                         Server {i + 1} ({s.type})
                       </span>
                       <button
                         type="button"
                         onClick={() => setNginxServers((prev) => prev.filter((_, j) => j !== i))}
-                        className="p-1 rounded text-[var(--text-secondary)] hover:bg-[var(--error)]/20 hover:text-[var(--error)]"
+                        className="p-1 rounded text-text-secondary hover:bg-error/20 hover:text-error"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -901,7 +907,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                     />
                     <input
                       type="text"
@@ -914,7 +920,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                     />
                     <input
                       type="text"
@@ -927,7 +933,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                     />
                     <input
                       type="text"
@@ -940,7 +946,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                     />
                     {s.type === 'https' && (
                       <>
@@ -955,7 +961,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                               return next;
                             })
                           }
-                          className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+                          className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                         />
                         <input
                           type="text"
@@ -968,7 +974,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                               return next;
                             })
                           }
-                          className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+                          className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                         />
                       </>
                     )}
@@ -982,7 +988,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                       { type: 'http', serverName: 'localhost', port: '80', root: '/var/www/html', index: 'index.html' },
                     ])
                   }
-                  className="flex items-center gap-2 px-3 py-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border)] text-sm text-[var(--text-primary)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                  className="flex items-center gap-2 px-3 py-2 rounded-md bg-bg-tertiary border border-border text-sm text-text-primary hover:border-accent hover:text-accent"
                 >
                   <Plus size={16} />
                   Add server block
@@ -993,15 +999,15 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
             {activeTab === 'apache' && (
               <>
                 {apacheVhosts.map((v, i) => (
-                  <div key={i} className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-3 space-y-2">
+                  <div key={i} className="rounded-lg border border-border bg-bg-secondary p-3 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-[var(--text-primary)]">
+                      <span className="text-sm font-medium text-text-primary">
                         VirtualHost {i + 1} ({v.type})
                       </span>
                       <button
                         type="button"
                         onClick={() => setApacheVhosts((prev) => prev.filter((_, j) => j !== i))}
-                        className="p-1 rounded text-[var(--text-secondary)] hover:bg-[var(--error)]/20 hover:text-[var(--error)]"
+                        className="p-1 rounded text-text-secondary hover:bg-error/20 hover:text-error"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -1035,7 +1041,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                     />
                     <input
                       type="text"
@@ -1048,7 +1054,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                     />
                     {v.type === 'https' && (
                       <>
@@ -1063,7 +1069,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                               return next;
                             })
                           }
-                          className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+                          className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                         />
                         <input
                           type="text"
@@ -1076,7 +1082,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                               return next;
                             })
                           }
-                          className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-sm text-[var(--text-primary)]"
+                          className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                         />
                       </>
                     )}
@@ -1090,7 +1096,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                       { type: 'http', serverName: 'localhost', documentRoot: '/var/www/html', port: '80' },
                     ])
                   }
-                  className="flex items-center gap-2 px-3 py-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border)] text-sm text-[var(--text-primary)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                  className="flex items-center gap-2 px-3 py-2 rounded-md bg-bg-tertiary border border-border text-sm text-text-primary hover:border-accent hover:text-accent"
                 >
                   <Plus size={16} />
                   Add VirtualHost
@@ -1112,7 +1118,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
               resizeStartRef.current = { x: e.clientX, percent: leftPanelPercent };
               setResizing(true);
             }}
-            className={`shrink-0 w-2 cursor-col-resize border-x border-[var(--border)] bg-[var(--bg-secondary)] hover:bg-[var(--accent)]/20 transition-colors ${resizing ? 'bg-[var(--accent)]/30' : ''}`}
+            className={`shrink-0 w-2 cursor-col-resize border-x border-border bg-bg-secondary hover:bg-accent/20 transition-colors ${resizing ? 'bg-accent/30' : ''}`}
           />
 
           {/* Right: generated output */}
@@ -1120,22 +1126,22 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
             style={{ width: `${100 - leftPanelPercent}%`, minWidth: 280 }}
             className="flex flex-col min-h-0 overflow-auto shrink-0 p-4"
           >
-            <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-3 flex flex-col min-h-[280px]">
+            <div className="rounded-lg border border-border bg-bg-secondary p-3 flex flex-col min-h-[280px]">
               <div className="flex items-center justify-between mb-2 shrink-0">
-                <span className="text-xs font-medium text-[var(--text-secondary)]">
+                <span className="text-xs font-medium text-text-secondary">
                   {mode === 'ai' && llmOutput !== null ? 'Generated (AI)' : 'Generated config'}
                 </span>
                 <button
                   type="button"
                   onClick={handleCopy}
                   disabled={!generated}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs bg-[var(--bg-tertiary)] border border-[var(--border)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs bg-bg-tertiary border border-border text-text-primary hover:border-accent hover:text-accent disabled:opacity-50"
                 >
                   <Copy size={12} />
                   {copied ? 'Copied!' : 'Copy'}
                 </button>
               </div>
-              <pre className="flex-1 min-h-[200px] p-3 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-xs font-mono text-[var(--text-primary)] whitespace-pre-wrap break-words overflow-auto">
+              <pre className="flex-1 min-h-[200px] p-3 rounded bg-bg-primary border border-border text-xs font-mono text-text-primary whitespace-pre-wrap break-words overflow-auto">
                 {generated || (mode === 'ai' ? 'Describe what you want and click Generate.' : 'Use the form to build the config.')}
               </pre>
             </div>

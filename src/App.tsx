@@ -1211,7 +1211,7 @@ export default function App() {
   };
 
   return (
-    <div className={`flex flex-col h-full bg-[var(--bg-primary)] text-[var(--text-primary)] ${resizeDrag ? 'select-none' : ''}`}>
+    <div className={`flex flex-col h-full bg-bg-primary text-text-primary ${resizeDrag ? 'select-none' : ''}`}>
       <TitleBar
         currentServer={currentServer}
         sidebarOpen={sidebarOpen}
@@ -1237,7 +1237,7 @@ export default function App() {
           width: sidebarOpen && activeView !== 'settings' ? `${sidebarWidth}px` : '0px',
           transition: resizeDrag === 'sidebar' ? 'none' : 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
-        className="flex flex-col shrink-0 bg-[var(--bg-secondary)] overflow-hidden"
+        className="flex flex-col shrink-0 bg-bg-secondary overflow-hidden"
       >
         <Sidebar
           activeView={activeView}
@@ -1286,10 +1286,10 @@ export default function App() {
         style={{
           opacity: sidebarOpen && activeView !== 'settings' ? 1 : 0,
           pointerEvents: sidebarOpen && activeView !== 'settings' ? 'auto' : 'none',
-          width: sidebarOpen && activeView !== 'settings' ? '1px' : '0px',
+          width: sidebarOpen && activeView !== 'settings' ? '3px' : '0px',
           transition: resizeDrag === 'sidebar' ? 'none' : 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
-        className="shrink-0 cursor-col-resize bg-[var(--border)] hover:bg-[var(--accent)]/50"
+        className="shrink-0 cursor-col-resize bg-transparent hover:bg-accent/40 active:bg-accent transition-colors duration-150"
         onMouseDown={(e) => {
           resizeStartRef.current = { x: e.clientX, y: 0, w: sidebarWidth, h: 0 };
           setResizeDrag('sidebar');
@@ -1297,18 +1297,18 @@ export default function App() {
       />
       <div className="flex flex-1 flex-col min-w-0 min-h-0 relative">
         {connectingToServer && (
-          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[var(--bg-primary)]/95 backdrop-blur-sm">
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] px-8 py-6 flex flex-col items-center gap-4 shadow-xl">
-              <div className="w-10 h-10 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
-              <p className="text-[var(--text-primary)] font-medium">Connecting to {connectingToServer.name} via SSH…</p>
-              <p className="text-sm text-[var(--text-secondary)]">{connectingToServer.host} ({connectingToServer.username})</p>
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-bg-primary/80 backdrop-blur-sm">
+            <div className="rounded-2xl border border-border/40 bg-bg-secondary/70 px-8 py-6 flex flex-col items-center gap-4 shadow-2xl max-w-sm text-center">
+              <div className="w-12 h-12 border-2 border-accent border-t-transparent rounded-full animate-spin mb-2" />
+              <p className="text-text-primary text-sm font-semibold">Connecting to {connectingToServer.name} via SSH…</p>
+              <p className="text-xs text-text-secondary mt-0.5">{connectingToServer.host} ({connectingToServer.username})</p>
               {proxy?.enabled && connectingToServer.useProxy !== false && (
-                <p className="text-xs text-[var(--text-secondary)]">Via proxy — can take a minute</p>
+                <p className="text-[11px] text-text-muted mt-0.5 bg-bg-tertiary/60 border border-border/40 px-2 py-0.5 rounded-full">Via SOCKS5 proxy</p>
               )}
               <button
                 type="button"
                 onClick={cancelConnect}
-                className="mt-2 px-4 py-2 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] border border-[var(--border)] transition-colors"
+                className="mt-3 px-4 py-2 rounded-lg text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-tertiary border border-border/60 transition-colors"
               >
                 Cancel
               </button>
@@ -1316,17 +1316,23 @@ export default function App() {
           </div>
         )}
         {connectionError && !currentServer && (
-          <div className="absolute top-0 left-0 right-0 z-10 mx-4 mt-4 rounded-lg border-2 border-[var(--error)] bg-[var(--bg-secondary)] px-4 py-4 shadow-xl">
-            <p className="text-[var(--error)] font-semibold">SSH connection failed</p>
-            <p className="text-sm text-[var(--text-primary)] mt-1 whitespace-pre-wrap break-words">{connectionError}</p>
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 w-[480px] max-w-[calc(100vw-2rem)] rounded-xl border border-error/30 bg-bg-secondary/90 backdrop-blur-md shadow-2xl p-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <p className="text-error text-xs font-bold uppercase tracking-wider">SSH Connection Failed</p>
+            </div>
+            <div className="bg-black/20 border border-border/40 p-2.5 rounded text-xs font-mono text-text-primary/95 break-words max-h-36 overflow-y-auto leading-relaxed select-text">
+              {connectionError}
+            </div>
             {proxy?.enabled && /Proxy|proxy|ECONNREFUSED|timed out|Tor/i.test(connectionError) && (
-              <p className="text-xs text-[var(--text-secondary)] mt-2">Tip: If using Tor, ensure it is running (e.g. port 9050) and the server is reachable via Tor.</p>
+              <p className="text-[11px] text-text-secondary leading-relaxed bg-error/5 border border-error/10 p-2.5 rounded">
+                💡 Tip: If using Tor, ensure it is running (e.g. port 9050) and the server is reachable via Tor.
+              </p>
             )}
-            <div className="flex gap-2 mt-3">
+            <div className="flex justify-end mt-1">
               <button
                 type="button"
                 onClick={() => setConnectionError(null)}
-                className="px-3 py-1.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-primary)] text-sm hover:bg-[var(--border)]"
+                className="px-3.5 py-1.5 rounded-lg bg-bg-tertiary hover:bg-bg-tertiary/80 text-text-primary text-xs font-semibold border border-border/60 transition-colors"
               >
                 Dismiss
               </button>
@@ -1406,13 +1412,13 @@ export default function App() {
             <>
               <div
                 role="separator"
-                className="w-1 shrink-0 cursor-col-resize bg-[var(--border)] hover:bg-[var(--accent)]/50 transition-colors"
+                className="w-[3px] shrink-0 cursor-col-resize bg-transparent hover:bg-accent/40 active:bg-accent transition-colors duration-150"
                 onMouseDown={(e) => {
                   resizeStartRef.current = { x: e.clientX, y: 0, w: rightPanelWidth, h: 0 };
                   setResizeDrag('rightPanel');
                 }}
               />
-              <div style={{ width: rightPanelWidth }} className="shrink-0 flex flex-col min-h-0 border-l border-[var(--border)]">
+              <div style={{ width: rightPanelWidth }} className="shrink-0 flex flex-col min-h-0 border-l border-border">
                 <RepoSidebar
                   repos={repos}
                   selectedRepoPath={selectedRepoPath}
@@ -1426,8 +1432,8 @@ export default function App() {
                   repoBrowseDirForPaste={
                     selectedRepoPath
                       ? (() => {
-                          const rel = repoCurrentPathByRepo[selectedRepoPath] ?? '.';
-                          return rel === '.' ? selectedRepoPath : `${selectedRepoPath}/${rel}`;
+                           const rel = repoCurrentPathByRepo[selectedRepoPath] ?? '.';
+                           return rel === '.' ? selectedRepoPath : `${selectedRepoPath}/${rel}`;
                         })()
                       : '.'
                   }
@@ -1460,7 +1466,7 @@ export default function App() {
             {panelOpen && (
               <div
                 role="separator"
-                className="h-1.5 shrink-0 cursor-row-resize bg-[var(--border)] hover:bg-[var(--accent)]/50 transition-colors"
+                className="h-[3px] shrink-0 cursor-row-resize bg-transparent hover:bg-accent/40 active:bg-accent transition-colors duration-150"
                 onMouseDown={(e) => {
                   resizeStartRef.current = { x: 0, y: e.clientY, w: 0, h: panelHeight };
                   setResizeDrag('panel');

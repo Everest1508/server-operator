@@ -130,15 +130,15 @@ export function ProjectTerminal({ currentServer, proxy, projectPath, onReady, on
 
   if (!currentServer) {
     return (
-      <div className="flex-1 flex items-center justify-center p-4 text-[var(--text-muted)] text-sm">
-        Select a server.
+      <div className="flex-1 flex items-center justify-center p-6 text-text-muted text-xs font-mono select-none">
+        Select a server to initialize terminal session.
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex-1 flex items-center justify-center p-4 text-[var(--error)] text-sm">
+      <div className="flex-1 flex items-center justify-center p-6 text-error text-xs font-mono select-none">
         {error}
       </div>
     );
@@ -146,15 +146,15 @@ export function ProjectTerminal({ currentServer, proxy, projectPath, onReady, on
 
   if (connecting) {
     return (
-      <div className="flex-1 flex items-center justify-center gap-2 p-4 text-[var(--text-muted)] text-sm">
-        <Loader2 size={18} className="animate-spin" />
-        Connecting…
+      <div className="flex-1 flex items-center justify-center gap-2 p-6 text-text-secondary text-xs font-mono select-none">
+        <Loader2 size={14} className="animate-spin text-accent" />
+        Connecting pipeline terminal…
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0">
+    <div className="flex-1 flex flex-col min-h-0 bg-[#1e1e1e]">
       <div ref={containerRef} className="flex-1 min-h-0 w-full" style={{ minHeight: 120 }} />
     </div>
   );

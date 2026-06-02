@@ -158,29 +158,24 @@ function ChangelogView() {
         <div key={ver.version}>
           {/* Version Header */}
           <div
-            className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6 p-5 rounded-xl border border-[var(--border)] relative overflow-hidden"
-            style={{ background: 'linear-gradient(135deg, rgba(var(--accent-rgb,99,102,241),0.08) 0%, transparent 70%)' }}
+            className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6 p-5 rounded-xl border border-border relative overflow-hidden bg-gradient-to-br from-accent/8 to-transparent"
           >
-            <div className="absolute inset-0 pointer-events-none" style={{
-              background: 'radial-gradient(ellipse at 0% 0%, rgba(99,102,241,0.12) 0%, transparent 60%)'
-            }} />
+            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_0%_0%,var(--color-accent),transparent_60%)] opacity-[0.12]" />
             <div className="relative flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <span
-                  className="px-2.5 py-0.5 rounded-full text-xs font-bold tracking-widest border"
-                  style={{ color: '#a5b4fc', borderColor: 'rgba(165,180,252,0.3)', background: 'rgba(165,180,252,0.08)' }}
+                  className="px-2.5 py-0.5 rounded-full text-xs font-bold tracking-widest border border-indigo-300/30 bg-indigo-300/8 text-indigo-300"
                 >
                   v{ver.version}
                 </span>
                 <span
-                  className="px-2.5 py-0.5 rounded-full text-xs font-semibold border"
-                  style={{ color: '#fbbf24', borderColor: 'rgba(251,191,36,0.3)', background: 'rgba(251,191,36,0.08)' }}
+                  className="px-2.5 py-0.5 rounded-full text-xs font-semibold border border-amber-400/30 bg-amber-400/8 text-amber-400"
                 >
                   ✦ {ver.codename}
                 </span>
-                <span className="text-xs text-[var(--text-muted)] ml-auto">{ver.date}</span>
+                <span className="text-xs text-text-muted ml-auto">{ver.date}</span>
               </div>
-              <p className="text-sm text-[var(--text-secondary)] mt-2 leading-relaxed">{ver.summary}</p>
+              <p className="text-sm text-text-secondary mt-2 leading-relaxed">{ver.summary}</p>
             </div>
           </div>
 
@@ -194,13 +189,13 @@ function ChangelogView() {
               return (
                 <div
                   key={groupKey}
-                  className="rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--bg-secondary)]"
+                  className="rounded-lg border border-border overflow-hidden bg-bg-secondary"
                 >
                   {/* Group Header */}
                   <button
                     type="button"
                     onClick={() => toggleGroup(groupKey)}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[var(--bg-tertiary)]/50 transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-bg-tertiary/50 transition-colors"
                   >
                     <div
                       className="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
@@ -208,7 +203,7 @@ function ChangelogView() {
                     >
                       <GroupIcon size={15} />
                     </div>
-                    <span className="text-sm font-semibold text-[var(--text-primary)] flex-1">{group.label}</span>
+                    <span className="text-sm font-semibold text-text-primary flex-1">{group.label}</span>
                     <span
                       className="text-[10px] font-medium px-1.5 py-0.5 rounded border"
                       style={{ color: group.color, borderColor: `${group.color}30`, background: `${group.color}10` }}
@@ -216,25 +211,25 @@ function ChangelogView() {
                       {group.items.length} changes
                     </span>
                     {isOpen
-                      ? <ChevronUp size={14} className="text-[var(--text-muted)] shrink-0" />
-                      : <ChevronDown size={14} className="text-[var(--text-muted)] shrink-0" />
+                      ? <ChevronUp size={14} className="text-text-muted shrink-0" />
+                      : <ChevronDown size={14} className="text-text-muted shrink-0" />
                     }
                   </button>
 
                   {/* Items */}
                   {isOpen && (
-                    <ul className="border-t border-[var(--border)] divide-y divide-[var(--border)]/50">
+                    <ul className="border-t border-border divide-y divide-border/50">
                       {group.items.map((entry, i) => {
                         const badge = TYPE_BADGE[entry.type];
                         return (
-                          <li key={i} className="flex items-start gap-3 px-4 py-2.5 hover:bg-[var(--bg-tertiary)]/30 transition-colors">
+                          <li key={i} className="flex items-start gap-3 px-4 py-2.5 hover:bg-bg-tertiary/30 transition-colors">
                             <span
                               className="mt-0.5 shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded tracking-wider"
                               style={{ color: badge.color, background: badge.bg }}
                             >
                               {badge.label}
                             </span>
-                            <span className="text-xs text-[var(--text-secondary)] leading-relaxed">{entry.text}</span>
+                            <span className="text-xs text-text-secondary leading-relaxed">{entry.text}</span>
                           </li>
                         );
                       })}
@@ -335,63 +330,62 @@ function ModulesView() {
   return (
     <>
       {/* Search & Global Prefs */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 px-6 pt-4 pb-2 shrink-0">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 px-6 pt-4 pb-2 shrink-0">
         <div className="relative flex-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] pointer-events-none" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" />
           <input
             type="text"
             placeholder="Search settings & modules..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-primary)] rounded-md pl-9 pr-3 py-1.5 text-sm focus:outline-none focus:border-[var(--accent)] transition-colors placeholder:text-[var(--text-muted)]"
+            className="w-full bg-bg-secondary/40 border border-border/30 text-text-primary rounded-xl pl-9 pr-3.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent/40 transition-all placeholder:text-text-muted"
           />
         </div>
-        <div className="flex items-center gap-3 bg-[var(--bg-secondary)] px-3 py-1.5 rounded-md border border-[var(--border)] self-start md:self-auto">
-          <span className="text-xs text-[var(--text-secondary)] font-medium whitespace-nowrap">Activity Bar Behavior:</span>
+        <div className="flex items-center gap-2.5 bg-bg-secondary/40 px-3 py-1.5 rounded-xl border border-border/30 self-start md:self-auto">
+          <span className="text-[11px] text-text-secondary font-semibold whitespace-nowrap">Activity Bar:</span>
           <select
             value={flags.sidebarUx}
             onChange={(e) => setSidebarUx(e.target.value as 'hidden' | 'disabled')}
-            className="bg-[var(--bg-primary)] border border-[var(--border)] text-[var(--text-primary)] rounded px-2 py-0.5 text-xs focus:outline-none focus:border-[var(--accent)] cursor-pointer"
+            className="bg-bg-primary/50 border border-border/20 text-text-primary rounded-lg px-2 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent/40 cursor-pointer"
           >
-            <option value="hidden">Hidden (Hide Disabled Icons)</option>
-            <option value="disabled">Disabled (Gray Out with Padlock)</option>
+            <option value="hidden">Hidden</option>
+            <option value="disabled">Disabled</option>
           </select>
         </div>
         <button
           onClick={resetToDefaults}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg-tertiary)] hover:bg-[var(--border)] border border-[var(--border)] text-[var(--text-primary)] rounded-md text-xs font-medium transition-colors self-start md:self-auto"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-bg-tertiary/60 hover:bg-bg-tertiary border border-border/30 hover:border-border/60 text-text-primary rounded-xl text-xs font-semibold transition-all duration-150 self-start md:self-auto"
         >
-          <RotateCcw size={14} />
-          Reset
+          <RotateCcw size={13} />
+          Reset Defaults
         </button>
       </div>
 
       {/* Progress Bar */}
-      <div className="px-6 pb-3 shrink-0">
-        <div className="flex items-center justify-between text-xs font-semibold mb-1">
-          <span className="text-[var(--text-secondary)]">Modules Active</span>
-          <span className="text-[var(--accent)]">{enabledCount} / {totalCount} ({percentEnabled}%)</span>
+      <div className="px-6 pb-4 shrink-0">
+        <div className="flex items-center justify-between text-[11px] font-semibold mb-1">
+          <span className="text-text-secondary">Modules Active</span>
+          <span className="text-accent">{enabledCount} / {totalCount} ({percentEnabled}%)</span>
         </div>
-        <div className="w-full bg-[var(--bg-tertiary)] rounded-full h-1.5 overflow-hidden border border-[var(--border)]">
+        <div className="w-full bg-bg-tertiary/40 rounded-full h-1.5 overflow-hidden border border-border/10">
           <div
-            className="bg-gradient-to-r from-[var(--accent)] to-[var(--accent-hover)] h-1.5 rounded-full transition-all duration-500 ease-out"
+            className="bg-gradient-to-r from-accent to-accent-hover h-1.5 rounded-full transition-all duration-500 ease-out"
             style={{ width: `${percentEnabled}%` }}
           />
         </div>
       </div>
 
       {/* Feature Grid */}
-      {/* Feature Grid */}
       <div className="p-6 pt-2 space-y-8 flex-1 overflow-y-auto">
         {/* Core Features (Always Enabled) */}
         {searchQuery === '' && (
           <div className="space-y-4">
             <div>
-              <h2 className="text-sm font-bold tracking-wide uppercase text-[var(--success)] flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)] animate-pulse" />
+              <h2 className="text-xs font-bold tracking-wide uppercase text-success flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
                 Core Application Modules
               </h2>
-              <p className="text-xs text-[var(--text-secondary)] mt-0.5">Essential built-in features that are locked on and always active.</p>
+              <p className="text-[11px] text-text-secondary mt-0.5">Essential built-in features that are locked on and always active.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {ALL_FEATURES.filter((f) => ['servers', 'files', 'docker', 'deployModule', 'notes', 'aiAssistant', 'configCreators', 'serverAdmin'].includes(f.key)).map((item) => {
@@ -399,35 +393,29 @@ function ModulesView() {
                 return (
                   <div
                     key={item.key}
-                    className="relative flex gap-3 p-4 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] opacity-95 hover:border-[var(--accent)]/30 hover:bg-[var(--bg-secondary)]/80 transition-all"
+                    className="relative flex gap-3 p-4 rounded-xl border border-border/30 bg-bg-secondary/30 hover:border-accent/30 hover:bg-bg-secondary/50 transition-all duration-200"
                   >
-                    <div className="p-2 rounded-md shrink-0 flex items-center justify-center bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/20 shadow-sm">
-                      <Icon size={18} />
+                    <div className="p-2 rounded-lg shrink-0 flex items-center justify-center bg-accent/10 text-accent border border-accent/20 shadow-sm h-9 w-9">
+                      <Icon size={16} />
                     </div>
                     <div className="flex-1 min-w-0 pr-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <h3 className="text-sm font-semibold truncate text-[var(--text-primary)]">{item.title}</h3>
-                        <span className="text-[8px] font-extrabold bg-[var(--success)]/10 text-[var(--success)] px-1.5 py-0.5 rounded border border-[var(--success)]/20 uppercase tracking-widest">
+                        <h3 className="text-xs font-semibold text-text-primary">{item.title}</h3>
+                        <span className="text-[8px] font-bold bg-success/8 text-success px-1.5 py-0.5 rounded-full border border-success/15 uppercase tracking-wider">
                           Always Enabled
                         </span>
                       </div>
-                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed mt-1">{item.description}</p>
+                      <p className="text-[11px] text-text-secondary leading-relaxed mt-1">{item.description}</p>
                     </div>
                     <div className="shrink-0 flex items-center">
                       <button
                         type="button"
                         disabled
                         aria-checked="true"
-                        style={{
-                          background: 'var(--accent)',
-                        }}
-                        className="relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ease-in-out cursor-not-allowed opacity-60"
+                        className="relative inline-flex h-5 w-9 shrink-0 bg-accent rounded-full transition-colors duration-200 ease-in-out cursor-not-allowed opacity-60"
                       >
                         <span
-                          style={{
-                            transform: 'translateX(20px)',
-                          }}
-                          className="pointer-events-none absolute top-[2px] inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out"
+                          className="pointer-events-none absolute top-[2px] left-[2px] inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out translate-x-4"
                         />
                       </button>
                     </div>
@@ -441,9 +429,9 @@ function ModulesView() {
         {/* Optional Toggles Section */}
         <div className="space-y-8 pt-2">
           {searchQuery === '' && (
-            <div className="border-t border-[var(--border)] pt-6">
-              <h2 className="text-sm font-bold tracking-wide uppercase text-[var(--text-primary)]">Optional Feature Add-ons</h2>
-              <p className="text-xs text-[var(--text-secondary)] mt-0.5">Toggle advanced capabilities, integrations, and deployment subsystems.</p>
+            <div className="border-t border-border pt-6">
+              <h2 className="text-sm font-bold tracking-wide uppercase text-text-primary">Optional Feature Add-ons</h2>
+              <p className="text-xs text-text-secondary mt-0.5">Toggle advanced capabilities, integrations, and deployment subsystems.</p>
             </div>
           )}
           {(Object.keys(CATEGORIES) as Array<keyof typeof CATEGORIES>).map((catKey) => {
@@ -454,8 +442,8 @@ function ModulesView() {
             return (
               <div key={catKey} className="space-y-4">
                 <div>
-                  <h2 className="text-sm font-bold tracking-wide uppercase text-[var(--accent)]">{CATEGORIES[catKey].name}</h2>
-                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">{CATEGORIES[catKey].desc}</p>
+                  <h2 className="text-xs font-bold tracking-wide uppercase text-accent">{CATEGORIES[catKey].name}</h2>
+                  <p className="text-[11px] text-text-secondary mt-0.5">{CATEGORIES[catKey].desc}</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {catFeatures.map((item) => {
@@ -466,28 +454,30 @@ function ModulesView() {
                     return (
                       <div
                         key={item.key}
-                        className={`relative flex gap-3 p-4 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] transition-all duration-150 ${
+                        className={`relative flex gap-3 p-4 rounded-xl border border-border/30 bg-bg-secondary/30 transition-all duration-200 ${
                           item.isSubFeature ? 'ml-6 border-dashed border-l-2' : ''
-                        } ${isDisabled ? 'opacity-40' : 'hover:border-[var(--text-muted)]/40 hover:bg-[var(--bg-secondary)]/60'}`}
+                        } ${isDisabled ? 'opacity-40' : 'hover:border-accent/30 hover:bg-bg-secondary/50'}`}
                       >
                         {item.isSubFeature && (
-                          <div className="absolute left-[-16px] top-[50%] w-4 h-[1px] border-t border-dashed border-[var(--border)] pointer-events-none" />
+                          <div className="absolute left-[-16px] top-[50%] w-4 h-[1px] border-t border-dashed border-border/30 pointer-events-none" />
                         )}
-                        <div className={`p-2 rounded-md shrink-0 flex items-center justify-center ${
-                          isChecked && !isDisabled ? 'bg-[var(--accent)]/10 text-[var(--accent)]' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'
+                        <div className={`p-2 rounded-lg shrink-0 flex items-center justify-center h-9 w-9 border ${
+                          isChecked && !isDisabled
+                            ? 'bg-accent/10 text-accent border-accent/20'
+                            : 'bg-bg-tertiary/40 text-text-secondary border-border/20'
                         }`}>
-                          <Icon size={18} />
+                          <Icon size={16} />
                         </div>
                         <div className="flex-1 min-w-0 pr-1">
-                          <div className="flex items-center gap-1.5">
-                            <h3 className="text-sm font-semibold truncate text-[var(--text-primary)]">{item.title}</h3>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h3 className="text-xs font-semibold text-text-primary">{item.title}</h3>
                             {isDisabled && (
-                              <span className="flex items-center gap-0.5 text-[10px] bg-[var(--bg-tertiary)] text-[var(--text-secondary)] px-1 py-0.5 rounded border border-[var(--border)]">
-                                <Lock size={8} /> Parent Off
+                              <span className="flex items-center gap-0.5 text-[8px] font-bold bg-bg-tertiary/60 text-text-muted px-1.5 py-0.5 rounded-full border border-border/20 uppercase tracking-wider">
+                                <Lock size={7} /> Locked
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-[var(--text-secondary)] leading-relaxed mt-1">{item.description}</p>
+                          <p className="text-[11px] text-text-secondary leading-relaxed mt-1">{item.description}</p>
                         </div>
                         <div className="shrink-0 flex items-center">
                           <button
@@ -496,20 +486,17 @@ function ModulesView() {
                             aria-checked={isChecked && !isDisabled}
                             disabled={isDisabled}
                             onClick={() => handleToggle(item.key, item.isSubFeature)}
-                            style={{
-                              background: isChecked && !isDisabled ? 'var(--accent)' : 'var(--bg-tertiary)',
-                              border: isChecked && !isDisabled ? '1px solid transparent' : '1px solid var(--border)',
-                            }}
-                            className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+                            className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border transition-colors duration-200 ease-in-out focus:outline-none focus:ring-1 focus:ring-accent/30 ${
+                              isChecked && !isDisabled ? 'bg-accent border-transparent' : 'bg-bg-tertiary border-border/30'
+                            } ${
                               isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
                             }`}
                           >
                             <span
                               aria-hidden="true"
-                              style={{
-                                transform: isChecked && !isDisabled ? 'translateX(20px)' : 'translateX(2px)',
-                              }}
-                              className="pointer-events-none absolute top-[2px] inline-block h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out"
+                              className={`pointer-events-none absolute top-[2px] left-[2px] inline-block h-3.5 w-3.5 rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out ${
+                                isChecked && !isDisabled ? 'translate-x-4' : 'translate-x-0'
+                              }`}
                             />
                           </button>
                         </div>
@@ -523,12 +510,12 @@ function ModulesView() {
         </div>
 
         {filteredFeatures.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-12 text-[var(--text-secondary)] bg-[var(--bg-secondary)]/30 rounded-lg border border-[var(--border)] border-dashed">
-            <LayoutGrid className="text-[var(--text-muted)] mb-3" size={32} />
+          <div className="flex flex-col items-center justify-center py-12 text-text-secondary bg-bg-secondary/30 rounded-lg border border-border border-dashed">
+            <LayoutGrid className="text-text-muted mb-3" size={32} />
             <p className="text-sm">No modules matched your search query</p>
             <button
               onClick={() => setSearchQuery('')}
-              className="mt-3 text-xs text-[var(--accent)] hover:text-[var(--accent-hover)] font-semibold underline"
+              className="mt-3 text-xs text-accent hover:text-accent-hover font-semibold underline"
             >
               Clear search query
             </button>
@@ -536,22 +523,22 @@ function ModulesView() {
         )}
         {/* Advanced / Developer Section - Dev Mode only */}
         {process.env.NODE_ENV === 'development' && (
-          <div className="border border-[var(--border)] bg-[var(--bg-secondary)] rounded-lg overflow-hidden shrink-0 mt-6">
+          <div className="border border-border bg-bg-secondary rounded-lg overflow-hidden shrink-0 mt-6">
             <button
               type="button"
               onClick={() => setAdvancedOpen(!advancedOpen)}
-              className="w-full flex items-center justify-between px-5 py-4 text-left font-semibold text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]/50 transition-colors"
+              className="w-full flex items-center justify-between px-5 py-4 text-left font-semibold text-sm text-text-primary hover:bg-bg-tertiary/50 transition-colors"
             >
               <span className="flex items-center gap-2">
-                <Bug size={16} className="text-[var(--error)]" />
+                <Bug size={16} className="text-error" />
                 Advanced / Developer Settings
               </span>
               {advancedOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </button>
             
             {advancedOpen && (
-              <div className="p-5 border-t border-[var(--border)] space-y-4 bg-[var(--bg-primary)]/40">
-                <p className="text-xs text-[var(--text-secondary)] mb-2">
+              <div className="p-5 border-t border-border space-y-4 bg-bg-primary/40">
+                <p className="text-xs text-text-secondary mb-2">
                   Application debugging tools and diagnostic log paths.
                 </p>
                 <div className="flex flex-wrap gap-3">
@@ -560,8 +547,8 @@ function ModulesView() {
                     onClick={handleOpenDevTools}
                     className={`flex items-center gap-2 px-3 py-2 rounded border text-xs font-medium transition-all ${
                       devtoolsStatus === 'opened'
-                        ? 'bg-[var(--success)]/10 border-[var(--success)] text-[var(--success)]'
-                        : 'bg-[var(--bg-secondary)] border-[var(--border)] hover:border-[var(--accent)] text-[var(--text-primary)] hover:text-[var(--accent)]'
+                        ? 'bg-success/10 border-success text-success'
+                        : 'bg-bg-secondary border-border hover:border-accent text-text-primary hover:text-accent'
                     }`}
                   >
                     <Terminal size={14} />
@@ -571,7 +558,7 @@ function ModulesView() {
                   <button
                     type="button"
                     onClick={loadLogs}
-                    className="flex items-center gap-2 px-3 py-2 rounded border bg-[var(--bg-secondary)] border-[var(--border)] hover:border-[var(--accent)] text-[var(--text-primary)] hover:text-[var(--accent)] text-xs font-medium transition-all"
+                    className="flex items-center gap-2 px-3 py-2 rounded border bg-bg-secondary border-border hover:border-accent text-text-primary hover:text-accent text-xs font-medium transition-all"
                   >
                     <FileText size={14} className={logsLoading ? 'animate-spin' : ''} />
                     View Application Logs
@@ -580,7 +567,7 @@ function ModulesView() {
                   <button
                     type="button"
                     onClick={handleClearLogs}
-                    className="flex items-center gap-2 px-3 py-2 rounded border border-transparent hover:border-[var(--error)]/30 hover:bg-[var(--error)]/10 text-[var(--text-secondary)] hover:text-[var(--error)] text-xs font-medium transition-all"
+                    className="flex items-center gap-2 px-3 py-2 rounded border border-transparent hover:border-error/30 hover:bg-error/10 text-text-secondary hover:text-error text-xs font-medium transition-all"
                   >
                     <Trash2 size={14} />
                     Clear Log File
@@ -588,12 +575,12 @@ function ModulesView() {
                 </div>
 
                 {logPath && (
-                  <div className="pt-3 border-t border-[var(--border)]">
-                    <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] block mb-1">
+                  <div className="pt-3 border-t border-border">
+                    <span className="text-[10px] uppercase tracking-wider text-text-muted block mb-1">
                       Log File Path
                     </span>
                     <span
-                      className="text-xs font-mono text-[var(--text-secondary)] break-all select-all hover:text-[var(--text-primary)] cursor-pointer"
+                      className="text-xs font-mono text-text-secondary break-all select-all hover:text-text-primary cursor-pointer"
                       onClick={() => {
                         navigator.clipboard.writeText(logPath);
                         alert('Log path copied to clipboard');
@@ -605,18 +592,18 @@ function ModulesView() {
                 )}
 
                 {logsContent && (
-                  <div className="mt-4 border border-[var(--border)] bg-[var(--bg-secondary)] rounded-md p-3 flex flex-col gap-2">
-                    <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
-                      <span className="text-xs font-bold text-[var(--text-primary)]">Application Log Contents:</span>
+                  <div className="mt-4 border border-border bg-bg-secondary rounded-md p-3 flex flex-col gap-2">
+                    <div className="flex items-center justify-between border-b border-border pb-2">
+                      <span className="text-xs font-bold text-text-primary">Application Log Contents:</span>
                       <button
                         type="button"
                         onClick={() => setLogsContent('')}
-                        className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] font-semibold"
+                        className="text-xs text-text-muted hover:text-text-primary font-semibold"
                       >
                         Close Logs
                       </button>
                     </div>
-                    <pre className="font-mono text-[10px] text-[var(--text-secondary)] max-h-60 overflow-y-auto whitespace-pre-wrap break-all p-2 rounded bg-[var(--bg-primary)]">
+                    <pre className="font-mono text-[10px] text-text-secondary max-h-60 overflow-y-auto whitespace-pre-wrap break-all p-2 rounded bg-bg-primary">
                       {logsContent}
                     </pre>
                   </div>
@@ -642,30 +629,28 @@ export function SettingsView() {
   ];
 
   return (
-    <div className="flex flex-col h-full bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans overflow-hidden">
-      {/* ── Header ─────────────────────────────── */}
-      <div className="border-b border-[var(--border)] px-6 pt-6 pb-0 shrink-0 bg-[var(--bg-secondary)]/30 backdrop-blur-sm sticky top-0 z-10">
-        <div className="flex items-center justify-between gap-4 pb-4">
+    <div className="flex flex-col h-full bg-bg-primary text-text-primary font-sans overflow-hidden">
+      {/* Header */}
+      <div className="border-b border-border/30 px-6 pt-5 pb-0 shrink-0 bg-bg-secondary/30 backdrop-blur-sm sticky top-0 z-10">
+        <div className="flex items-center justify-between gap-4 pb-3.5">
           <div>
-            <h1 className="text-xl font-bold flex items-center gap-2">
-              <Sliders className="text-[var(--accent)]" size={22} />
+            <h1 className="text-lg font-bold flex items-center gap-2">
+              <Sliders className="text-accent" size={18} />
               Settings
             </h1>
-            <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+            <p className="text-[11px] text-text-secondary mt-0.5">
               Manage feature modules, preferences, and view release notes.
             </p>
           </div>
           {/* Version badge */}
           <div className="flex items-center gap-1.5 shrink-0">
             <span
-              className="px-2.5 py-1 rounded-full text-xs font-bold tracking-widest border"
-              style={{ color: '#a5b4fc', borderColor: 'rgba(165,180,252,0.3)', background: 'rgba(165,180,252,0.08)' }}
+              className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider border border-indigo-500/20 bg-indigo-500/5 text-indigo-400"
             >
               v1.0.0
             </span>
             <span
-              className="px-2.5 py-1 rounded-full text-xs font-semibold border hidden sm:inline-flex"
-              style={{ color: '#fbbf24', borderColor: 'rgba(251,191,36,0.3)', background: 'rgba(251,191,36,0.08)' }}
+              className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold border border-amber-500/20 bg-amber-500/5 text-amber-400 hidden sm:inline-flex"
             >
               ✦ Iron Forge
             </span>
@@ -673,19 +658,19 @@ export function SettingsView() {
         </div>
 
         {/* Tab Bar */}
-        <div className="flex gap-0">
+        <div className="flex gap-1.5 pb-2.5">
           {tabs.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               type="button"
               onClick={() => setActiveTab(id)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors duration-150 ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150 ${
                 activeTab === id
-                  ? 'border-[var(--accent)] text-[var(--accent)]'
-                  : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  ? 'bg-bg-tertiary text-text-primary border border-border/25 shadow-md shadow-black/10'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/40'
               }`}
             >
-              <Icon size={15} />
+              <Icon size={13} />
               {label}
             </button>
           ))}

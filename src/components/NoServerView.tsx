@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Server, Shield, Plus, Trash2, Edit2, LogIn, Key, Lock } from 'lucide-react';
+import { Server, Shield, Plus, Trash2, Edit2, LogIn, Key, Lock, AlertCircle, Check } from 'lucide-react';
 import EyeIcon from './icons/EyeIcon';
 import EyeOffIcon from './icons/EyeOffIcon';
 import type { ServerConnection, ProxySettings, ConnectionType } from '../types';
 import { Tooltip } from './Tooltip';
 
 const inputClass =
-  'px-3 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none text-sm w-full min-w-0';
+  'px-3 py-2 rounded-xl bg-bg-primary/50 border border-border/30 text-text-primary placeholder-text-muted focus:border-accent focus:ring-1 focus:ring-accent outline-none text-xs w-full min-w-0 transition-all duration-150 font-sans';
 
 type TabId = 'servers' | 'proxy';
 
@@ -42,6 +42,8 @@ export function NoServerView({
   const [connectionType, setConnectionType] = useState<ConnectionType>('ec2');
   const [showFormPassword, setShowFormPassword] = useState(false);
   const [showEditPassword, setShowEditPassword] = useState(false);
+  const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({});
+  const [showValidationErrors, setShowValidationErrors] = useState(false);
   const [form, setForm] = useState({
     name: '',
     host: '',
@@ -52,11 +54,27 @@ export function NoServerView({
     useProxy: false,
   });
 
+  const getInputClass = (val: string) => {
+    const isError = showValidationErrors && !val.trim();
+    return `${inputClass} ${
+      isError
+        ? 'border-error/45 bg-error/5 focus:border-error/65 focus:ring-error/25 text-error placeholder-error/40 shadow-sm shadow-error/5'
+        : ''
+    }`;
+  };
+
   const submitAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.host.trim() || !form.username.trim()) return;
-    if (connectionType === 'ec2' && !form.privateKeyPath.trim()) return;
-    if (connectionType === 'password' && !form.password) return;
+    const isNameEmpty = !form.name.trim();
+    const isHostEmpty = !form.host.trim();
+    const isUserEmpty = !form.username.trim();
+    const isKeyEmpty = connectionType === 'ec2' && !form.privateKeyPath.trim();
+    const isPassEmpty = connectionType === 'password' && !form.password;
+
+    if (isNameEmpty || isHostEmpty || isUserEmpty || isKeyEmpty || isPassEmpty) {
+      setShowValidationErrors(true);
+      return;
+    }
     // cloudflare requires no extra credentials — hostname is sufficient
     onAddServer({
       id: crypto.randomUUID(),
@@ -75,167 +93,146 @@ export function NoServerView({
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-[var(--bg-primary)] min-h-0">
-      <div className="flex border-b border-[var(--border)] bg-[var(--bg-secondary)] shrink-0">
+    <div className="flex-1 flex flex-col bg-bg-primary min-h-0 select-none">
+      <div className="flex bg-bg-secondary/35 border-b border-border/20 px-3 py-1.5 gap-1 shrink-0">
         <button
           type="button"
           onClick={() => setActiveTab('servers')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 cursor-pointer ${
             activeTab === 'servers'
-              ? 'border-[var(--accent)] text-[var(--text-primary)] bg-[var(--bg-primary)]'
-              : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              ? 'bg-bg-primary border-border/40 text-accent font-semibold shadow-sm'
+              : 'bg-transparent border-transparent text-text-secondary hover:bg-bg-tertiary/20 hover:text-text-primary'
           }`}
         >
-          <Server size={16} />
+          <Server size={13} />
           Servers
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('proxy')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 cursor-pointer ${
             activeTab === 'proxy'
-              ? 'border-[var(--accent)] text-[var(--text-primary)] bg-[var(--bg-primary)]'
-              : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              ? 'bg-bg-primary border-border/40 text-accent font-semibold shadow-sm'
+              : 'bg-transparent border-transparent text-text-secondary hover:bg-bg-tertiary/20 hover:text-text-primary'
           }`}
         >
-          <Shield size={16} />
-          Tor SOCKS Proxy
+          <Shield size={13} />
+          SOCKS Proxy
         </button>
       </div>
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-6 max-w-7xl w-full mx-auto">
         {activeTab === 'servers' && (
           <div className="space-y-6">
-
-
             {/* Add new server */}
-            <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-4">
-              <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Add new server</h3>
-              <div className="flex flex-wrap gap-3 mb-4">
+            <div className="rounded-xl border border-border/20 bg-bg-secondary/35 p-5 shadow-sm backdrop-blur-sm">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-text-primary mb-3">Register connection</h3>
+              <div className="flex flex-wrap gap-2 mb-4">
                 <button
                   type="button"
                   onClick={() => setConnectionType('ec2')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-200 cursor-pointer ${
                     connectionType === 'ec2'
-                      ? 'bg-[var(--bg-tertiary)] text-[var(--accent)] border border-[var(--accent)]/50'
-                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] border border-transparent'
+                      ? 'bg-bg-tertiary border-border/40 text-accent font-bold shadow-sm'
+                      : 'text-text-secondary hover:bg-bg-tertiary/30 hover:text-text-primary border-transparent'
                   }`}
                 >
-                  <Key size={16} />
-                  EC2 (SSH key)
+                  <Key size={13} />
+                  SSH Key (EC2)
                 </button>
                 <button
                   type="button"
                   onClick={() => setConnectionType('password')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-200 cursor-pointer ${
                     connectionType === 'password'
-                      ? 'bg-[var(--bg-tertiary)] text-[var(--accent)] border border-[var(--accent)]/50'
-                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] border border-transparent'
+                      ? 'bg-bg-tertiary border-border/40 text-accent font-bold shadow-sm'
+                      : 'text-text-secondary hover:bg-bg-tertiary/30 hover:text-text-primary border-transparent'
                   }`}
                 >
-                  <Lock size={16} />
-                  Password (username + password)
+                  <Lock size={13} />
+                  SSH Password
                 </button>
                 <button
                   type="button"
                   onClick={() => setConnectionType('cloudflare')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-200 cursor-pointer ${
                     connectionType === 'cloudflare'
-                      ? 'bg-[var(--bg-tertiary)] text-[var(--warning,#f59e0b)] border border-[var(--warning,#f59e0b)]/50'
-                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] border border-transparent'
+                      ? 'bg-bg-tertiary border-border/40 text-warning font-bold shadow-sm'
+                      : 'text-text-secondary hover:bg-bg-tertiary/30 hover:text-text-primary border-transparent'
                   }`}
                 >
-                  <Shield size={16} />
-                  Cloudflare Tunnel SSH
+                  <Shield size={13} />
+                  Cloudflare Tunnel
                 </button>
               </div>
-              <form onSubmit={submitAdd} className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_2fr_2fr_auto_auto] gap-3 items-end">
+              <form onSubmit={submitAdd} noValidate className="space-y-3 select-text">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.5fr_2fr_1.5fr_2fr_2fr_auto_auto] gap-3 items-end">
                   <div>
-                    <label className="block text-xs text-[var(--text-secondary)] mb-1">Name</label>
+                    <label className="block text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-1.5">Name</label>
                     <input
                       type="text"
                       value={form.name}
                       onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                      placeholder="My Server"
-                      className={inputClass}
+                      placeholder="Production App"
+                      className={getInputClass(form.name)}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-[var(--text-secondary)] mb-1">Host / IP</label>
+                    <label className="block text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-1.5">Hostname / IP</label>
                     <input
                       type="text"
                       value={form.host}
                       onChange={(e) => setForm((f) => ({ ...f, host: e.target.value }))}
-                      placeholder="192.168.1.10 or ec2-xx-xx.compute.amazonaws.com"
-                      className={inputClass}
+                      placeholder="ec2-xxx.compute.amazonaws.com"
+                      className={getInputClass(form.host)}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-[var(--text-secondary)] mb-1">Username</label>
+                    <label className="block text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-1.5">Username</label>
                     <input
                       type="text"
                       value={form.username}
                       onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
-                      placeholder="ec2-user, root, ubuntu..."
-                      className={inputClass}
+                      placeholder="ubuntu, root..."
+                      className={getInputClass(form.username)}
                     />
                   </div>
                   {connectionType === 'ec2' ? (
                     <div>
-                      <label className="block text-xs text-[var(--text-secondary)] mb-1">SSH key path</label>
+                      <label className="block text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-1.5">SSH key path</label>
                       <input
                         type="text"
                         value={form.privateKeyPath}
                         onChange={(e) => setForm((f) => ({ ...f, privateKeyPath: e.target.value }))}
-                        placeholder="/home/user/.ssh/id_rsa"
-                        className={inputClass}
+                        placeholder="~/.ssh/id_rsa"
+                        className={getInputClass(form.privateKeyPath)}
                       />
                     </div>
-                  ) : connectionType === 'password' ? (
-                    <div>
-                      <label className="block text-xs text-[var(--text-secondary)] mb-1">Password</label>
-                      <div className="relative flex items-center">
-                        <input
-                          type={showFormPassword ? 'text' : 'password'}
-                          value={form.password}
-                          onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                          placeholder="••••••••"
-                          className={`${inputClass} pr-10`}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowFormPassword(!showFormPassword)}
-                          className="absolute right-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none"
-                        >
-                          {showFormPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
-                        </button>
-                      </div>
-                    </div>
                   ) : (
-                    /* cloudflare: tunnel via cloudflared, SSH auth still needs a password */
                     <div>
-                      <label className="block text-xs text-[var(--text-secondary)] mb-1">SSH Password</label>
+                      <label className="block text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-1.5">
+                        {connectionType === 'cloudflare' ? 'SSH Password' : 'Password'}
+                      </label>
                       <div className="relative flex items-center">
                         <input
                           type={showFormPassword ? 'text' : 'password'}
                           value={form.password}
                           onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
                           placeholder="••••••••"
-                          className={`${inputClass} pr-10`}
+                          className={`${getInputClass(form.password)} pr-10`}
                         />
                         <button
                           type="button"
                           onClick={() => setShowFormPassword(!showFormPassword)}
-                          className="absolute right-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none"
+                          className="absolute right-3 text-text-secondary hover:text-text-primary focus:outline-none cursor-pointer"
                         >
-                          {showFormPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                          {showFormPassword ? <EyeOffIcon size={14} /> : <EyeIcon size={14} />}
                         </button>
                       </div>
                     </div>
                   )}
                   <div>
-                    <label className="block text-xs text-[var(--text-secondary)] mb-1">Project path (optional)</label>
+                    <label className="block text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-1.5">Project path (optional)</label>
                     <input
                       type="text"
                       value={form.projectPath}
@@ -244,50 +241,63 @@ export function NoServerView({
                       className={inputClass}
                     />
                   </div>
-                  <div className="flex items-center justify-center min-h-[34px]" title="Use proxy">
-                    <input
-                      type="checkbox"
-                      checked={form.useProxy}
-                      onChange={(e) => setForm((f) => ({ ...f, useProxy: e.target.checked }))}
-                      className="rounded border-[var(--border)] bg-[var(--bg-primary)] text-[var(--accent)] focus:ring-[var(--accent)] w-4 h-4 cursor-pointer"
-                      title="Use proxy"
-                    />
+                  <div className="flex items-center justify-center min-h-[36px]" title="Tunnel via Tor SOCKS proxy">
+                    <Tooltip content="Route via Proxy" position="top">
+                      <button
+                        type="button"
+                        onClick={() => setForm((f) => ({ ...f, useProxy: !form.useProxy }))}
+                        className={`w-4 h-4 rounded-md border flex items-center justify-center transition-all duration-150 cursor-pointer ${
+                          form.useProxy
+                            ? 'bg-accent border-accent text-white shadow-sm shadow-accent/20'
+                            : 'bg-bg-primary/50 border-border/30 hover:border-accent/40 text-transparent'
+                        }`}
+                        title="Route via Proxy"
+                      >
+                        {form.useProxy && <Check size={10} strokeWidth={3} className="shrink-0" />}
+                      </button>
+                    </Tooltip>
                   </div>
                   <button
                     type="submit"
-                    className="flex items-center gap-2 px-4 py-2 rounded-md bg-[var(--accent)] text-white text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors shrink-0"
+                    className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent-hover transition-colors shadow-sm shrink-0 cursor-pointer"
                   >
-                    <Plus size={16} />
-                    Add
+                    <Plus size={14} />
+                    Add Server
                   </button>
                 </div>
+                {showValidationErrors && (
+                  <div className="text-[10px] text-error/90 font-medium flex items-center gap-1.5 mt-2.5 bg-error/5 border border-error/20 px-3 py-2 rounded-xl">
+                    <AlertCircle size={13} className="shrink-0 text-error animate-pulse" />
+                    <span>Please fill in the required fields marked in red.</span>
+                  </div>
+                )}
               </form>
             </div>
 
             {/* Table */}
-            <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] overflow-hidden">
-              <h3 className="text-sm font-semibold text-[var(--text-primary)] px-4 py-3 border-b border-[var(--border)]">
-                Configured servers
+            <div className="rounded-xl border border-border/20 bg-bg-secondary/35 overflow-hidden shadow-sm backdrop-blur-sm">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted px-4 py-3 bg-bg-secondary/25 border-b border-border/20">
+                Registered profiles
               </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto select-text">
+                <table className="w-full text-xs text-left">
                   <thead>
-                    <tr className="border-b border-[var(--border)] text-left text-[var(--text-secondary)]">
-                      <th className="px-4 py-2.5 font-medium">Type</th>
-                      <th className="px-4 py-2.5 font-medium">Name</th>
-                      <th className="px-4 py-2.5 font-medium">Host</th>
-                      <th className="px-4 py-2.5 font-medium">Username</th>
-                      <th className="px-4 py-2.5 font-medium">Auth</th>
-                      <th className="px-4 py-2.5 font-medium">Project path</th>
-                      <th className="px-4 py-2.5 font-medium">Proxy</th>
-                      <th className="px-4 py-2.5 font-medium w-28">Actions</th>
+                    <tr className="border-b border-border/20 text-text-secondary select-none">
+                      <th className="px-4 py-3 font-semibold text-[10px] uppercase tracking-wider">Type</th>
+                      <th className="px-4 py-3 font-semibold text-[10px] uppercase tracking-wider">Name</th>
+                      <th className="px-4 py-3 font-semibold text-[10px] uppercase tracking-wider">Hostname</th>
+                      <th className="px-4 py-3 font-semibold text-[10px] uppercase tracking-wider">User</th>
+                      <th className="px-4 py-3 font-semibold text-[10px] uppercase tracking-wider">Authentication</th>
+                      <th className="px-4 py-3 font-semibold text-[10px] uppercase tracking-wider">Default Path</th>
+                      <th className="px-4 py-3 font-semibold text-[10px] uppercase tracking-wider">SOCKS</th>
+                      <th className="px-4 py-3 font-semibold text-[10px] uppercase tracking-wider w-28 text-right pr-6">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {servers.length === 0 && (
-                      <tr>
-                        <td colSpan={8} className="px-4 py-8 text-center text-[var(--text-secondary)]">
-                          No servers yet. Add one above.
+                      <tr className="select-none">
+                        <td colSpan={8} className="px-4 py-8 text-center text-text-secondary italic">
+                          No servers configured. Fill out the registration form above to get started.
                         </td>
                       </tr>
                     )}
@@ -296,12 +306,12 @@ export function NoServerView({
                       return (
                         <tr
                           key={s.id}
-                          className="border-b border-[var(--border)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                          className="border-b border-border/10 hover:bg-bg-tertiary/15 transition-colors duration-150"
                         >
                           {editingId === s.id ? (
                             <>
                               <td className="px-4 py-2">
-                                <span className="text-xs text-[var(--text-secondary)]">{type === 'ec2' ? 'EC2' : type === 'cloudflare' ? 'CF Tunnel' : 'Password'}</span>
+                                <span className="text-[10px] font-bold text-text-secondary">{type === 'ec2' ? 'EC2' : type === 'cloudflare' ? 'CF' : 'PWD'}</span>
                               </td>
                               <td className="px-4 py-2">
                                 <input
@@ -336,23 +346,6 @@ export function NoServerView({
                                     placeholder="Key path"
                                     className={inputClass}
                                   />
-                                ) : type === 'password' ? (
-                                  <div className="relative flex items-center">
-                                    <input
-                                      type={showEditPassword ? 'text' : 'password'}
-                                      value={s.password ?? ''}
-                                      onChange={(e) => onUpdateServer(s.id, { password: e.target.value })}
-                                      placeholder="••••••••"
-                                      className={`${inputClass} pr-10`}
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => setShowEditPassword(!showEditPassword)}
-                                      className="absolute right-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none"
-                                    >
-                                      {showEditPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
-                                    </button>
-                                  </div>
                                 ) : (
                                   <div className="relative flex items-center">
                                     <input
@@ -365,9 +358,9 @@ export function NoServerView({
                                     <button
                                       type="button"
                                       onClick={() => setShowEditPassword(!showEditPassword)}
-                                      className="absolute right-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none"
+                                      className="absolute right-3 text-text-secondary hover:text-text-primary focus:outline-none cursor-pointer"
                                     >
-                                      {showEditPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                                      {showEditPassword ? <EyeOffIcon size={14} /> : <EyeIcon size={14} />}
                                     </button>
                                   </div>
                                 )}
@@ -387,21 +380,26 @@ export function NoServerView({
                                 />
                               </td>
                               <td className="px-4 py-2">
-                                <div className="flex items-center justify-center w-full" title="Use proxy">
-                                  <input
-                                    type="checkbox"
-                                    checked={s.useProxy !== false}
-                                    onChange={(e) => onUpdateServer(s.id, { useProxy: e.target.checked })}
-                                    className="rounded border-[var(--border)] bg-[var(--bg-primary)] text-[var(--accent)] focus:ring-[var(--accent)] w-4 h-4 cursor-pointer"
-                                    title="Use proxy"
-                                  />
+                                <div className="flex items-center justify-center w-full">
+                                  <button
+                                    type="button"
+                                    onClick={() => onUpdateServer(s.id, { useProxy: !s.useProxy })}
+                                    className={`w-4 h-4 rounded-md border flex items-center justify-center transition-all duration-150 cursor-pointer ${
+                                      s.useProxy
+                                        ? 'bg-accent border-accent text-white shadow-sm shadow-accent/20'
+                                        : 'bg-bg-primary/50 border-border/30 hover:border-accent/40 text-transparent'
+                                    }`}
+                                    title="Route proxy"
+                                  >
+                                    {s.useProxy && <Check size={10} strokeWidth={3} className="shrink-0" />}
+                                  </button>
                                 </div>
                               </td>
-                              <td className="px-4 py-2">
+                              <td className="px-4 py-2 text-right pr-6">
                                 <button
                                   type="button"
                                   onClick={() => setEditingId(null)}
-                                  className="text-xs text-[var(--accent)] hover:underline"
+                                  className="text-xs text-accent hover:underline font-semibold cursor-pointer"
                                 >
                                   Done
                                 </button>
@@ -409,63 +407,83 @@ export function NoServerView({
                             </>
                           ) : (
                             <>
-                              <td className="px-4 py-2.5">
-                                <span className={`text-xs px-2 py-0.5 rounded ${
+                              <td className="px-4 py-3 select-none">
+                                <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-lg border uppercase tracking-wider ${
                                   type === 'ec2'
-                                    ? 'bg-[var(--success)]/20 text-[var(--success)]'
+                                    ? 'bg-success/10 text-success border-success/20'
                                     : type === 'cloudflare'
-                                    ? 'bg-orange-500/20 text-orange-400'
-                                    : 'bg-[var(--accent)]/20 text-[var(--accent)]'
+                                    ? 'bg-warning/10 text-warning border-warning/20'
+                                    : 'bg-accent/10 text-accent border-accent/20'
                                 }`}>
-                                  {type === 'ec2' ? 'EC2' : type === 'cloudflare' ? 'CF Tunnel' : 'Password'}
+                                  {type === 'ec2' ? 'SSH Key' : type === 'cloudflare' ? 'Tunnel' : 'Password'}
                                 </span>
                               </td>
-                              <td className="px-4 py-2.5 text-[var(--text-primary)]">{s.name}</td>
-                              <td className="px-4 py-2.5 text-[var(--text-secondary)] font-mono">{s.host}</td>
-                              <td className="px-4 py-2.5 text-[var(--text-secondary)]">{s.username}</td>
-                              <td className="px-4 py-2.5 text-[var(--text-secondary)] font-mono truncate max-w-[120px]" title={type === 'ec2' ? (s.privateKeyPath ?? '') : type === 'cloudflare' ? 'via cloudflared' : '••••••••'}>
-                                {type === 'ec2' ? (s.privateKeyPath ?? '—') : type === 'cloudflare' ? <span className="italic text-xs">cloudflared</span> : '••••••••'}
-                              </td>
-                              <td className="px-4 py-2.5 text-[var(--text-secondary)] font-mono truncate max-w-[120px]" title={s.projectPath || '-'}>
-                                {s.projectPath || '—'}
-                              </td>
-                              <td className="px-4 py-2.5">
-                                {!proxy.enabled ? (
-                                  <span className="text-xs text-[var(--text-muted)]" title="Global proxy is disabled">Off</span>
-                                ) : s.useProxy !== false ? (
-                                  <span className="text-xs text-[var(--success)]" title="Using global proxy">On</span>
+                              <td className="px-4 py-3 font-semibold text-text-primary">{s.name}</td>
+                              <td className="px-4 py-3 text-text-secondary font-mono truncate max-w-[150px]" title={s.host}>{s.host}</td>
+                              <td className="px-4 py-3 text-text-secondary">{s.username}</td>
+                              <td className="px-4 py-3 text-text-secondary font-mono">
+                                {type === 'ec2' ? (
+                                  <div className="truncate max-w-[120px]" title={s.privateKeyPath ?? ''}>
+                                    {s.privateKeyPath ?? '—'}
+                                  </div>
+                                ) : type === 'cloudflare' ? (
+                                  <span className="italic text-xs text-text-muted select-none">cloudflared</span>
                                 ) : (
-                                  <span className="text-xs text-[var(--text-secondary)]" title="Opted out of proxy">Off</span>
+                                  <div className="flex items-center justify-between gap-2 max-w-[120px] group/pwd">
+                                    <span className="truncate" title={revealedPasswords[s.id] ? s.password : 'Password hidden'}>
+                                      {revealedPasswords[s.id] ? s.password : '••••••••'}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setRevealedPasswords((prev) => ({ ...prev, [s.id]: !prev[s.id] }))}
+                                      className="shrink-0 p-0.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-tertiary/60 transition-colors opacity-0 group-hover/pwd:opacity-100 focus:opacity-100 focus:outline-none cursor-pointer"
+                                      title={revealedPasswords[s.id] ? 'Hide password' : 'Show password'}
+                                    >
+                                      {revealedPasswords[s.id] ? <EyeOffIcon size={12} /> : <EyeIcon size={12} />}
+                                    </button>
+                                  </div>
                                 )}
                               </td>
-                              <td className="px-4 py-2.5">
-                                <div className="flex items-center gap-1">
+                              <td className="px-4 py-3 text-text-secondary font-mono truncate max-w-[120px]" title={s.projectPath || '-'}>
+                                {s.projectPath || '—'}
+                              </td>
+                              <td className="px-4 py-3 select-none">
+                                {!proxy.enabled ? (
+                                  <span className="text-[10px] text-text-muted font-bold uppercase" title="Global proxy is disabled">Disabled</span>
+                                ) : s.useProxy !== false ? (
+                                  <span className="text-[10px] text-success font-bold uppercase" title="Using global proxy">Enabled</span>
+                                ) : (
+                                  <span className="text-[10px] text-text-secondary font-bold uppercase" title="Opted out of proxy">Bypassed</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-right pr-6 select-none">
+                                <div className="flex items-center justify-end gap-1">
                                   <Tooltip content={connectingTo === s.id ? 'Connecting…' : 'Connect via SSH'} position="top">
                                     <button
                                       type="button"
                                       onClick={() => onSelectServer(s)}
                                       disabled={connectingTo !== null}
-                                      className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--success)] transition-colors disabled:opacity-60"
+                                      className="p-1.5 rounded-lg text-text-secondary hover:bg-bg-tertiary/60 hover:text-success transition-colors disabled:opacity-60 cursor-pointer"
                                     >
-                                      <LogIn size={14} />
+                                      <LogIn size={13} />
                                     </button>
                                   </Tooltip>
-                                  <Tooltip content="Edit server" position="top">
+                                  <Tooltip content="Edit profile" position="top">
                                     <button
                                       type="button"
                                       onClick={() => { setShowEditPassword(false); setEditingId(s.id); }}
-                                      className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] transition-colors"
+                                      className="p-1.5 rounded-lg text-text-secondary hover:bg-bg-tertiary/60 hover:text-accent transition-colors cursor-pointer"
                                     >
-                                      <Edit2 size={14} />
+                                      <Edit2 size={13} />
                                     </button>
                                   </Tooltip>
-                                  <Tooltip content="Remove server" position="top">
+                                  <Tooltip content="Remove profile" position="top">
                                     <button
                                       type="button"
                                       onClick={() => onRemoveServer(s.id)}
-                                      className="p-1.5 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--error)] transition-colors"
+                                      className="p-1.5 rounded-lg text-text-secondary hover:bg-bg-tertiary/60 hover:text-error transition-colors cursor-pointer"
                                     >
-                                      <Trash2 size={14} />
+                                      <Trash2 size={13} />
                                     </button>
                                   </Tooltip>
                                 </div>
@@ -481,42 +499,47 @@ export function NoServerView({
             </div>
 
             {/* Offline Guide banner */}
-            <div className="mt-6 p-5 rounded-lg border border-dashed border-[var(--border)] bg-[var(--bg-secondary)] flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="mt-6 p-6 rounded-xl border border-dashed border-border/25 bg-bg-secondary/30 flex flex-col md:flex-row md:items-center justify-between gap-4 backdrop-blur-sm select-none">
               <div>
-                <h4 className="text-sm font-semibold text-[var(--text-primary)]">Offline Feature Guides</h4>
-                <p className="text-xs text-[var(--text-secondary)] mt-1">
-                  Learn how the Database Manager, Git Pipeline, SQLite Rollbacks, and Auto-Updates work under the hood. No server connection is required to browse our detailed documentation.
+                <h4 className="text-xs font-bold uppercase tracking-wider text-text-primary">Offline Feature Documentation</h4>
+                <p className="text-xs text-text-secondary mt-1 max-w-2xl leading-relaxed">
+                  Understand how our secure SQL client tunnels, Git-based non-interactive deployment hooks, SQLite transaction rollback logs, and silent GitHub semver auto-updates are engineered under the hood. Browse docs anytime without setting up remote SSH connections.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => onViewGuide?.('database')}
-                className="px-4 py-2 rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--border)] text-[var(--text-primary)] text-xs font-semibold shrink-0 transition-colors cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl bg-bg-tertiary/50 hover:bg-bg-tertiary border border-border/30 text-text-primary text-xs font-semibold shrink-0 transition-colors cursor-pointer"
               >
-                Read Feature Guides ↗
+                Read Feature Guides
               </button>
             </div>
           </div>
         )}
 
         {activeTab === 'proxy' && (
-          <div className="max-w-xl rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-6">
-            <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">Tor SOCKS proxy (current system)</h3>
-            <p className="text-xs text-[var(--text-secondary)] mb-4">
-              When enabled, SSH connections use this SOCKS5 proxy (e.g. Tor at 127.0.0.1:9050), like <code className="text-[var(--text-secondary)] bg-[var(--bg-tertiary)] px-1 rounded">torsocks ssh user@host</code>. Uncheck “Use proxy” on a server to connect directly.
+          <div className="max-w-xl rounded-xl border border-border/20 bg-bg-secondary/35 p-6 shadow-sm backdrop-blur-sm">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-text-primary mb-1">Global Tor SOCKS proxy</h3>
+            <p className="text-xs text-text-secondary mb-4 leading-relaxed font-sans">
+              When checked, SSH connections hook through a secure SOCKS5 network layer (e.g., standard local Tor package running at 127.0.0.1:9050). Equivalent to tunneling terminal operations via <code className="text-xs text-text-secondary bg-bg-tertiary px-1 py-0.5 rounded font-mono">torsocks ssh user@host</code>.
             </p>
-            <div className="space-y-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={proxy.enabled}
-                  onChange={(e) => onProxyChange({ ...proxy, enabled: e.target.checked })}
-                  className="rounded border-[var(--border)] bg-[var(--bg-primary)] text-[var(--accent)] focus:ring-[var(--accent)]"
-                />
-                <span className="text-sm text-[var(--text-primary)]">Enable Tor SOCKS proxy</span>
+            <div className="space-y-4 select-text">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <button
+                  type="button"
+                  onClick={() => onProxyChange({ ...proxy, enabled: !proxy.enabled })}
+                  className={`w-4 h-4 rounded-md border flex items-center justify-center transition-all duration-150 cursor-pointer ${
+                    proxy.enabled
+                      ? 'bg-accent border-accent text-white shadow-sm shadow-accent/20'
+                      : 'bg-bg-primary/50 border-border/30 hover:border-accent/40 text-transparent'
+                  }`}
+                >
+                  {proxy.enabled && <Check size={10} strokeWidth={3} className="shrink-0" />}
+                </button>
+                <span className="text-xs font-semibold text-text-primary">Enable proxy route</span>
               </label>
               <div>
-                <label className="block text-xs text-[var(--text-secondary)] mb-1.5">Proxy host</label>
+                <label className="block text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-1.5 select-none">Proxy host</label>
                 <input
                   type="text"
                   value={proxy.host}
@@ -526,7 +549,7 @@ export function NoServerView({
                 />
               </div>
               <div>
-                <label className="block text-xs text-[var(--text-secondary)] mb-1.5">Proxy port</label>
+                <label className="block text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-1.5 select-none">Proxy port</label>
                 <input
                   type="number"
                   value={proxy.port}
@@ -535,8 +558,8 @@ export function NoServerView({
                   className={inputClass}
                 />
               </div>
-              <p className="text-xs text-[var(--text-secondary)]">
-                Default Tor SOCKS port is 9050. Servers use this proxy by default when enabled; uncheck “Use proxy” on a server to bypass.
+              <p className="text-xs text-text-muted italic leading-relaxed select-none">
+                Default Tor daemon port is 9050. Check individual server profiles to override global proxy settings.
               </p>
             </div>
           </div>

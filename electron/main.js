@@ -515,6 +515,8 @@ function connectSSH(connection, proxy) {
         username,
         port: 22,
         readyTimeout: 30000,
+        keepaliveInterval: 10000,
+        keepaliveCountMax: 3,
         // Use the cloudflared subprocess as the transport socket.
         sock: (() => {
           const duplex = new (require('stream').Transform)({
@@ -570,6 +572,8 @@ function connectSSH(connection, proxy) {
       port: 22,
       // Tor adds high latency; allow up to 2.5 min for handshake when via proxy
       readyTimeout: viaProxy ? 150000 : 20000,
+      keepaliveInterval: 10000,
+      keepaliveCountMax: 3,
     };
     if (usePassword) {
       config.password = connection.password;
@@ -654,6 +658,7 @@ async function getOrCreateConnection(connection, proxy) {
     if (Date.now() - entry.lastUsed > SSH_POOL_IDLE_MS) {
       try { entry.conn.end(); } catch (_) {}
       connectionPool.delete(key);
+      connectionQueues.delete(key);
     } else {
       entry.lastUsed = Date.now();
       return entry.conn;
@@ -665,8 +670,14 @@ async function getOrCreateConnection(connection, proxy) {
 
   promise = connectSSH(connection, proxy).then((conn) => {
     connectionInFlight.delete(key);
-    conn.on('close', () => { connectionPool.delete(key); });
-    conn.on('error', () => { connectionPool.delete(key); });
+    conn.on('close', () => {
+      connectionPool.delete(key);
+      connectionQueues.delete(key);
+    });
+    conn.on('error', () => {
+      connectionPool.delete(key);
+      connectionQueues.delete(key);
+    });
     connectionPool.set(key, { conn, lastUsed: Date.now() });
     return conn;
   });
@@ -674,7 +685,17 @@ async function getOrCreateConnection(connection, proxy) {
   return promise;
 }
 
-function execCommand(conn, command, cwd) {
+// Queue of execution promises per connection key to enforce sequential command runs
+const connectionQueues = new Map(); // key -> Promise
+
+function findPoolKey(conn) {
+  for (const [key, entry] of connectionPool.entries()) {
+    if (entry.conn === conn) return key;
+  }
+  return null;
+}
+
+function execCommandRaw(conn, command, cwd) {
   return new Promise((resolve, reject) => {
     const fullCmd = cwd ? `cd "${String(cwd).replace(/"/g, '\\"')}" && ${command}` : command;
     conn.exec(fullCmd, (err, stream) => {
@@ -691,6 +712,29 @@ function execCommand(conn, command, cwd) {
       });
     });
   });
+}
+
+function execCommand(conn, command, cwd) {
+  const key = findPoolKey(conn);
+  if (!key) {
+    return execCommandRaw(conn, command, cwd);
+  }
+
+  // Get current queue chain or start with resolved Promise
+  let currentQueue = connectionQueues.get(key) || Promise.resolve();
+
+  // Chain the next command execution sequentially
+  const nextQueue = currentQueue.then(() => {
+    return execCommandRaw(conn, command, cwd);
+  }).catch((err) => {
+    // Propagate the rejection but do not block the queue
+    return Promise.reject(err);
+  });
+
+  // Keep the queue state healthy without unhandled promise rejections on map reference
+  connectionQueues.set(key, nextQueue.catch(() => {}));
+
+  return nextQueue;
 }
 
 const DOCKER_PREFIX_CACHE_TTL_MS = 60 * 1000;
@@ -896,8 +940,14 @@ ipcMain.handle('server:test-connection', async (_, { connection, proxy }) => {
     // Reuse this connection for listDir, readFile, deploy, etc. (put in pool instead of closing)
     const key = poolKey(connection, proxy);
     if (key) {
-      conn.on('close', () => { connectionPool.delete(key); });
-      conn.on('error', () => { connectionPool.delete(key); });
+      conn.on('close', () => {
+        connectionPool.delete(key);
+        connectionQueues.delete(key);
+      });
+      conn.on('error', () => {
+        connectionPool.delete(key);
+        connectionQueues.delete(key);
+      });
       connectionPool.set(key, { conn, lastUsed: Date.now() });
     } else {
       try { conn.end(); } catch (_) {}
@@ -1383,7 +1433,7 @@ ipcMain.handle('server:download-remote-file', async (_, { connection, proxy, rem
   }
 });
 
-function execCommandStream(conn, command, cwd, onData) {
+function execCommandStreamRaw(conn, command, cwd, onData) {
   return new Promise((resolve) => {
     const fullCmd = cwd ? `cd "${String(cwd).replace(/"/g, '\\"')}" && ${command}` : command;
     conn.exec(fullCmd, (err, stream) => {
@@ -1408,6 +1458,25 @@ function execCommandStream(conn, command, cwd, onData) {
       });
     });
   });
+}
+
+function execCommandStream(conn, command, cwd, onData) {
+  const key = findPoolKey(conn);
+  if (!key) {
+    return execCommandStreamRaw(conn, command, cwd, onData);
+  }
+
+  let currentQueue = connectionQueues.get(key) || Promise.resolve();
+
+  const nextQueue = currentQueue.then(() => {
+    return execCommandStreamRaw(conn, command, cwd, onData);
+  }).catch((err) => {
+    return Promise.reject(err);
+  });
+
+  connectionQueues.set(key, nextQueue.catch(() => {}));
+
+  return nextQueue;
 }
 
 function execLocalCommandStream(command, cwd, onData) {
@@ -1870,320 +1939,21 @@ ipcMain.handle('alerts:send-webhook', async (_, { url, payload }) => {
   }
 });
 
-// ── Uptime Monitoring System IPC Handlers & Logic ───────────────────
-let monitoredServers = [];
-let monitoringProxy = null;
-const serverStatuses = new Map();
-let monitoringIntervalId = null;
-
-function broadcastStatuses() {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    const list = Array.from(serverStatuses.values());
-    mainWindow.webContents.send('monitored-servers-status-updated', list);
-  }
-}
-
-async function checkServerUptime(server) {
-  const start = Date.now();
-  let conn;
-  try {
-    if (isDummy(server)) {
-      const latency = Math.round(15 + Math.random() * 20);
-      const rand = Math.random();
-      const status = rand > 0.95 ? 'red' : rand > 0.8 ? 'yellow' : 'green';
-      const services = {
-        nginx: status === 'red' ? 'down' : 'up',
-        postgresql: status === 'red' ? 'down' : (rand > 0.85 ? 'down' : 'up'),
-        docker: status === 'red' ? 'down' : 'up',
-        redis: status === 'red' ? 'down' : 'up',
-      };
-      const cpu = Math.round(30 + Math.random() * 40);
-      const ram = Math.round(50 + Math.random() * 25);
-      const disk = Math.round(45 + Math.random() * 5);
-      return {
-        serverId: server.id,
-        status,
-        latency,
-        lastChecked: new Date().toISOString(),
-        services,
-        cpu,
-        ram,
-        disk
-      };
-    }
-
-    conn = await connectSSH(server, monitoringProxy);
-    
-    const cmd = `
-      services=("nginx" "postgresql" "postgres" "docker" "mysql" "redis-server" "redis" "apache2" "mongodb" "mongod")
-      results=""
-      for svc in "\${services[@]}"; do
-        status="down"
-        if command -v systemctl >/dev/null 2>&1; then
-          if systemctl is-active --quiet "$svc" 2>/dev/null; then
-            status="up"
-          fi
-        fi
-        if [ "$status" = "down" ]; then
-          if pgrep -x "$svc" >/dev/null 2>&1 || pgrep -f "$svc" >/dev/null 2>&1; then
-            status="up"
-          fi
-        fi
-        
-        # Check if service exists
-        exists=0
-        if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files "$svc.service" >/dev/null 2>&1; then
-          exists=1
-        elif pgrep -x "$svc" >/dev/null 2>&1 || pgrep -f "$svc" >/dev/null 2>&1; then
-          exists=1
-        fi
-        
-        if [ $exists -eq 1 ]; then
-          results="$results$svc:$status,"
-        fi
-      done
-      echo "===SERVICES===$results"
-
-      # CPU check
-      echo "===CPU==="
-      if command -v top >/dev/null 2>&1; then
-        top -bn1 | grep -i "cpu(s)" | head -n 1
-      fi
-
-      # FREE check
-      echo "===FREE==="
-      if command -v free >/dev/null 2>&1; then
-        free -b
-      else
-        cat /proc/meminfo 2>/dev/null
-      fi
-
-      # DF check
-      echo "===DF==="
-      df -h . 2>/dev/null | tail -n 1
-    `.trim();
-
-    const result = await execCommand(conn, cmd, undefined);
-    const latency = Date.now() - start;
-
-    let services = {};
-    let hasDown = false;
-    let cpu = 0;
-    let ram = 0;
-    let disk = 0;
-
-    if (result.code === 0) {
-      const stdout = result.stdout || '';
-      const sections = {};
-      const markerRegex = /===([A-Z0-9_]+)===\n([\s\S]*?)(?=(?:===[A-Z0-9_]+===|$))/g;
-      let m;
-      while ((m = markerRegex.exec(stdout)) !== null) {
-        sections[m[1]] = m[2];
-      }
-
-      if (sections.SERVICES) {
-        const parts = sections.SERVICES.split(',').filter(Boolean);
-        for (const part of parts) {
-          const [name, state] = part.split(':');
-          services[name] = state;
-          if (state === 'down') hasDown = true;
-        }
-      }
-
-      // Parse CPU
-      if (sections.CPU) {
-        const idleMatch = sections.CPU.match(/(\d+(?:[\.,]\d+)?)\s*id/i);
-        if (idleMatch) {
-          cpu = 100 - parseFloat(idleMatch[1].replace(',', '.'));
-        }
-      }
-      cpu = Math.max(0, Math.min(100, Math.round(cpu * 10) / 10));
-
-      // Parse RAM
-      let memTotal = 0;
-      let memUsed = 0;
-      if (sections.FREE) {
-        const lines = sections.FREE.trim().split('\n');
-        const memLine = lines.find(l => l.startsWith('Mem:'));
-        if (memLine) {
-          const parts = memLine.trim().split(/\s+/);
-          if (parts.length >= 4) {
-            memTotal = parseInt(parts[1], 10) || 0;
-            memUsed = parseInt(parts[2], 10) || 0;
-          }
-        } else {
-          let totalKB = 0;
-          let availKB = 0;
-          for (const line of lines) {
-            if (line.startsWith('MemTotal:')) totalKB = parseInt(line.replace(/[^0-9]/g, ''), 10) || 0;
-            else if (line.startsWith('MemAvailable:')) availKB = parseInt(line.replace(/[^0-9]/g, ''), 10) || 0;
-          }
-          if (totalKB > 0) {
-            memTotal = totalKB * 1024;
-            const avail = availKB > 0 ? availKB * 1024 : 0;
-            memUsed = memTotal - avail;
-          }
-        }
-      }
-      ram = memTotal > 0 ? Math.round(((memUsed / memTotal) * 100) * 10) / 10 : 0;
-
-      // Parse Disk
-      if (sections.DF) {
-        const dfMatch = sections.DF.match(/(\d+)%/);
-        if (dfMatch) {
-          disk = parseInt(dfMatch[1], 10) || 0;
-        }
-      }
-    }
-
-    let status = 'green';
-    if (hasDown) status = 'yellow';
-
-    return {
-      serverId: server.id,
-      status,
-      latency,
-      lastChecked: new Date().toISOString(),
-      services,
-      cpu,
-      ram,
-      disk
-    };
-  } catch (err) {
-    return {
-      serverId: server.id,
-      status: 'red',
-      latency: -1,
-      lastChecked: new Date().toISOString(),
-      services: {},
-      cpu: 0,
-      ram: 0,
-      disk: 0,
-      error: err.message || String(err),
-    };
-  } finally {
-    if (conn) {
-      try { conn.end(); } catch (_) {}
-    }
-  }
-}
-
-async function runMonitoringCycle() {
-  log('Running periodic uptime checks', { count: monitoredServers.length });
-  for (const server of monitoredServers) {
-    const statusData = await checkServerUptime(server);
-    const existing = serverStatuses.get(server.id) || { latencyHistory: [] };
-    const history = [...(existing.latencyHistory || [])];
-    if (statusData.latency >= 0) {
-      history.push({
-        timestamp: statusData.lastChecked,
-        latency: statusData.latency
-      });
-    }
-    statusData.latencyHistory = history.slice(-30);
-    serverStatuses.set(server.id, statusData);
-
-    // Save historical metric to SQLite table (if successfully checked)
-    if (statusData.status !== 'red' && db) {
-      const stmt = db.prepare(`
-        INSERT INTO historical_metrics (serverId, cpu, ram, disk, timestamp)
-        VALUES (?, ?, ?, ?, ?)
-      `);
-      stmt.run(
-        statusData.serverId,
-        statusData.cpu,
-        statusData.ram,
-        statusData.disk,
-        statusData.lastChecked,
-        (err) => {
-          if (err) {
-            log('Error saving historical metrics', { error: err.message });
-          }
-        }
-      );
-      stmt.finalize();
-    }
-  }
-  broadcastStatuses();
-}
-
-function startMonitoring() {
-  if (monitoringIntervalId) clearInterval(monitoringIntervalId);
-  runMonitoringCycle();
-  monitoringIntervalId = setInterval(runMonitoringCycle, 60000);
-}
-
-ipcMain.handle('monitoring:set-servers', (_, { servers, proxy }) => {
-  monitoredServers = servers || [];
-  monitoringProxy = proxy || null;
-  
-  const serverIds = new Set(monitoredServers.map(s => s.id));
-  for (const id of serverStatuses.keys()) {
-    if (!serverIds.has(id)) {
-      serverStatuses.delete(id);
-    }
-  }
-  
-  startMonitoring();
+// ── Uptime Monitoring System IPC Handlers (Disabled) ────────────────
+ipcMain.handle('monitoring:set-servers', () => {
   return { ok: true };
 });
 
 ipcMain.handle('monitoring:get-statuses', () => {
-  return Array.from(serverStatuses.values());
+  return [];
 });
 
-ipcMain.handle('metrics:get-history', async (_, { serverId, timeWindow, startDate, endDate }) => {
-  if (!db) return [];
-  
-  let startStr;
-  let endStr = endDate ? new Date(endDate).toISOString() : new Date().toISOString();
-  
-  if (startDate) {
-    startStr = new Date(startDate).toISOString();
-  } else {
-    let timeAgo = new Date();
-    if (timeWindow === '1h') timeAgo.setHours(timeAgo.getHours() - 1);
-    else if (timeWindow === '6h') timeAgo.setHours(timeAgo.getHours() - 6);
-    else if (timeWindow === '24h') timeAgo.setHours(timeAgo.getHours() - 24);
-    else if (timeWindow === '7d') timeAgo.setDate(timeAgo.getDate() - 7);
-    else timeAgo.setHours(timeAgo.getHours() - 24); // default 24h
-    startStr = timeAgo.toISOString();
-  }
-
-  return new Promise((resolve) => {
-    const sql = `
-      SELECT cpu, ram, disk, timestamp 
-      FROM historical_metrics 
-      WHERE serverId = ? AND timestamp >= ? AND timestamp <= ?
-      ORDER BY timestamp ASC
-    `;
-    db.all(sql, [serverId, startStr, endStr], (err, rows) => {
-      if (err) {
-        log('Error reading historical metrics', { error: err.message });
-        resolve([]);
-      } else {
-        resolve(rows || []);
-      }
-    });
-  });
+ipcMain.handle('metrics:get-history', async () => {
+  return [];
 });
 
-ipcMain.handle('metrics:clear-history', async (_, { serverId }) => {
-  if (!db) return { ok: false, error: 'Database not initialized' };
-  return new Promise((resolve) => {
-    const sql = serverId 
-      ? `DELETE FROM historical_metrics WHERE serverId = ?` 
-      : `DELETE FROM historical_metrics`;
-    const params = serverId ? [serverId] : [];
-    db.run(sql, params, (err) => {
-      if (err) {
-        log('Error clearing historical metrics', { error: err.message });
-        resolve({ ok: false, error: err.message });
-      } else {
-        resolve({ ok: true });
-      }
-    });
-  });
+ipcMain.handle('metrics:clear-history', async () => {
+  return { ok: true };
 });
 
 // ----- Database Tunneling and Queries Handling -----
