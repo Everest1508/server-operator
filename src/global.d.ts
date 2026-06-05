@@ -151,7 +151,8 @@ export interface ServerOperatorAPI {
   queryDatabase: (opts: { serverId: string; query: string }) => Promise<{ ok: boolean; result?: any; error?: string }>;
   getDatabaseSchema: (opts: { serverId: string }) => Promise<{ ok: boolean; tables?: string[]; keys?: string[]; error?: string }>;
   exportDatabaseSql: (opts: { serverId: string; mode: 'schema' | 'data' | 'full' }) => Promise<{ ok: boolean; sql?: string; filename?: string; error?: string }>;
-  importDatabaseSql: (opts: { serverId: string; sql: string }) => Promise<{ ok: boolean; statements?: number; error?: string }>;
+  importDatabaseSql: (opts: { serverId: string; sql: string }) => Promise<{ ok: boolean; statements?: number; error?: string; lastStatement?: string }>;
+  importFullDatabaseSql: (opts: { serverId: string; sql: string }) => Promise<{ ok: boolean; statements?: number; error?: string; lastStatement?: string }>;
   runDeployPipeline: (opts: {
     connection: ServerConnection;
     shellId: string;

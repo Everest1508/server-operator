@@ -20,6 +20,9 @@ ipcRenderer.on('update-available', (_event, payload) => {
 ipcRenderer.on('update-check-result', (_event, payload) => {
   window.dispatchEvent(new CustomEvent('update-check-result', { detail: payload }));
 });
+ipcRenderer.on('import-progress', (_event, payload) => {
+  window.dispatchEvent(new CustomEvent('import-progress', { detail: payload }));
+});
 
 contextBridge.exposeInMainWorld('serverOperator', {
   testConnection: (opts) => ipcRenderer.invoke('server:test-connection', opts),
@@ -60,6 +63,7 @@ contextBridge.exposeInMainWorld('serverOperator', {
   getDatabaseSchema: (opts) => ipcRenderer.invoke('database:get-schema', opts),
   exportDatabaseSql: (opts) => ipcRenderer.invoke('database:export-sql', opts),
   importDatabaseSql: (opts) => ipcRenderer.invoke('database:import-sql', opts),
+  importFullDatabaseSql: (opts) => ipcRenderer.invoke('database:import-sql-full', opts),
   runDeployPipeline: (opts) => ipcRenderer.invoke('server:run-deploy-pipeline', opts),
   rollbackDeploy: (opts) => ipcRenderer.invoke('server:rollback-deploy', opts),
   getDeployHistory: (opts) => ipcRenderer.invoke('server:get-deploy-history', opts),

@@ -2221,6 +2221,12 @@ ipcMain.handle('database:connect', async (_, { connection, proxy, dbType, config
       dbType,
       localPort,
       databaseName: config.database || (dbType === 'redis' ? '0' : 'database'),
+      username: config.username,
+      password: config.password,
+      remoteHost: config.host || '127.0.0.1',
+      remotePort,
+      connection,
+      proxy,
     });
 
     log('Database connection and tunnel established', { serverId, dbType, localPort });
@@ -2380,8 +2386,89 @@ async function pgTables(dbClient) {
   return res.rows.map((row) => row.table_name);
 }
 
-async function exportPostgresSchema(dbClient, tables) {
+async function exportPostgresSequences(dbClient) {
   const chunks = [];
+  let rows;
+  try {
+    const res = await dbClient.query(`
+      SELECT sequence_name, data_type, start_value, increment, minimum_value, maximum_value, cycle_option
+      FROM information_schema.sequences
+      WHERE sequence_schema = 'public'
+      ORDER BY sequence_name
+    `);
+    rows = res.rows;
+  } catch (_) {
+    try {
+      const res = await dbClient.query(`
+        SELECT
+          c.relname AS sequence_name,
+          'bigint' AS data_type,
+          s.seqstart AS start_value,
+          s.seqincrement AS increment,
+          s.seqmin AS minimum_value,
+          s.seqmax AS maximum_value,
+          CASE s.seqcycle WHEN true THEN 'YES' ELSE 'NO' END AS cycle_option
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        LEFT JOIN pg_sequence s ON s.seqrelid = c.oid
+        WHERE c.relkind = 'S' AND n.nspname = 'public'
+        ORDER BY c.relname
+      `);
+      rows = res.rows;
+    } catch (_2) {
+      const res = await dbClient.query(
+        `SELECT relname FROM pg_class WHERE relkind = 'S' AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public') ORDER BY relname`
+      );
+      rows = res.rows.map((r) => ({ sequence_name: r.relname, data_type: 'bigint', start_value: 1, increment: 1, minimum_value: 1, maximum_value: 9223372036854775807, cycle_option: 'NO' }));
+    }
+  }
+  for (const seq of rows) {
+    const seqName = pgIdent(seq.sequence_name);
+    const seqType = seq.data_type === 'bigint' ? 'BIGINT' : (seq.data_type || '').includes('bigint') ? 'BIGINT' : 'INTEGER';
+    chunks.push(
+      `CREATE SEQUENCE ${pgIdent('public')}.${seqName} AS ${seqType} START WITH ${seq.start_value} INCREMENT BY ${seq.increment} MINVALUE ${seq.minimum_value} MAXVALUE ${seq.maximum_value} ${seq.cycle_option === 'YES' ? 'CYCLE' : 'NO CYCLE'};\n`
+    );
+  }
+  if (chunks.length) chunks.unshift('\n');
+  return chunks.join('');
+}
+
+async function exportPostgresEnums(dbClient) {
+  const rows = [];
+  try {
+    const res = await dbClient.query(`
+      SELECT t.typname AS enum_name, n.nspname AS enum_schema, array_agg(e.enumlabel ORDER BY e.enumsortorder) AS enum_values
+      FROM pg_type t
+      JOIN pg_enum e ON t.oid = e.enumtypid
+      JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+      WHERE t.oid IN (
+        SELECT a.atttypid
+        FROM pg_catalog.pg_attribute a
+        JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
+        JOIN pg_catalog.pg_namespace n2 ON n2.oid = c.relnamespace
+        WHERE n2.nspname = 'public' AND c.relkind = 'r' AND a.attnum > 0 AND NOT a.attisdropped
+      )
+      GROUP BY t.typname, n.nspname
+      ORDER BY n.nspname, t.typname
+    `);
+    rows.push(...res.rows);
+  } catch (_) {}
+  if (!rows.length) return '';
+  const chunks = rows.map((r) => {
+    const vals = r.enum_values.map((v) => `'${v.replace(/'/g, "''")}'`).join(', ');
+    return `CREATE TYPE ${pgIdent(r.enum_schema)}.${pgIdent(r.enum_name)} AS ENUM (${vals});\n`;
+  });
+  chunks.push('\n');
+  return chunks.join('');
+}
+
+async function exportPostgresSchema(dbClient, tables) {
+  const enumsOut = await exportPostgresEnums(dbClient);
+  const tablesOut = [];
+  const pkUniqueConstraints = [];
+  const otherConstraints = [];
+  const indexesOut = [];
+
   for (const table of tables) {
     const columns = await dbClient.query(`
       SELECT
@@ -2407,10 +2494,10 @@ async function exportPostgresSchema(dbClient, tables) {
       return parts.join(' ');
     });
 
-    chunks.push(`CREATE TABLE ${pgIdent('public')}.${pgIdent(table)} (\n${columnDefs.join(',\n')}\n);\n`);
+    tablesOut.push(`CREATE TABLE ${pgIdent('public')}.${pgIdent(table)} (\n${columnDefs.join(',\n')}\n);\n`);
 
     const constraints = await dbClient.query(`
-      SELECT conname, pg_get_constraintdef(oid) AS definition
+      SELECT conname, contype, pg_get_constraintdef(oid) AS definition
       FROM pg_catalog.pg_constraint
       WHERE conrelid = (
         SELECT c.oid
@@ -2422,7 +2509,12 @@ async function exportPostgresSchema(dbClient, tables) {
     `, [table]);
 
     for (const constraint of constraints.rows) {
-      chunks.push(`ALTER TABLE ONLY ${pgIdent('public')}.${pgIdent(table)} ADD CONSTRAINT ${pgIdent(constraint.conname)} ${constraint.definition};\n`);
+      const line = `ALTER TABLE ONLY ${pgIdent('public')}.${pgIdent(table)} ADD CONSTRAINT ${pgIdent(constraint.conname)} ${constraint.definition};\n`;
+      if (constraint.contype === 'p' || constraint.contype === 'u') {
+        pkUniqueConstraints.push(line);
+      } else {
+        otherConstraints.push(line);
+      }
     }
 
     const indexes = await dbClient.query(`
@@ -2444,17 +2536,71 @@ async function exportPostgresSchema(dbClient, tables) {
     `, [table, table]);
 
     for (const index of indexes.rows) {
-      chunks.push(`${index.indexdef};\n`);
+      indexesOut.push(`${index.indexdef};\n`);
     }
-
-    chunks.push('\n');
   }
-  return chunks.join('');
+
+  tablesOut.push('\n');
+  pkUniqueConstraints.push('\n');
+  otherConstraints.push('\n');
+  indexesOut.push('\n');
+
+  return enumsOut + tablesOut.join('') + pkUniqueConstraints.join('') + otherConstraints.join('') + indexesOut.join('');
+}
+
+async function pgTopologicalSort(dbClient, tables) {
+  const sorted = [];
+  const visited = {};
+  const inProgress = {};
+  const adj = {};
+
+  for (const t of tables) adj[t] = [];
+
+  try {
+    const res = await dbClient.query(`
+      SELECT
+        cl.relname AS source_table,
+        cr.relname AS target_table
+      FROM pg_catalog.pg_constraint c
+      JOIN pg_catalog.pg_class cl ON cl.oid = c.conrelid
+      JOIN pg_catalog.pg_class cr ON cr.oid = c.confrelid
+      JOIN pg_catalog.pg_namespace nl ON nl.oid = cl.relnamespace
+      JOIN pg_catalog.pg_namespace nr ON nr.oid = cr.relnamespace
+      WHERE c.contype = 'f'
+        AND nl.nspname = 'public'
+        AND nr.nspname = 'public'
+    `);
+    for (const row of res.rows) {
+      if (adj[row.source_table]) adj[row.source_table].push(row.target_table);
+    }
+  } catch (_) {}
+
+  function dfs(table) {
+    if (visited[table]) return;
+    if (inProgress[table]) return;
+    inProgress[table] = true;
+    for (const dep of (adj[table] || [])) {
+      if (!visited[dep]) dfs(dep);
+    }
+    visited[table] = true;
+    sorted.push(table);
+  }
+
+  for (const t of tables) {
+    if (!visited[t]) dfs(t);
+  }
+
+  for (const t of tables) {
+    if (!sorted.includes(t)) sorted.push(t);
+  }
+
+  return sorted;
 }
 
 async function exportPostgresData(dbClient, tables) {
+  const ordered = await pgTopologicalSort(dbClient, tables);
   const chunks = [];
-  for (const table of tables) {
+  for (const table of ordered) {
     const res = await dbClient.query(`SELECT * FROM ${pgIdent('public')}.${pgIdent(table)}`);
     chunks.push(sqlComment(`Data for public.${table}`));
     if (!res.rows.length) {
@@ -2472,6 +2618,19 @@ async function exportPostgresData(dbClient, tables) {
   return chunks.join('');
 }
 
+function buildDockerDumpCommand(images, dumpTool, mode, dbName, user, pass) {
+  const modeFlag = dumpTool === 'pg_dump'
+    ? (mode === 'schema' ? '--schema-only' : mode === 'data' ? '--data-only' : '')
+    : (mode === 'schema' ? '--no-data' : mode === 'data' ? '--no-create-info' : '');
+  const escape = (s) => String(s || '').replace(/'/g, "'\\''");
+  const imgFilter = images.split(',').map((i) => `--filter "ancestor=${i.trim()}"`).join(' ');
+  if (dumpTool === 'pg_dump') {
+    return `C=$(docker ps -q ${imgFilter} --filter "status=running" --format "{{.Names}}" 2>/dev/null | head -1); if [ -n "$C" ]; then docker exec "$C" pg_dump -U '${escape(user)}' -d '${escape(dbName)}' --no-owner --no-acl ${modeFlag} 2>/dev/null; fi`;
+  } else {
+    return `C=$(docker ps -q ${imgFilter} --filter "status=running" --format "{{.Names}}" 2>/dev/null | head -1); if [ -n "$C" ]; then docker exec "$C" mysqldump -u '${escape(user)}' -p'${escape(pass)}' '${escape(dbName)}' --skip-comments --no-tablespaces --skip-add-drop-table --skip-add-locks ${modeFlag} 2>/dev/null; fi`;
+  }
+}
+
 ipcMain.handle('database:export-sql', async (_, { serverId, mode }) => {
   const connInfo = activeDbConnections.get(serverId);
   if (!connInfo || !connInfo.dbClient) {
@@ -2479,7 +2638,7 @@ ipcMain.handle('database:export-sql', async (_, { serverId, mode }) => {
   }
 
   try {
-    const { dbClient, dbType, databaseName } = connInfo;
+    const { dbClient, dbType, databaseName, localPort, username, password } = connInfo;
     if (dbType === 'redis') {
       return { ok: false, error: 'Redis does not support .sql schema or data exports.' };
     }
@@ -2487,48 +2646,123 @@ ipcMain.handle('database:export-sql', async (_, { serverId, mode }) => {
       return { ok: false, error: 'Unknown export mode' };
     }
 
-    const tables = dbType === 'mysql' ? await mysqlTables(dbClient) : await pgTables(dbClient);
+    const safeDbName = String(databaseName || 'database').replace(/[^a-z0-9_-]+/gi, '_').replace(/^_+|_+$/g, '') || 'database';
     const header = [
-      sqlComment(`Server Operator ${mode} export`),
-      sqlComment(`Database: ${databaseName || 'database'}`),
-      sqlComment(`Engine: ${dbType}`),
-      sqlComment(`Generated: ${new Date().toISOString()}`),
-      '\n',
-    ].join('');
+      `-- Server Operator ${mode} export`,
+      `-- Database: ${databaseName || 'database'}`,
+      `-- Engine: ${dbType}`,
+      `-- Generated: ${new Date().toISOString()}`,
+      '',
+    ].join('\n');
 
     let body = '';
-    if (dbType === 'mysql') {
-      if (mode === 'schema') {
-        body = await exportMysqlSchema(dbClient, tables);
-      } else if (mode === 'data') {
-        body = await exportMysqlData(dbClient, tables);
-      } else {
-        body = [
-          await exportMysqlSchema(dbClient, tables),
-          '\n',
-          sqlComment('Data export'),
-          await exportMysqlData(dbClient, tables),
-        ].join('');
+    let toolOk = false;
+
+    // 1. Try remote docker exec dump via SSH
+    try {
+      const dumpCmd = dbType === 'postgres'
+        ? buildDockerDumpCommand('postgres', 'pg_dump', mode, databaseName, username, password)
+        : buildDockerDumpCommand('mysql,mariadb', 'mysqldump', mode, databaseName, username, password);
+      if (dumpCmd) {
+        const sshConn = await getOrCreateConnection(connection, proxy);
+        if (sshConn) {
+          const execResult = await execCommand(sshConn, dumpCmd, '');
+          if (execResult.code === 0 && execResult.stdout && execResult.stdout.trim().length > 100) {
+            body = execResult.stdout;
+            toolOk = true;
+            log('Export via SSH docker exec succeeded', { serverId, dbType });
+          }
+        }
       }
-    } else if (dbType === 'postgres') {
-      if (mode === 'schema') {
-        body = await exportPostgresSchema(dbClient, tables);
-      } else if (mode === 'data') {
-        body = await exportPostgresData(dbClient, tables);
-      } else {
-        body = [
-          await exportPostgresSchema(dbClient, tables),
-          '\n',
-          sqlComment('Data export'),
-          await exportPostgresData(dbClient, tables),
-        ].join('');
+    } catch (e) {
+      log('SSH docker export failed, trying local tools', { serverId, error: e.message });
+    }
+
+    // 2. Try local pg_dump / mysqldump
+    if (!toolOk && dbType === 'postgres') {
+      try {
+        const pgDumpArgs = [
+          '-h', '127.0.0.1',
+          '-p', String(localPort),
+          '-U', username,
+          '-d', databaseName,
+          '--no-owner',
+          '--no-acl',
+        ];
+        if (mode === 'schema') pgDumpArgs.push('--schema-only');
+        else if (mode === 'data') pgDumpArgs.push('--data-only');
+        const env = { ...process.env, PGPASSWORD: password || '' };
+        const out = execSync('pg_dump', pgDumpArgs, { env, encoding: 'utf8', maxBuffer: 100 * 1024 * 1024 });
+        body = out;
+        toolOk = true;
+      } catch (e) {
+        log('pg_dump not available locally', { serverId, error: e.message });
+      }
+    }
+    if (!toolOk && dbType === 'mysql') {
+      try {
+        const myArgs = [
+          '-h', '127.0.0.1',
+          '-P', String(localPort),
+          '-u', username,
+          `-p${password || ''}`,
+          databaseName,
+          '--skip-comments',
+          '--no-tablespaces',
+          '--skip-add-drop-table',
+          '--skip-add-locks',
+          '--skip-set-charset',
+        ];
+        if (mode === 'schema') myArgs.push('--no-data');
+        else if (mode === 'data') myArgs.push('--no-create-info');
+        const out = execSync('mysqldump', myArgs, { encoding: 'utf8', maxBuffer: 100 * 1024 * 1024 });
+        body = out;
+        toolOk = true;
+      } catch (e) {
+        log('mysqldump not available locally', { serverId, error: e.message });
       }
     }
 
-    const safeDbName = String(databaseName || 'database').replace(/[^a-z0-9_-]+/gi, '_').replace(/^_+|_+$/g, '') || 'database';
+    // 3. Fallback to manual export
+    if (!toolOk) {
+      const tables = dbType === 'mysql' ? await mysqlTables(dbClient) : await pgTables(dbClient);
+      if (dbType === 'mysql') {
+        if (mode === 'schema') {
+          body = await exportMysqlSchema(dbClient, tables);
+        } else if (mode === 'data') {
+          body = await exportMysqlData(dbClient, tables);
+        } else {
+          body = [
+            await exportMysqlSchema(dbClient, tables),
+            '\n',
+            '-- Data export\n',
+            await exportMysqlData(dbClient, tables),
+          ].join('');
+        }
+      } else if (dbType === 'postgres') {
+        if (mode === 'schema') {
+          body = [
+            await exportPostgresSequences(dbClient),
+            await exportPostgresSchema(dbClient, tables),
+          ].join('');
+        } else if (mode === 'data') {
+          body = await exportPostgresData(dbClient, tables);
+        } else {
+          body = [
+            await exportPostgresSequences(dbClient),
+            '\n',
+            await exportPostgresSchema(dbClient, tables),
+            '\n',
+            '-- Data export\n',
+            await exportPostgresData(dbClient, tables),
+          ].join('');
+        }
+      }
+    }
+
     return {
       ok: true,
-      sql: header + body,
+      sql: header + '\n' + body,
       filename: `${safeDbName}-${mode}-${timestampForFilename()}.sql`,
     };
   } catch (err) {
@@ -2652,11 +2886,14 @@ function isSqlImportNoop(statement) {
   return !compact;
 }
 
-ipcMain.handle('database:import-sql', async (_, { serverId, sql }) => {
+ipcMain.handle('database:import-sql', async (event, { serverId, sql }) => {
   const connInfo = activeDbConnections.get(serverId);
   if (!connInfo || !connInfo.dbClient) {
     return { ok: false, error: 'No active database connection' };
   }
+
+  let executed = 0;
+  let lastStatement = '';
 
   try {
     const { dbClient, dbType } = connInfo;
@@ -2669,29 +2906,124 @@ ipcMain.handle('database:import-sql', async (_, { serverId, sql }) => {
       return { ok: false, error: 'No SQL statements found in the selected file.' };
     }
 
-    let executed = 0;
-    if (dbType === 'postgres') await dbClient.query('BEGIN');
+    log('SQL import: executing', { serverId, totalStatements: statements.length });
+    event.sender.send('import-progress', { serverId, type: 'start', total: statements.length });
+
+    if (dbType === 'postgres') {
+      await dbClient.query('SET session_replication_role = replica');
+      await dbClient.query('BEGIN');
+    }
     try {
       for (const statement of statements) {
-        if (dbType === 'mysql') {
-          await dbClient.query(statement);
-        } else if (dbType === 'postgres') {
-          await dbClient.query(statement);
-        }
+        lastStatement = statement.slice(0, 120);
+        await dbClient.query(statement);
         executed++;
+        if (executed % 50 === 0) {
+          log('SQL import progress', { serverId, executed, total: statements.length });
+          event.sender.send('import-progress', { serverId, type: 'progress', executed, total: statements.length });
+        }
       }
       if (dbType === 'postgres') await dbClient.query('COMMIT');
+      log('SQL import: completed', { serverId, statements: executed });
+      event.sender.send('import-progress', { serverId, type: 'complete', executed });
     } catch (err) {
+      log('SQL import: statement failed', { serverId, executed, error: err.message, lastStatement });
+      event.sender.send('import-progress', { serverId, type: 'error', error: err.message, lastStatement });
       if (dbType === 'postgres') {
         try { await dbClient.query('ROLLBACK'); } catch (_) {}
       }
       throw err;
+    } finally {
+      if (dbType === 'postgres') {
+        try { await dbClient.query('SET session_replication_role = origin'); } catch (_) {}
+      }
     }
 
     return { ok: true, statements: executed };
   } catch (err) {
     log('Database SQL import error', { serverId, error: err.message });
-    return { ok: false, error: err.message || String(err) };
+    return { ok: false, error: err.message || String(err), lastStatement };
+  }
+});
+
+ipcMain.handle('database:import-sql-full', async (event, { serverId, sql }) => {
+  const connInfo = activeDbConnections.get(serverId);
+  if (!connInfo || !connInfo.dbClient) {
+    return { ok: false, error: 'No active database connection' };
+  }
+
+  let executed = 0;
+  let lastStatement = '';
+
+  try {
+    const { dbClient, dbType, databaseName } = connInfo;
+    if (dbType === 'redis') {
+      return { ok: false, error: 'Redis does not support SQL imports.' };
+    }
+
+    log('Full import started', { serverId, dbType });
+    event.sender.send('import-progress', { serverId, type: 'start', stage: 'prepare' });
+
+    if (dbType === 'mysql') {
+      log('Full import: dropping all MySQL tables', { serverId });
+      const [rows] = await dbClient.query("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'");
+      const tableNames = rows.map((r) => Object.values(r)[0]).filter(Boolean);
+      if (tableNames.length > 0) {
+        await dbClient.query('SET FOREIGN_KEY_CHECKS = 0');
+        for (const t of tableNames) {
+          await dbClient.query(`DROP TABLE IF EXISTS \`${t}\``);
+        }
+        await dbClient.query('SET FOREIGN_KEY_CHECKS = 1');
+      }
+      log('Full import: tables dropped, starting import', { serverId });
+    } else if (dbType === 'postgres') {
+      log('Full import: DROP SCHEMA public CASCADE', { serverId });
+      await dbClient.query('DROP SCHEMA public CASCADE');
+      await dbClient.query('CREATE SCHEMA public');
+      await dbClient.query('SET session_replication_role = replica');
+      log('Full import: schema recreated, FK enforcement disabled', { serverId });
+    }
+
+    const statements = splitSqlStatements(String(sql || '')).filter((s) => !isSqlImportNoop(s));
+    if (!statements.length) {
+      log('Full import: no SQL statements found', { serverId });
+      return { ok: false, error: 'No SQL statements found in the selected file.' };
+    }
+
+    log('Full import: executing', { serverId, totalStatements: statements.length });
+    event.sender.send('import-progress', { serverId, type: 'start', total: statements.length });
+
+    if (dbType === 'postgres') await dbClient.query('BEGIN');
+    try {
+      for (const statement of statements) {
+        lastStatement = statement.slice(0, 120);
+        await dbClient.query(statement);
+        executed++;
+        if (executed % 50 === 0) {
+          log('Full import progress', { serverId, executed, total: statements.length });
+          event.sender.send('import-progress', { serverId, type: 'progress', executed, total: statements.length, lastStatement });
+        }
+      }
+      if (dbType === 'postgres') await dbClient.query('COMMIT');
+      log('Full import: completed', { serverId, statements: executed });
+      event.sender.send('import-progress', { serverId, type: 'complete', executed });
+    } catch (err) {
+      log('Full import: statement failed', { serverId, executed, error: err.message, lastStatement });
+      event.sender.send('import-progress', { serverId, type: 'error', error: err.message, lastStatement });
+      if (dbType === 'postgres') {
+        try { await dbClient.query('ROLLBACK'); } catch (_) {}
+      }
+      throw err;
+    } finally {
+      if (dbType === 'postgres') {
+        try { await dbClient.query('SET session_replication_role = origin'); } catch (_) {}
+      }
+    }
+
+    return { ok: true, statements: executed };
+  } catch (err) {
+    log('Database full import error', { serverId, error: err.message });
+    return { ok: false, error: err.message || String(err), lastStatement };
   }
 });
 

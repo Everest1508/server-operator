@@ -55,6 +55,7 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
   const [showPassword, setShowPassword] = useState(false);
   const skipNextEngineDefaults = useRef(false);
   const importFileInputRef = useRef<HTMLInputElement | null>(null);
+  const importFullFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Cloudinary Backup State
   const [cloudinaryBackups, setCloudinaryBackups] = useState<any[]>([]);
@@ -72,6 +73,7 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
   const [queryLoading, setQueryLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState<ExportMode | null>(null);
   const [importLoading, setImportLoading] = useState(false);
+  const [importLog, setImportLog] = useState<string[]>([]);
   const [dockerDatabases, setDockerDatabases] = useState<DockerDatabaseTarget[]>([]);
   const [dockerDatabasesLoading, setDockerDatabasesLoading] = useState(false);
   const [dockerDatabasesError, setDockerDatabasesError] = useState<string | null>(null);
@@ -179,6 +181,23 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
       provider.dispose();
     };
   }, [monaco, tables]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<any>).detail;
+      if (detail?.type === 'start') {
+        setImportLog([`Starting import (${detail.total || '?'} statements)...`]);
+      } else if (detail?.type === 'progress') {
+        setImportLog((prev) => [...prev.slice(-99), `[${detail.executed}/${detail.total}] ${detail.lastStatement || ''}`]);
+      } else if (detail?.type === 'complete') {
+        setImportLog((prev) => [...prev, `Import complete: ${detail.executed} statements executed.`]);
+      } else if (detail?.type === 'error') {
+        setImportLog((prev) => [...prev, `Error: ${detail.error}`]);
+      }
+    };
+    window.addEventListener('import-progress', handler);
+    return () => window.removeEventListener('import-progress', handler);
+  }, []);
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -378,6 +397,7 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
   const handleImportSqlFile = async (file: File | null) => {
     if (!file || !currentServer || !window.serverOperator?.importDatabaseSql) return;
     setImportLoading(true);
+    setImportLog([]);
     setQueryError(null);
     setQueryResult(null);
     setExecutionTime(null);
@@ -389,13 +409,40 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
         setQueryResult([{ result: `Imported ${res.statements || 0} SQL statements from ${file.name}` }]);
         await fetchSchema();
       } else {
-        setQueryError(res.error || 'SQL import failed');
+        const extra = res.lastStatement ? `\n\nFailed on: ${res.lastStatement}` : '';
+        setQueryError((res.error || 'SQL import failed') + extra);
       }
     } catch (err: any) {
       setQueryError(err.message || String(err));
     } finally {
       setImportLoading(false);
       if (importFileInputRef.current) importFileInputRef.current.value = '';
+    }
+  };
+
+  const handleImportFullSqlFile = async (file: File | null) => {
+    if (!file || !currentServer || !window.serverOperator?.importFullDatabaseSql) return;
+    setImportLoading(true);
+    setImportLog([]);
+    setQueryError(null);
+    setQueryResult(null);
+    setExecutionTime(null);
+
+    try {
+      const sql = await file.text();
+      const res = await window.serverOperator.importFullDatabaseSql({ serverId: currentServer.id, sql });
+      if (res.ok) {
+        setQueryResult([{ result: `Imported ${res.statements || 0} SQL statements from ${file.name} (full wipe + import)` }]);
+        await fetchSchema();
+      } else {
+        const extra = res.lastStatement ? `\n\nFailed on: ${res.lastStatement}` : '';
+        setQueryError((res.error || 'Full import failed') + extra);
+      }
+    } catch (err: any) {
+      setQueryError(err.message || String(err));
+    } finally {
+      setImportLoading(false);
+      if (importFullFileInputRef.current) importFullFileInputRef.current.value = '';
     }
   };
 
@@ -945,6 +992,13 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                           className="hidden"
                           onChange={(e) => handleImportSqlFile(e.target.files?.[0] || null)}
                         />
+                        <input
+                          ref={importFullFileInputRef}
+                          type="file"
+                          accept=".sql,application/sql,text/sql,text/plain"
+                          className="hidden"
+                          onChange={(e) => handleImportFullSqlFile(e.target.files?.[0] || null)}
+                        />
                         <button
                           type="button"
                           onClick={() => importFileInputRef.current?.click()}
@@ -953,6 +1007,15 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                         >
                           {importLoading ? <RefreshCw size={10} className="animate-spin" /> : <Download size={10} className="rotate-180" />}
                           Import SQL
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => importFullFileInputRef.current?.click()}
+                          disabled={importLoading || !!exportLoading}
+                          className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold border border-error/35 bg-error/10 text-error hover:bg-error/15 rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
+                        >
+                          {importLoading ? <RefreshCw size={10} className="animate-spin" /> : <Download size={10} className="rotate-180" />}
+                          Import Full SQL
                         </button>
                         <button
                           type="button"
@@ -992,6 +1055,16 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                         </button>
                       </div>
                     </div>
+
+                    {importLog.length > 0 && (
+                      <div className="border border-border/20 bg-bg-tertiary/30 rounded-xl overflow-hidden shadow-sm mb-2">
+                        <div className="max-h-24 overflow-y-auto p-2 text-[10px] font-mono text-text-muted leading-relaxed select-text">
+                          {importLog.map((line, i) => (
+                            <div key={i} className={line.startsWith('Error') ? 'text-error' : line.includes('complete') ? 'text-success' : ''}>{line}</div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="border border-border/20 bg-bg-secondary/35 rounded-xl overflow-hidden flex flex-col shadow-sm">
                       <div className="h-36">
