@@ -10,8 +10,8 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   base: './',
   server: {
-    port: 5173,
-    strictPort: true, // Fail if 5173 is in use (close other vite/app using it)
+    port: Number(process.env.PORT || 5173),
+    strictPort: true, // Fail if the selected port is in use
     open: false, // Don't open browser — use the Electron window so SSH/IPC works
   },
   resolve: {

@@ -15,7 +15,7 @@
     "dev": "vite",
     "build": "tsc && vite build && electron-builder",
     "preview": "vite preview",
-    "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && cross-env ELECTRON_DEV=1 electron . --no-sandbox\"",
+    "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:${PORT:-5173} && ELECTRON_DEV=1 electron . --no-sandbox\"",
     "electron:build": "vite build && electron-builder",
     "electron:build:linux": "vite build && electron-builder --linux deb",
     "electron:build:mac": "vite build && electron-builder --mac dmg zip",

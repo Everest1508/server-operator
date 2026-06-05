@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Database, 
   Play, 
@@ -17,6 +17,24 @@ import EyeOffIcon from './icons/EyeOffIcon';
 import type { ServerConnection, ProxySettings } from '../types';
 import Editor, { useMonaco } from '@monaco-editor/react';
 
+type DbType = 'mysql' | 'postgres' | 'redis';
+type ExportMode = 'schema' | 'data' | 'full';
+
+interface DockerDatabaseTarget {
+  id: string;
+  name: string;
+  image: string;
+  state?: string;
+  status?: string;
+  dbType: DbType;
+  host: string;
+  port: string;
+  username: string;
+  password: string;
+  database: string;
+  source: 'published-port' | 'container-ip' | 'default-port';
+}
+
 interface DatabaseViewProps {
   currentServer: ServerConnection | null;
   proxy: ProxySettings;
@@ -24,19 +42,27 @@ interface DatabaseViewProps {
 
 export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
   // Connection Form State
-  const [dbType, setDbType] = useState<'mysql' | 'postgres' | 'redis'>('mysql');
+  const [dbType, setDbType] = useState<DbType>('mysql');
   const [host, setHost] = useState('127.0.0.1');
   const [port, setPort] = useState('3306');
   const [username, setUsername] = useState('root');
   const [password, setPassword] = useState('');
   const [database, setDatabase] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const skipNextEngineDefaults = useRef(false);
+  const importFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Execution State
   const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
   const [error, setError] = useState<string | null>(null);
   const [localPort, setLocalPort] = useState<number | null>(null);
   const [queryLoading, setQueryLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState<ExportMode | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [dockerDatabases, setDockerDatabases] = useState<DockerDatabaseTarget[]>([]);
+  const [dockerDatabasesLoading, setDockerDatabasesLoading] = useState(false);
+  const [dockerDatabasesError, setDockerDatabasesError] = useState<string | null>(null);
+  const [selectedDockerDatabaseId, setSelectedDockerDatabaseId] = useState<string | null>(null);
 
   // Metadata Panel
   const [tables, setTables] = useState<string[]>([]);
@@ -55,6 +81,10 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
 
   // Default Port Helper
   useEffect(() => {
+    if (skipNextEngineDefaults.current) {
+      skipNextEngineDefaults.current = false;
+      return;
+    }
     if (dbType === 'mysql') {
       setPort('3306');
       setUsername('root');
@@ -75,6 +105,30 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
     setExecutionTime(null);
     setCurrentPage(1);
   }, [dbType]);
+
+  const refreshDockerDatabases = async () => {
+    if (!currentServer || !window.serverOperator?.getDockerDatabases) return;
+    setDockerDatabasesLoading(true);
+    setDockerDatabasesError(null);
+    try {
+      const res = await window.serverOperator.getDockerDatabases({ connection: currentServer, proxy });
+      if (res.ok) {
+        setDockerDatabases(res.databases || []);
+      } else {
+        setDockerDatabases([]);
+        setDockerDatabasesError(res.error || 'Failed to scan Docker databases');
+      }
+    } catch (err: any) {
+      setDockerDatabases([]);
+      setDockerDatabasesError(err.message || String(err));
+    } finally {
+      setDockerDatabasesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshDockerDatabases();
+  }, [currentServer?.id]);
 
   // Handle server switch cleanup
   useEffect(() => {
@@ -165,7 +219,7 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
   };
 
   const fetchSchema = async () => {
-    if (!currentServer || !window.serverOperator || status === 'disconnected') return;
+    if (!currentServer || !window.serverOperator) return;
     setMetadataLoading(true);
     try {
       const res = await window.serverOperator.getDatabaseSchema({ serverId: currentServer.id });
@@ -181,6 +235,19 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
     } finally {
       setMetadataLoading(false);
     }
+  };
+
+  const applyDockerDatabase = (target: DockerDatabaseTarget) => {
+    skipNextEngineDefaults.current = true;
+    setSelectedDockerDatabaseId(target.id);
+    setDbType(target.dbType);
+    setHost(target.host);
+    setPort(target.port);
+    setUsername(target.username);
+    setPassword(target.password);
+    setDatabase(target.database);
+    setError(null);
+    setStatus('disconnected');
   };
 
   const handleRunQuery = async () => {
@@ -263,6 +330,62 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
     document.body.removeChild(link);
   };
 
+  const downloadTextFile = (content: string, filename: string, type: string) => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportSql = async (mode: ExportMode) => {
+    if (!currentServer || !window.serverOperator?.exportDatabaseSql) return;
+    setExportLoading(mode);
+    setQueryError(null);
+
+    try {
+      const res = await window.serverOperator.exportDatabaseSql({ serverId: currentServer.id, mode });
+      if (res.ok && res.sql) {
+        downloadTextFile(res.sql, res.filename || `database-${mode}.sql`, 'application/sql;charset=utf-8;');
+      } else {
+        setQueryError(res.error || 'SQL export failed');
+      }
+    } catch (err: any) {
+      setQueryError(err.message || String(err));
+    } finally {
+      setExportLoading(null);
+    }
+  };
+
+  const handleImportSqlFile = async (file: File | null) => {
+    if (!file || !currentServer || !window.serverOperator?.importDatabaseSql) return;
+    setImportLoading(true);
+    setQueryError(null);
+    setQueryResult(null);
+    setExecutionTime(null);
+
+    try {
+      const sql = await file.text();
+      const res = await window.serverOperator.importDatabaseSql({ serverId: currentServer.id, sql });
+      if (res.ok) {
+        setQueryResult([{ result: `Imported ${res.statements || 0} SQL statements from ${file.name}` }]);
+        await fetchSchema();
+      } else {
+        setQueryError(res.error || 'SQL import failed');
+      }
+    } catch (err: any) {
+      setQueryError(err.message || String(err));
+    } finally {
+      setImportLoading(false);
+      if (importFileInputRef.current) importFileInputRef.current.value = '';
+    }
+  };
+
   const filteredMetadata = dbType === 'redis' 
     ? redisKeys.filter(k => k.toLowerCase().includes(metadataSearch.toLowerCase()))
     : tables.filter(t => t.toLowerCase().includes(metadataSearch.toLowerCase()));
@@ -332,6 +455,71 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
           {/* Connection settings form */}
           {status !== 'connected' && status !== 'connecting' ? (
             <form onSubmit={handleConnect} className="p-4 border-b border-border/20 flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Docker Databases</h3>
+                  <button
+                    type="button"
+                    onClick={refreshDockerDatabases}
+                    disabled={dockerDatabasesLoading}
+                    className="p-1 rounded-md text-text-secondary hover:bg-bg-tertiary disabled:opacity-50 cursor-pointer"
+                    title="Refresh Docker databases"
+                  >
+                    <RefreshCw size={12} className={dockerDatabasesLoading ? 'animate-spin text-accent' : ''} />
+                  </button>
+                </div>
+
+                {dockerDatabasesError ? (
+                  <div className="p-2.5 rounded-xl bg-error/10 border border-error/20 text-error text-[11px] leading-relaxed">
+                    {dockerDatabasesError}
+                  </div>
+                ) : dockerDatabasesLoading && dockerDatabases.length === 0 ? (
+                  <div className="p-3 rounded-xl border border-border/20 bg-bg-primary/35 text-[11px] text-text-muted text-center">
+                    Scanning Docker containers...
+                  </div>
+                ) : dockerDatabases.length === 0 ? (
+                  <div className="p-3 rounded-xl border border-border/20 bg-bg-primary/35 text-[11px] text-text-muted text-center">
+                    No Docker database containers detected.
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    {dockerDatabases.map((target) => {
+                      const active = selectedDockerDatabaseId === target.id;
+                      const sourceLabel = target.source === 'published-port'
+                        ? 'published'
+                        : target.source === 'container-ip'
+                          ? 'container IP'
+                          : 'default';
+                      return (
+                        <button
+                          key={target.id}
+                          type="button"
+                          onClick={() => applyDockerDatabase(target)}
+                          className={`w-full text-left rounded-xl border px-3 py-2 transition-all cursor-pointer ${
+                            active
+                              ? 'border-accent/50 bg-accent/10'
+                              : 'border-border/20 bg-bg-primary/35 hover:bg-bg-tertiary/40'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-semibold text-text-primary truncate">{target.name}</span>
+                            <span className="text-[9px] uppercase font-extrabold text-accent bg-accent/10 border border-accent/20 px-1.5 py-0.5 rounded-md">
+                              {target.dbType}
+                            </span>
+                          </div>
+                          <div className="mt-1 text-[10px] font-mono text-text-muted truncate">
+                            {target.host}:{target.port} · {sourceLabel}
+                          </div>
+                          <div className="mt-0.5 text-[10px] text-text-secondary truncate">
+                            {target.image || 'unknown image'}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Connection Settings</h3>
               
               <div className="flex flex-col gap-1">
@@ -533,7 +721,7 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
               <div className="border-b border-border/20 p-4 flex flex-col gap-3 shrink-0">
                 {dbType === 'redis' ? (
                   <>
-                    <div className="flex justify-between items-center select-none">
+                    <div className="flex flex-wrap justify-between items-center gap-2 select-none">
                       <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
                         Redis Console
                       </h3>
@@ -566,10 +754,55 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                   </>
                 ) : (
                   <>
-                    <div className="flex justify-between items-center select-none">
+                    <div className="flex flex-wrap justify-between items-center gap-2 select-none">
                       <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
                         SQL Command Workspace
                       </h3>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          ref={importFileInputRef}
+                          type="file"
+                          accept=".sql,application/sql,text/sql,text/plain"
+                          className="hidden"
+                          onChange={(e) => handleImportSqlFile(e.target.files?.[0] || null)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => importFileInputRef.current?.click()}
+                          disabled={importLoading || !!exportLoading}
+                          className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold border border-warning/35 bg-warning/10 text-warning hover:bg-warning/15 rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
+                        >
+                          {importLoading ? <RefreshCw size={10} className="animate-spin" /> : <Download size={10} className="rotate-180" />}
+                          Import SQL
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleExportSql('schema')}
+                          disabled={!!exportLoading || importLoading}
+                          className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold border border-border/30 bg-bg-secondary hover:bg-bg-tertiary rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
+                        >
+                          {exportLoading === 'schema' ? <RefreshCw size={10} className="animate-spin" /> : <Download size={10} />}
+                          Export Schema
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleExportSql('data')}
+                          disabled={!!exportLoading || importLoading}
+                          className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold border border-border/30 bg-bg-secondary hover:bg-bg-tertiary rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
+                        >
+                          {exportLoading === 'data' ? <RefreshCw size={10} className="animate-spin" /> : <Download size={10} />}
+                          Export Data
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleExportSql('full')}
+                          disabled={!!exportLoading || importLoading}
+                          className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold border border-accent/35 bg-accent/10 text-accent hover:bg-accent/15 rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
+                        >
+                          {exportLoading === 'full' ? <RefreshCw size={10} className="animate-spin" /> : <Download size={10} />}
+                          Export Full
+                        </button>
+                      </div>
                     </div>
 
                     <div className="border border-border/20 bg-bg-secondary/35 rounded-xl overflow-hidden flex flex-col shadow-sm">
@@ -599,10 +832,10 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                           }}
                         />
                       </div>
-                      <div className="flex items-center justify-between border-t border-border/20 px-4 py-2.5 bg-bg-secondary/45 text-xs select-none">
-                        <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/20 px-4 py-2.5 bg-bg-secondary/45 text-xs select-none">
+                        <div className="min-w-0 flex items-center gap-3">
                           {executionTime !== null && filteredResults && (
-                            <div className="flex items-center gap-2.5 text-xs font-mono text-text-secondary">
+                            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs font-mono text-text-secondary">
                               <span>Duration: <strong className="text-text-primary">{executionTime}ms</strong></span>
                               <span className="w-[1px] h-3 bg-border/20" />
                               <span>Total Rows: <strong className="text-text-primary">{filteredResults.length}</strong></span>
@@ -611,11 +844,11 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                             </div>
                           )}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex shrink-0 items-center gap-2">
                           <button
                             type="button"
                             onClick={() => setQueryText('')}
-                            className="px-2.5 py-1 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-secondary rounded-lg transition-all cursor-pointer font-semibold"
+                            className="px-2.5 py-1 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-secondary rounded-lg transition-all cursor-pointer font-semibold whitespace-nowrap"
                           >
                             Clear
                           </button>
@@ -623,7 +856,7 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                             type="button"
                             onClick={handleRunQuery}
                             disabled={queryLoading || !queryText.trim()}
-                            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-xl disabled:opacity-40 cursor-pointer shadow-sm transition-all"
+                            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-xl disabled:opacity-40 cursor-pointer shadow-sm transition-all whitespace-nowrap"
                           >
                             {queryLoading ? <RefreshCw size={12} className="animate-spin" /> : <Play size={12} />}
                             Run Query

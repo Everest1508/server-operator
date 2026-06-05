@@ -323,7 +323,8 @@ function createWindow() {
   mainWindow.webContents.setUserAgent(CHROME_UA);
 
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+    const devServerUrl = process.env.VITE_DEV_SERVER_URL || `http://localhost:${process.env.PORT || 5173}`;
+    mainWindow.loadURL(devServerUrl);
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
@@ -1015,6 +1016,131 @@ ipcMain.handle('server:get-docker-ps', async (_, { connection, proxy }) => {
     return { ok: true, containers };
   } catch (e) {
     return { ok: false, error: errMsg(e) };
+  }
+});
+
+function envMapFromContainer(container) {
+  const env = {};
+  for (const entry of container?.Config?.Env || []) {
+    const idx = String(entry).indexOf('=');
+    if (idx > 0) env[entry.slice(0, idx)] = entry.slice(idx + 1);
+  }
+  return env;
+}
+
+function firstContainerIp(container) {
+  const networks = container?.NetworkSettings?.Networks || {};
+  for (const network of Object.values(networks)) {
+    if (network?.IPAddress) return network.IPAddress;
+  }
+  return '';
+}
+
+function detectDockerDbType(container, env) {
+  const text = [
+    container?.Name,
+    container?.Config?.Image,
+    container?.Config?.Hostname,
+    ...(container?.Config?.Cmd || []),
+  ].join(' ').toLowerCase();
+
+  if (text.includes('postgres') || text.includes('postgis') || text.includes('timescale') || env.POSTGRES_DB || env.POSTGRES_USER) {
+    return 'postgres';
+  }
+  if (text.includes('mariadb') || text.includes('mysql') || env.MYSQL_DATABASE || env.MARIADB_DATABASE || env.MYSQL_ROOT_PASSWORD || env.MARIADB_ROOT_PASSWORD) {
+    return 'mysql';
+  }
+  if (text.includes('redis') || env.REDIS_PASSWORD) {
+    return 'redis';
+  }
+  return null;
+}
+
+function dockerDbDefaults(dbType, env) {
+  if (dbType === 'postgres') {
+    return {
+      port: '5432',
+      username: env.POSTGRES_USER || 'postgres',
+      password: env.POSTGRES_PASSWORD || '',
+      database: env.POSTGRES_DB || env.POSTGRES_USER || 'postgres',
+    };
+  }
+  if (dbType === 'mysql') {
+    const rootPassword = env.MYSQL_ROOT_PASSWORD || env.MARIADB_ROOT_PASSWORD || '';
+    return {
+      port: '3306',
+      username: env.MYSQL_USER || env.MARIADB_USER || 'root',
+      password: env.MYSQL_PASSWORD || env.MARIADB_PASSWORD || rootPassword,
+      database: env.MYSQL_DATABASE || env.MARIADB_DATABASE || '',
+    };
+  }
+  return {
+    port: '6379',
+    username: '',
+    password: env.REDIS_PASSWORD || '',
+    database: '0',
+  };
+}
+
+function dockerDbEndpoint(container, defaultPort) {
+  const ports = container?.NetworkSettings?.Ports || {};
+  const bindings = ports[`${defaultPort}/tcp`] || [];
+  const published = Array.isArray(bindings) ? bindings.find((b) => b?.HostPort) : null;
+  if (published?.HostPort) {
+    return { host: '127.0.0.1', port: String(published.HostPort), source: 'published-port' };
+  }
+
+  const ip = firstContainerIp(container);
+  if (ip) {
+    return { host: ip, port: String(defaultPort), source: 'container-ip' };
+  }
+
+  return { host: '127.0.0.1', port: String(defaultPort), source: 'default-port' };
+}
+
+function dockerDatabasePreset(container) {
+  const env = envMapFromContainer(container);
+  const dbType = detectDockerDbType(container, env);
+  if (!dbType) return null;
+
+  const defaults = dockerDbDefaults(dbType, env);
+  const endpoint = dockerDbEndpoint(container, defaults.port);
+  const name = String(container?.Name || '').replace(/^\//, '') || container?.Id?.slice(0, 12) || 'database';
+
+  return {
+    id: container?.Id || name,
+    name,
+    image: container?.Config?.Image || '',
+    state: container?.State?.Status || '',
+    status: container?.State?.Running ? 'running' : (container?.State?.Status || ''),
+    dbType,
+    host: endpoint.host,
+    port: endpoint.port,
+    username: defaults.username,
+    password: defaults.password,
+    database: defaults.database,
+    source: endpoint.source,
+  };
+}
+
+ipcMain.handle('server:get-docker-databases', async (_, { connection, proxy }) => {
+  try {
+    const conn = await getOrCreateConnection(connection, proxy);
+    const cwd = connection.cwd || connection.projectPath;
+    const cmd = 'ids=$(docker ps -a -q); if [ -z "$ids" ]; then echo "[]"; else docker inspect $ids; fi';
+    const result = await execDockerAwareCommand(conn, cmd, cwd, connection, proxy);
+    if (result.code !== 0) {
+      return { ok: false, error: result.stderr || result.stdout || 'Failed to inspect Docker containers', databases: [] };
+    }
+
+    const containers = JSON.parse(result.stdout || '[]');
+    const databases = (Array.isArray(containers) ? containers : [])
+      .map(dockerDatabasePreset)
+      .filter(Boolean);
+
+    return { ok: true, databases };
+  } catch (e) {
+    return { ok: false, error: errMsg(e), databases: [] };
   }
 });
 
@@ -1957,7 +2083,7 @@ ipcMain.handle('metrics:clear-history', async () => {
 });
 
 // ----- Database Tunneling and Queries Handling -----
-const activeDbConnections = new Map(); // serverId -> { tunnelServer, dbClient, dbType, localPort }
+const activeDbConnections = new Map(); // serverId -> { tunnelServer, dbClient, dbType, localPort, databaseName }
 const net = require('net');
 
 function createTunnel(sshConn, remoteHost, remotePort) {
@@ -2094,6 +2220,7 @@ ipcMain.handle('database:connect', async (_, { connection, proxy, dbType, config
       dbClient,
       dbType,
       localPort,
+      databaseName: config.database || (dbType === 'redis' ? '0' : 'database'),
     });
 
     log('Database connection and tunnel established', { serverId, dbType, localPort });
@@ -2178,6 +2305,396 @@ ipcMain.handle('database:get-schema', async (_, { serverId }) => {
   }
 });
 
+function sqlComment(text) {
+  return `-- ${String(text).replace(/\r?\n/g, ' ')}\n`;
+}
+
+function timestampForFilename() {
+  return new Date().toISOString().replace(/[:.]/g, '-');
+}
+
+function mysqlIdent(name) {
+  return `\`${String(name).replace(/`/g, '``')}\``;
+}
+
+function pgIdent(name) {
+  return `"${String(name).replace(/"/g, '""')}"`;
+}
+
+function sqlValue(value, dialect) {
+  if (value === null || value === undefined) return 'NULL';
+  if (Buffer.isBuffer(value)) {
+    const hex = value.toString('hex');
+    return dialect === 'postgres' ? `decode('${hex}', 'hex')` : `X'${hex}'`;
+  }
+  if (value instanceof Date) return `'${value.toISOString().replace(/'/g, "''")}'`;
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'NULL';
+  if (typeof value === 'bigint') return String(value);
+  if (typeof value === 'boolean') return dialect === 'postgres' ? (value ? 'TRUE' : 'FALSE') : (value ? '1' : '0');
+  const str = typeof value === 'object' ? JSON.stringify(value) : String(value);
+  return `'${str.replace(/'/g, "''")}'`;
+}
+
+async function mysqlTables(dbClient) {
+  const [rows] = await dbClient.query("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'");
+  return rows.map((row) => Object.values(row)[0]).filter(Boolean);
+}
+
+async function exportMysqlSchema(dbClient, tables) {
+  const chunks = [];
+  for (const table of tables) {
+    const [rows] = await dbClient.query(`SHOW CREATE TABLE ${mysqlIdent(table)}`);
+    const createSql = rows?.[0]?.['Create Table'];
+    if (createSql) chunks.push(`${createSql};\n`);
+  }
+  return chunks.join('\n');
+}
+
+async function exportMysqlData(dbClient, tables) {
+  const chunks = [];
+  for (const table of tables) {
+    const [rows] = await dbClient.query(`SELECT * FROM ${mysqlIdent(table)}`);
+    chunks.push(sqlComment(`Data for ${table}`));
+    if (!rows.length) {
+      chunks.push('\n');
+      continue;
+    }
+    for (const row of rows) {
+      const columns = Object.keys(row);
+      const names = columns.map(mysqlIdent).join(', ');
+      const values = columns.map((column) => sqlValue(row[column], 'mysql')).join(', ');
+      chunks.push(`INSERT INTO ${mysqlIdent(table)} (${names}) VALUES (${values});\n`);
+    }
+    chunks.push('\n');
+  }
+  return chunks.join('');
+}
+
+async function pgTables(dbClient) {
+  const res = await dbClient.query(`
+    SELECT table_name
+    FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+    ORDER BY table_name;
+  `);
+  return res.rows.map((row) => row.table_name);
+}
+
+async function exportPostgresSchema(dbClient, tables) {
+  const chunks = [];
+  for (const table of tables) {
+    const columns = await dbClient.query(`
+      SELECT
+        a.attname AS column_name,
+        pg_catalog.format_type(a.atttypid, a.atttypmod) AS data_type,
+        a.attnotnull AS not_null,
+        pg_get_expr(d.adbin, d.adrelid) AS column_default
+      FROM pg_catalog.pg_attribute a
+      JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
+      JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+      LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+      WHERE n.nspname = 'public'
+        AND c.relname = $1
+        AND a.attnum > 0
+        AND NOT a.attisdropped
+      ORDER BY a.attnum;
+    `, [table]);
+
+    const columnDefs = columns.rows.map((column) => {
+      const parts = [`  ${pgIdent(column.column_name)}`, column.data_type];
+      if (column.column_default) parts.push(`DEFAULT ${column.column_default}`);
+      if (column.not_null) parts.push('NOT NULL');
+      return parts.join(' ');
+    });
+
+    chunks.push(`CREATE TABLE ${pgIdent('public')}.${pgIdent(table)} (\n${columnDefs.join(',\n')}\n);\n`);
+
+    const constraints = await dbClient.query(`
+      SELECT conname, pg_get_constraintdef(oid) AS definition
+      FROM pg_catalog.pg_constraint
+      WHERE conrelid = (
+        SELECT c.oid
+        FROM pg_catalog.pg_class c
+        JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relname = $1
+      )
+      ORDER BY conname;
+    `, [table]);
+
+    for (const constraint of constraints.rows) {
+      chunks.push(`ALTER TABLE ONLY ${pgIdent('public')}.${pgIdent(table)} ADD CONSTRAINT ${pgIdent(constraint.conname)} ${constraint.definition};\n`);
+    }
+
+    const indexes = await dbClient.query(`
+      SELECT indexname, indexdef
+      FROM pg_indexes
+      WHERE schemaname = 'public'
+        AND tablename = $1
+        AND indexname NOT IN (
+          SELECT conname
+          FROM pg_catalog.pg_constraint
+          WHERE conrelid = (
+            SELECT c.oid
+            FROM pg_catalog.pg_class c
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = 'public' AND c.relname = $2
+          )
+        )
+      ORDER BY indexname;
+    `, [table, table]);
+
+    for (const index of indexes.rows) {
+      chunks.push(`${index.indexdef};\n`);
+    }
+
+    chunks.push('\n');
+  }
+  return chunks.join('');
+}
+
+async function exportPostgresData(dbClient, tables) {
+  const chunks = [];
+  for (const table of tables) {
+    const res = await dbClient.query(`SELECT * FROM ${pgIdent('public')}.${pgIdent(table)}`);
+    chunks.push(sqlComment(`Data for public.${table}`));
+    if (!res.rows.length) {
+      chunks.push('\n');
+      continue;
+    }
+    for (const row of res.rows) {
+      const columns = Object.keys(row);
+      const names = columns.map(pgIdent).join(', ');
+      const values = columns.map((column) => sqlValue(row[column], 'postgres')).join(', ');
+      chunks.push(`INSERT INTO ${pgIdent('public')}.${pgIdent(table)} (${names}) VALUES (${values});\n`);
+    }
+    chunks.push('\n');
+  }
+  return chunks.join('');
+}
+
+ipcMain.handle('database:export-sql', async (_, { serverId, mode }) => {
+  const connInfo = activeDbConnections.get(serverId);
+  if (!connInfo || !connInfo.dbClient) {
+    return { ok: false, error: 'No active database connection' };
+  }
+
+  try {
+    const { dbClient, dbType, databaseName } = connInfo;
+    if (dbType === 'redis') {
+      return { ok: false, error: 'Redis does not support .sql schema or data exports.' };
+    }
+    if (mode !== 'schema' && mode !== 'data' && mode !== 'full') {
+      return { ok: false, error: 'Unknown export mode' };
+    }
+
+    const tables = dbType === 'mysql' ? await mysqlTables(dbClient) : await pgTables(dbClient);
+    const header = [
+      sqlComment(`Server Operator ${mode} export`),
+      sqlComment(`Database: ${databaseName || 'database'}`),
+      sqlComment(`Engine: ${dbType}`),
+      sqlComment(`Generated: ${new Date().toISOString()}`),
+      '\n',
+    ].join('');
+
+    let body = '';
+    if (dbType === 'mysql') {
+      if (mode === 'schema') {
+        body = await exportMysqlSchema(dbClient, tables);
+      } else if (mode === 'data') {
+        body = await exportMysqlData(dbClient, tables);
+      } else {
+        body = [
+          await exportMysqlSchema(dbClient, tables),
+          '\n',
+          sqlComment('Data export'),
+          await exportMysqlData(dbClient, tables),
+        ].join('');
+      }
+    } else if (dbType === 'postgres') {
+      if (mode === 'schema') {
+        body = await exportPostgresSchema(dbClient, tables);
+      } else if (mode === 'data') {
+        body = await exportPostgresData(dbClient, tables);
+      } else {
+        body = [
+          await exportPostgresSchema(dbClient, tables),
+          '\n',
+          sqlComment('Data export'),
+          await exportPostgresData(dbClient, tables),
+        ].join('');
+      }
+    }
+
+    const safeDbName = String(databaseName || 'database').replace(/[^a-z0-9_-]+/gi, '_').replace(/^_+|_+$/g, '') || 'database';
+    return {
+      ok: true,
+      sql: header + body,
+      filename: `${safeDbName}-${mode}-${timestampForFilename()}.sql`,
+    };
+  } catch (err) {
+    log('Database SQL export error', { serverId, error: err.message });
+    return { ok: false, error: err.message || String(err) };
+  }
+});
+
+function splitSqlStatements(sql) {
+  const statements = [];
+  let current = '';
+  let single = false;
+  let double = false;
+  let backtick = false;
+  let lineComment = false;
+  let blockComment = false;
+  let dollarTag = null;
+
+  for (let i = 0; i < sql.length; i++) {
+    const ch = sql[i];
+    const next = sql[i + 1];
+
+    if (lineComment) {
+      current += ch;
+      if (ch === '\n') lineComment = false;
+      continue;
+    }
+
+    if (blockComment) {
+      current += ch;
+      if (ch === '*' && next === '/') {
+        current += next;
+        i++;
+        blockComment = false;
+      }
+      continue;
+    }
+
+    if (dollarTag) {
+      current += ch;
+      if (sql.startsWith(dollarTag, i)) {
+        current += dollarTag.slice(1);
+        i += dollarTag.length - 1;
+        dollarTag = null;
+      }
+      continue;
+    }
+
+    if (!single && !double && !backtick) {
+      if (ch === '-' && next === '-') {
+        current += ch + next;
+        i++;
+        lineComment = true;
+        continue;
+      }
+      if (ch === '/' && next === '*') {
+        current += ch + next;
+        i++;
+        blockComment = true;
+        continue;
+      }
+      if (ch === '$') {
+        const match = sql.slice(i).match(/^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/);
+        if (match) {
+          dollarTag = match[0];
+          current += dollarTag;
+          i += dollarTag.length - 1;
+          continue;
+        }
+      }
+    }
+
+    if (ch === "'" && !double && !backtick) {
+      current += ch;
+      if (single && next === "'") {
+        current += next;
+        i++;
+      } else {
+        single = !single;
+      }
+      continue;
+    }
+
+    if (ch === '"' && !single && !backtick) {
+      current += ch;
+      if (double && next === '"') {
+        current += next;
+        i++;
+      } else {
+        double = !double;
+      }
+      continue;
+    }
+
+    if (ch === '`' && !single && !double) {
+      current += ch;
+      backtick = !backtick;
+      continue;
+    }
+
+    if (ch === ';' && !single && !double && !backtick) {
+      const trimmed = current.trim();
+      if (trimmed) statements.push(trimmed);
+      current = '';
+      continue;
+    }
+
+    current += ch;
+  }
+
+  const trimmed = current.trim();
+  if (trimmed) statements.push(trimmed);
+  return statements;
+}
+
+function isSqlImportNoop(statement) {
+  const compact = statement
+    .replace(/--[^\n]*(?:\n|$)/g, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .trim();
+  return !compact;
+}
+
+ipcMain.handle('database:import-sql', async (_, { serverId, sql }) => {
+  const connInfo = activeDbConnections.get(serverId);
+  if (!connInfo || !connInfo.dbClient) {
+    return { ok: false, error: 'No active database connection' };
+  }
+
+  try {
+    const { dbClient, dbType } = connInfo;
+    if (dbType === 'redis') {
+      return { ok: false, error: 'Redis does not support .sql imports.' };
+    }
+
+    const statements = splitSqlStatements(String(sql || '')).filter((statement) => !isSqlImportNoop(statement));
+    if (!statements.length) {
+      return { ok: false, error: 'No SQL statements found in the selected file.' };
+    }
+
+    let executed = 0;
+    if (dbType === 'postgres') await dbClient.query('BEGIN');
+    try {
+      for (const statement of statements) {
+        if (dbType === 'mysql') {
+          await dbClient.query(statement);
+        } else if (dbType === 'postgres') {
+          await dbClient.query(statement);
+        }
+        executed++;
+      }
+      if (dbType === 'postgres') await dbClient.query('COMMIT');
+    } catch (err) {
+      if (dbType === 'postgres') {
+        try { await dbClient.query('ROLLBACK'); } catch (_) {}
+      }
+      throw err;
+    }
+
+    return { ok: true, statements: executed };
+  } catch (err) {
+    log('Database SQL import error', { serverId, error: err.message });
+    return { ok: false, error: err.message || String(err) };
+  }
+});
+
 function getFeaturesConfigPath() {
   try {
     return path.join(app.getPath('userData'), 'features.json');
@@ -2236,6 +2753,3 @@ app.on('will-quit', async () => {
     await closeDbConnection(id);
   }
 });
-
-
-

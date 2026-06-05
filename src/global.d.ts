@@ -12,6 +12,24 @@ export interface ServerOperatorAPI {
     proxy?: ProxySettings;
   }) => Promise<{ ok: boolean; stdout?: string; stderr?: string; code?: number; error?: string }>;
   getDockerPs: (opts: { connection: ServerConnection; proxy?: ProxySettings }) => Promise<{ ok: boolean; containers?: unknown[]; error?: string }>;
+  getDockerDatabases: (opts: { connection: ServerConnection; proxy?: ProxySettings }) => Promise<{
+    ok: boolean;
+    databases?: Array<{
+      id: string;
+      name: string;
+      image: string;
+      state?: string;
+      status?: string;
+      dbType: 'mysql' | 'postgres' | 'redis';
+      host: string;
+      port: string;
+      username: string;
+      password: string;
+      database: string;
+      source: 'published-port' | 'container-ip' | 'default-port';
+    }>;
+    error?: string;
+  }>;
   getDockerComposeServices: (opts: {
     connection: ServerConnection;
     composePath?: string;
@@ -132,6 +150,8 @@ export interface ServerOperatorAPI {
   disconnectDatabase: (opts: { serverId: string }) => Promise<{ ok: boolean; error?: string }>;
   queryDatabase: (opts: { serverId: string; query: string }) => Promise<{ ok: boolean; result?: any; error?: string }>;
   getDatabaseSchema: (opts: { serverId: string }) => Promise<{ ok: boolean; tables?: string[]; keys?: string[]; error?: string }>;
+  exportDatabaseSql: (opts: { serverId: string; mode: 'schema' | 'data' | 'full' }) => Promise<{ ok: boolean; sql?: string; filename?: string; error?: string }>;
+  importDatabaseSql: (opts: { serverId: string; sql: string }) => Promise<{ ok: boolean; statements?: number; error?: string }>;
   runDeployPipeline: (opts: {
     connection: ServerConnection;
     shellId: string;
