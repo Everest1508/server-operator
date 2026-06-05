@@ -64,8 +64,6 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
   const [cloudinaryUploading, setCloudinaryUploading] = useState(false);
   const [cloudinaryRestoring, setCloudinaryRestoring] = useState<string | null>(null);
   const [cloudinaryMessage, setCloudinaryMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [cloudinaryHeight, setCloudinaryHeight] = useState(200);
-  const cloudinaryResizing = useRef(false);
 
   // Execution State
   const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
@@ -418,26 +416,6 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
       setCloudinaryBackupsLoading(false);
     }
   };
-
-  useEffect(() => {
-    const el = document.getElementById('database-sidebar-panel');
-    if (!el) return;
-    const onMouseMove = (e: MouseEvent) => {
-      if (!cloudinaryResizing.current || !cloudinaryOpen) return;
-      const rect = el.getBoundingClientRect();
-      const panelBottom = rect.bottom;
-      const handleY = e.clientY - rect.top;
-      const newHeight = Math.max(100, Math.min(panelBottom - rect.top - 100, panelBottom - e.clientY));
-      setCloudinaryHeight(newHeight);
-    };
-    const onMouseUp = () => { cloudinaryResizing.current = false; };
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-    };
-  }, [cloudinaryOpen]);
 
   const handleBackupToCloudinary = async () => {
     if (!window.serverOperator?.cloudinaryUploadBackup || !window.serverOperator?.exportDatabaseSql) return;
@@ -813,14 +791,14 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
           )}
 
           {/* Cloudinary Backups */}
-          <div className="border-t border-border/20 flex flex-col min-h-0" style={{ flex: cloudinaryOpen ? `0 0 ${cloudinaryHeight}px` : '0 0 auto' }}>
+          <div className="border-t border-border/20">
             <button
               type="button"
               onClick={() => {
                 setCloudinaryOpen((o) => !o);
                 if (!cloudinaryOpen && cloudinaryBackups.length === 0) loadCloudinaryBackups();
               }}
-              className="w-full flex items-center justify-between gap-2 px-4 py-3 hover:bg-bg-tertiary/30 transition-colors cursor-pointer select-none shrink-0"
+              className="w-full flex items-center justify-between gap-2 px-4 py-3 hover:bg-bg-tertiary/30 transition-colors cursor-pointer select-none"
             >
               <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-text-muted">
                 <Cloud size={12} />
@@ -836,78 +814,70 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
               </div>
             </button>
             {cloudinaryOpen && (
-              <>
-                <div
-                  className="h-1.5 cursor-row-resize hover:bg-accent/30 active:bg-accent/50 transition-colors shrink-0 relative group"
-                  onMouseDown={() => { cloudinaryResizing.current = true; }}
+              <div className="px-4 pb-4 space-y-2">
+                <button
+                  type="button"
+                  onClick={loadCloudinaryBackups}
+                  disabled={cloudinaryBackupsLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/30 bg-bg-primary/50 text-text-primary text-[10px] font-semibold hover:border-border/60 hover:bg-bg-tertiary disabled:opacity-50 cursor-pointer transition-all w-full justify-center"
                 >
-                  <div className="absolute inset-x-2 top-1/2 -translate-y-1/2 h-[3px] rounded-full bg-border/30 group-hover:bg-accent/40 group-active:bg-accent/60" />
-                </div>
-                <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 space-y-2">
-                  <button
-                    type="button"
-                    onClick={loadCloudinaryBackups}
-                    disabled={cloudinaryBackupsLoading}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/30 bg-bg-primary/50 text-text-primary text-[10px] font-semibold hover:border-border/60 hover:bg-bg-tertiary disabled:opacity-50 cursor-pointer transition-all w-full justify-center"
-                  >
-                    {cloudinaryBackupsLoading ? <RefreshCw size={10} className="animate-spin" /> : <RefreshCw size={10} />}
-                    Refresh
-                  </button>
+                  {cloudinaryBackupsLoading ? <RefreshCw size={10} className="animate-spin" /> : <RefreshCw size={10} />}
+                  Refresh
+                </button>
 
-                  {cloudinaryBackupsError && (
-                    <p className="text-[10px] text-error font-mono bg-error/10 p-2 rounded-lg">{cloudinaryBackupsError}</p>
-                  )}
+                {cloudinaryBackupsError && (
+                  <p className="text-[10px] text-error font-mono bg-error/10 p-2 rounded-lg">{cloudinaryBackupsError}</p>
+                )}
 
-                  {cloudinaryBackups.length === 0 && !cloudinaryBackupsLoading && !cloudinaryBackupsError && (
-                    <p className="text-[10px] text-text-muted text-center py-4 italic">
-                      No Cloudinary backups found. Configure Cloudinary in Settings, then use "Get Backup".
-                    </p>
-                  )}
+                {cloudinaryBackups.length === 0 && !cloudinaryBackupsLoading && !cloudinaryBackupsError && (
+                  <p className="text-[10px] text-text-muted text-center py-4 italic">
+                    No Cloudinary backups found. Configure Cloudinary in Settings, then use "Get Backup".
+                  </p>
+                )}
 
-                  <div className="space-y-1.5">
-                    {cloudinaryBackups.map((backup) => (
-                      <div
-                        key={backup.publicId}
-                        className="rounded-lg border border-border/20 bg-bg-primary/40 p-2.5 text-[10px]"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-text-primary truncate" title={backup.filename}>
-                              {backup.filename}
-                            </p>
-                            <p className="text-text-muted mt-0.5">
-                              {backup.serverName && `${backup.serverName} · `}
-                              {backup.dbType && `${backup.dbType} · `}
-                              {backup.dbName && `${backup.dbName} · `}
-                              {backup.createdAt && new Date(backup.createdAt).toLocaleDateString()}
-                            </p>
-                            <p className="text-text-muted">
-                              {backup.size ? `${(backup.size / 1024).toFixed(1)} KB` : ''}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRestoreFromCloudinary(backup.publicId)}
-                            disabled={cloudinaryRestoring === backup.publicId}
-                            className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg bg-warning/15 text-warning text-[9px] font-semibold hover:bg-warning/25 disabled:opacity-50 cursor-pointer transition-colors"
-                          >
-                            {cloudinaryRestoring === backup.publicId ? <RefreshCw size={9} className="animate-spin" /> : <Download size={9} />}
-                            Restore
-                          </button>
+                <div className="max-h-48 overflow-y-auto space-y-1.5">
+                  {cloudinaryBackups.map((backup) => (
+                    <div
+                      key={backup.publicId}
+                      className="rounded-lg border border-border/20 bg-bg-primary/40 p-2.5 text-[10px]"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-text-primary truncate" title={backup.filename}>
+                            {backup.filename}
+                          </p>
+                          <p className="text-text-muted mt-0.5">
+                            {backup.serverName && `${backup.serverName} · `}
+                            {backup.dbType && `${backup.dbType} · `}
+                            {backup.dbName && `${backup.dbName} · `}
+                            {backup.createdAt && new Date(backup.createdAt).toLocaleDateString()}
+                          </p>
+                          <p className="text-text-muted">
+                            {backup.size ? `${(backup.size / 1024).toFixed(1)} KB` : ''}
+                          </p>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRestoreFromCloudinary(backup.publicId)}
+                          disabled={cloudinaryRestoring === backup.publicId}
+                          className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg bg-warning/15 text-warning text-[9px] font-semibold hover:bg-warning/25 disabled:opacity-50 cursor-pointer transition-colors"
+                        >
+                          {cloudinaryRestoring === backup.publicId ? <RefreshCw size={9} className="animate-spin" /> : <Download size={9} />}
+                          Restore
+                        </button>
                       </div>
-                    ))}
-                  </div>
-
-                  {cloudinaryMessage && (
-                    <div className={`p-2 rounded-lg text-[10px] font-mono ${
-                      cloudinaryMessage.type === 'success' ? 'bg-success/10 text-success' : 'bg-error/10 text-error'
-                    }`}>
-                      {cloudinaryMessage.text}
                     </div>
-                  )}
+                  ))}
                 </div>
-              </>
+
+                {cloudinaryMessage && (
+                  <div className={`p-2 rounded-lg text-[10px] font-mono ${
+                    cloudinaryMessage.type === 'success' ? 'bg-success/10 text-success' : 'bg-error/10 text-error'
+                  }`}>
+                    {cloudinaryMessage.text}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>,
