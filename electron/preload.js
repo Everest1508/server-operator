@@ -68,6 +68,13 @@ contextBridge.exposeInMainWorld('serverOperator', {
   deleteSnippet: (opts) => ipcRenderer.invoke('snippets:delete', opts),
   loadFeaturesConfig: () => ipcRenderer.invoke('features:load'),
   saveFeaturesConfig: (config) => ipcRenderer.invoke('features:save', config),
+  // ── Cloudinary Backup ────────────────────────────────────────────────────────
+  cloudinarySaveConfig: (config) => ipcRenderer.invoke('cloudinary:save-config', config),
+  cloudinaryLoadConfig: () => ipcRenderer.invoke('cloudinary:load-config'),
+  cloudinaryUploadBackup: (opts) => ipcRenderer.invoke('cloudinary:upload-backup', opts),
+  cloudinaryListBackups: () => ipcRenderer.invoke('cloudinary:list-backups'),
+  cloudinaryDownloadBackup: (opts) => ipcRenderer.invoke('cloudinary:download-backup', opts),
+  cloudinaryDeleteBackup: (opts) => ipcRenderer.invoke('cloudinary:delete-backup', opts),
   // ── Updates ───────────────────────────────────────────────────────────────
   checkForUpdates: () => ipcRenderer.invoke('updates:check'),
   openReleasePage: (url) => ipcRenderer.invoke('updates:open-release', url),

@@ -486,7 +486,7 @@ export function Sidebar({
               <button type="button" onClick={onDismissError} className="mt-1.5 font-bold underline text-error hover:text-error/80 cursor-pointer">Dismiss</button>
             </div>
           )}
-          <div className="flex-1 overflow-y-auto py-1 min-h-0">
+          <div id="database-sidebar-panel" className="flex-1 flex flex-col overflow-y-auto py-1 min-h-0">
             {(activeView === 'servers' || activeView === 'docker' || activeView === 'deploy') && (
               <ul className="space-y-1 px-3 pb-4">
                 {servers.length === 0 && (

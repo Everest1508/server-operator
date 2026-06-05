@@ -2748,6 +2748,158 @@ ipcMain.handle('window:isMaximized', async () => {
   return mainWindow ? mainWindow.isMaximized() : false;
 });
 
+// ── Cloudinary Backup/Restore IPC Handlers ──────────────────────────
+function getCloudinaryConfigPath() {
+  try {
+    return path.join(app.getPath('userData'), 'cloudinary-config.json');
+  } catch (_) {
+    return path.join(process.cwd(), 'cloudinary-config.json');
+  }
+}
+
+function loadCloudinaryConfig() {
+  try {
+    const p = getCloudinaryConfigPath();
+    if (fs.existsSync(p)) {
+      return JSON.parse(fs.readFileSync(p, 'utf8'));
+    }
+  } catch (e) {
+    log('Failed to load Cloudinary config', { error: String(e) });
+  }
+  return null;
+}
+
+function getCloudinary() {
+  const config = loadCloudinaryConfig();
+  if (!config || !config.cloudName || !config.apiKey || !config.apiSecret) {
+    return null;
+  }
+  const cloudinary = require('cloudinary').v2;
+  cloudinary.config({
+    cloud_name: config.cloudName,
+    api_key: config.apiKey,
+    api_secret: config.apiSecret,
+  });
+  return cloudinary;
+}
+
+ipcMain.handle('cloudinary:save-config', async (_, config) => {
+  try {
+    const p = getCloudinaryConfigPath();
+    fs.writeFileSync(p, JSON.stringify(config, null, 2), 'utf8');
+    log('Cloudinary config saved');
+    return { ok: true };
+  } catch (e) {
+    log('Failed to save Cloudinary config', { error: String(e) });
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('cloudinary:load-config', async () => {
+  try {
+    const config = loadCloudinaryConfig();
+    if (config) {
+      return { ok: true, config: { cloudName: config.cloudName, apiKey: config.apiKey, apiSecret: '••••••' } };
+    }
+    return { ok: false, error: 'No Cloudinary config found' };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('cloudinary:upload-backup', async (_, { sql, filename, serverName, dbType, dbName }) => {
+  try {
+    const cloudinary = getCloudinary();
+    if (!cloudinary) {
+      return { ok: false, error: 'Cloudinary not configured. Set your Cloudinary credentials in Settings.' };
+    }
+    const safeName = (serverName || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+    const publicId = `server-operator-backups/${safeName}/backup_${dateStr}`;
+    const result = await cloudinary.uploader.upload(`data:text/plain;base64,${Buffer.from(sql, 'utf8').toString('base64')}`, {
+      public_id: publicId,
+      resource_type: 'raw',
+      tags: 'server-operator-backup',
+      context: `server=${serverName || ''}|dbType=${dbType || ''}|dbName=${dbName || ''}|filename=${filename || ''}`,
+      use_filename: true,
+      unique_filename: false,
+      overwrite: true,
+    });
+    log('Cloudinary backup uploaded', { publicId: result.public_id, url: result.secure_url });
+    return { ok: true, publicId: result.public_id, url: result.secure_url };
+  } catch (e) {
+    log('Cloudinary upload error', { error: String(e) });
+    return { ok: false, error: String(e.message || e) };
+  }
+});
+
+ipcMain.handle('cloudinary:list-backups', async () => {
+  try {
+    const cloudinary = getCloudinary();
+    if (!cloudinary) {
+      return { ok: false, error: 'Cloudinary not configured.' };
+    }
+    const result = await cloudinary.search
+      .expression('tags:server-operator-backup AND resource_type:raw')
+      .sort_by('created_at', 'desc')
+      .max_results(100)
+      .execute();
+    const backups = (result.resources || []).map((r) => {
+      const ctx = r.context?.custom || '';
+      const ctxMap = {};
+      ctx.split('|').forEach((pair) => {
+        const [k, v] = pair.split('=');
+        if (k && v) ctxMap[k] = v;
+      });
+      return {
+        publicId: r.public_id,
+        filename: ctxMap.filename || r.filename || r.public_id.split('/').pop() || 'backup.sql',
+        createdAt: r.created_at,
+        size: r.bytes,
+        serverName: ctxMap.server || '',
+        dbType: ctxMap.dbType || '',
+        dbName: ctxMap.dbName || '',
+      };
+    });
+    return { ok: true, backups };
+  } catch (e) {
+    log('Cloudinary list error', { error: String(e) });
+    return { ok: false, error: String(e.message || e) };
+  }
+});
+
+ipcMain.handle('cloudinary:download-backup', async (_, { publicId }) => {
+  try {
+    const cloudinary = getCloudinary();
+    if (!cloudinary) {
+      return { ok: false, error: 'Cloudinary not configured.' };
+    }
+    const result = await cloudinary.api.resource(publicId, { resource_type: 'raw' });
+    const url = result.secure_url;
+    const response = await fetch(url);
+    const sql = await response.text();
+    return { ok: true, sql };
+  } catch (e) {
+    log('Cloudinary download error', { error: String(e) });
+    return { ok: false, error: String(e.message || e) };
+  }
+});
+
+ipcMain.handle('cloudinary:delete-backup', async (_, { publicId }) => {
+  try {
+    const cloudinary = getCloudinary();
+    if (!cloudinary) {
+      return { ok: false, error: 'Cloudinary not configured.' };
+    }
+    await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+    return { ok: true };
+  } catch (e) {
+    log('Cloudinary delete error', { error: String(e) });
+    return { ok: false, error: String(e.message || e) };
+  }
+});
+
 app.on('will-quit', async () => {
   for (const id of activeDbConnections.keys()) {
     await closeDbConnection(id);

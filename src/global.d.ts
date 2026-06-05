@@ -187,6 +187,14 @@ export interface ServerOperatorAPI {
     output: string;
     timestamp: string;
   }>>;
+  // Cloudinary
+  cloudinarySaveConfig: (config: import('./types').CloudinaryConfig) => Promise<{ ok: boolean; error?: string }>;
+  cloudinaryLoadConfig: () => Promise<{ ok: boolean; config?: import('./types').CloudinaryConfig; error?: string }>;
+  cloudinaryUploadBackup: (opts: { sql: string; filename: string; serverName?: string; dbType?: string; dbName?: string }) => Promise<{ ok: boolean; publicId?: string; url?: string; error?: string }>;
+  cloudinaryListBackups: () => Promise<{ ok: boolean; backups?: import('./types').CloudinaryBackup[]; error?: string }>;
+  cloudinaryDownloadBackup: (opts: { publicId: string }) => Promise<{ ok: boolean; sql?: string; error?: string }>;
+  cloudinaryDeleteBackup: (opts: { publicId: string }) => Promise<{ ok: boolean; error?: string }>;
+
   getSnippets: () => Promise<Array<{
     id: number;
     title: string;

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFeatureFlags } from '../contexts/FeatureFlagContext';
-import { FeatureFlags } from '../types';
+import { FeatureFlags, CloudinaryConfig } from '../types';
 import {
   Sliders,
   Search,
@@ -24,6 +24,9 @@ import {
   Trash2,
   BookOpen,
   Database,
+  Cloud,
+  Save,
+  Loader2,
 } from 'lucide-react';
 
 import { CHANGELOG, ChangeEntry } from './changelogData';
@@ -615,16 +618,179 @@ function ModulesView() {
       </div>
     </>
   );
-}/* ─────────────────────────────────────────────
+}
+
+/* ─────────────────────────────────────────────
+   CLOUDINARY SETTINGS VIEW
+───────────────────────────────────────────── */
+function CloudinarySettingsView() {
+  const [cloudName, setCloudName] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [apiSecret, setApiSecret] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [hasConfig, setHasConfig] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      if (!window.serverOperator?.cloudinaryLoadConfig) return;
+      setLoading(true);
+      const res = await window.serverOperator.cloudinaryLoadConfig();
+      if (res.ok && res.config) {
+        setCloudName(res.config.cloudName);
+        setApiKey(res.config.apiKey);
+        setHasConfig(true);
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  const handleSave = async () => {
+    if (!cloudName.trim() || !apiKey.trim() || !apiSecret.trim()) {
+      setMessage({ type: 'error', text: 'All fields are required.' });
+      return;
+    }
+    if (!window.serverOperator?.cloudinarySaveConfig) return;
+    setSaving(true);
+    setMessage(null);
+    const res = await window.serverOperator.cloudinarySaveConfig({
+      cloudName: cloudName.trim(),
+      apiKey: apiKey.trim(),
+      apiSecret: apiSecret.trim(),
+    });
+    setSaving(false);
+    if (res.ok) {
+      setHasConfig(true);
+      setMessage({ type: 'success', text: 'Cloudinary configuration saved.' });
+    } else {
+      setMessage({ type: 'error', text: res.error || 'Failed to save' });
+    }
+  };
+
+  const handleTest = async () => {
+    if (!window.serverOperator?.cloudinaryListBackups) return;
+    setTesting(true);
+    setMessage(null);
+    const res = await window.serverOperator.cloudinaryListBackups();
+    setTesting(false);
+    if (res.ok) {
+      setMessage({ type: 'success', text: `Connection successful! ${res.backups?.length || 0} backup(s) found.` });
+    } else {
+      setMessage({ type: 'error', text: res.error || 'Connection failed' });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12 text-text-muted">
+        <Loader2 size={16} className="animate-spin mr-2" />
+        <span className="text-xs">Loading Cloudinary configuration...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 space-y-6 max-w-2xl">
+      <div className="flex items-center gap-3 mb-2">
+        <div className="p-2.5 rounded-xl bg-bg-tertiary text-accent border border-border/15">
+          <Cloud size={18} />
+        </div>
+        <div>
+          <h2 className="text-sm font-bold text-text-primary">Cloudinary Backup</h2>
+          <p className="text-[11px] text-text-secondary mt-0.5">
+            Connect Cloudinary to push and pull database backups across any SSH server.
+          </p>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border/20 bg-bg-secondary/35 p-5 space-y-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted">Cloud Name</label>
+          <input
+            type="text"
+            value={cloudName}
+            onChange={(e) => setCloudName(e.target.value)}
+            placeholder="your-cloud-name"
+            className="w-full px-3.5 py-2 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted">API Key</label>
+          <input
+            type="text"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder="123456789012345"
+            className="w-full px-3.5 py-2 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted">API Secret</label>
+          <input
+            type="password"
+            value={apiSecret}
+            onChange={(e) => setApiSecret(e.target.value)}
+            placeholder={hasConfig ? '•••••••• (stored)' : 'your-api-secret'}
+            className="w-full px-3.5 py-2 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+          />
+        </div>
+
+        <div className="flex items-center gap-3 pt-2">
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent-hover disabled:opacity-50 cursor-pointer transition-colors shadow-sm"
+          >
+            {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+            Save Credentials
+          </button>
+          <button
+            type="button"
+            onClick={handleTest}
+            disabled={testing || !hasConfig}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border/30 bg-bg-primary/50 text-text-primary text-xs font-semibold hover:border-border/60 hover:bg-bg-tertiary disabled:opacity-40 cursor-pointer transition-all"
+          >
+            {testing ? <Loader2 size={13} className="animate-spin" /> : <Cloud size={13} />}
+            Test Connection
+          </button>
+        </div>
+
+        {message && (
+          <div className={`p-3 rounded-xl text-xs font-mono ${
+            message.type === 'success' ? 'bg-success/10 border border-success/20 text-success' : 'bg-error/10 border border-error/20 text-error'
+          }`}>
+            {message.text}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-border/20 bg-bg-secondary/35 p-5 space-y-3">
+        <h3 className="text-[10px] font-bold uppercase tracking-wider text-text-muted">How it works</h3>
+        <ul className="text-[11px] text-text-secondary space-y-2 leading-relaxed">
+          <li>1. Enter your Cloudinary credentials above and save them once.</li>
+          <li>2. Open the <strong className="text-text-primary">Database</strong> tab and connect to any remote database.</li>
+          <li>3. Click <strong className="text-text-primary">Get Backup</strong> to export and upload the database SQL to Cloudinary.</li>
+          <li>4. Connect to a <strong className="text-text-primary">different SSH server</strong>, open the Database tab, and use <strong className="text-text-primary">Restore from Cloudinary</strong> to import the backup.</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
    MAIN SETTINGS VIEW  (tab shell)
 ───────────────────────────────────────────── */
-type SettingsTab = 'modules' | 'changelog';
+type SettingsTab = 'modules' | 'changelog' | 'cloudinary';
 
 export function SettingsView() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('modules');
 
   const tabs: { id: SettingsTab; label: string; icon: React.ComponentType<any> }[] = [
     { id: 'modules',   label: 'Feature Modules', icon: Sliders },
+    { id: 'cloudinary', label: 'Cloudinary',      icon: Cloud },
     { id: 'changelog', label: 'Changelog',       icon: ScrollText },
   ];
 
@@ -679,8 +845,9 @@ export function SettingsView() {
 
       {/* ── Tab Content ────────────────────────── */}
       <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
-        {activeTab === 'modules'   && <ModulesView />}
-        {activeTab === 'changelog' && <ChangelogView />}
+        {activeTab === 'modules'    && <ModulesView />}
+        {activeTab === 'cloudinary' && <CloudinarySettingsView />}
+        {activeTab === 'changelog'  && <ChangelogView />}
       </div>
     </div>
   );

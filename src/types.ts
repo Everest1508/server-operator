@@ -67,6 +67,22 @@ export interface FileTreeClipboard {
   paths: string[];
 }
 
+export interface CloudinaryConfig {
+  cloudName: string;
+  apiKey: string;
+  apiSecret: string;
+}
+
+export interface CloudinaryBackup {
+  publicId: string;
+  filename: string;
+  createdAt: string;
+  size: number;
+  serverName?: string;
+  dbType?: string;
+  dbName?: string;
+}
+
 export interface DockerContainer {
   ID?: string;
   Names?: string;

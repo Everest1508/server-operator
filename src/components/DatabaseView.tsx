@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Database, 
   Play, 
@@ -10,7 +11,10 @@ import {
   WifiOff, 
   HelpCircle,
   ChevronRight,
-  Server as ServerIcon
+  Server as ServerIcon,
+  Cloud,
+  Upload,
+  ChevronDown,
 } from 'lucide-react';
 import EyeIcon from './icons/EyeIcon';
 import EyeOffIcon from './icons/EyeOffIcon';
@@ -51,6 +55,17 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
   const [showPassword, setShowPassword] = useState(false);
   const skipNextEngineDefaults = useRef(false);
   const importFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Cloudinary Backup State
+  const [cloudinaryBackups, setCloudinaryBackups] = useState<any[]>([]);
+  const [cloudinaryBackupsLoading, setCloudinaryBackupsLoading] = useState(false);
+  const [cloudinaryBackupsError, setCloudinaryBackupsError] = useState<string | null>(null);
+  const [cloudinaryOpen, setCloudinaryOpen] = useState(false);
+  const [cloudinaryUploading, setCloudinaryUploading] = useState(false);
+  const [cloudinaryRestoring, setCloudinaryRestoring] = useState<string | null>(null);
+  const [cloudinaryMessage, setCloudinaryMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [cloudinaryHeight, setCloudinaryHeight] = useState(200);
+  const cloudinaryResizing = useRef(false);
 
   // Execution State
   const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
@@ -386,6 +401,100 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
     }
   };
 
+  const loadCloudinaryBackups = async () => {
+    if (!window.serverOperator?.cloudinaryListBackups) return;
+    setCloudinaryBackupsLoading(true);
+    setCloudinaryBackupsError(null);
+    try {
+      const res = await window.serverOperator.cloudinaryListBackups();
+      if (res.ok) {
+        setCloudinaryBackups(res.backups || []);
+      } else {
+        setCloudinaryBackupsError(res.error || 'Failed to list Cloudinary backups');
+      }
+    } catch (err: any) {
+      setCloudinaryBackupsError(err.message || String(err));
+    } finally {
+      setCloudinaryBackupsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const el = document.getElementById('database-sidebar-panel');
+    if (!el) return;
+    const onMouseMove = (e: MouseEvent) => {
+      if (!cloudinaryResizing.current || !cloudinaryOpen) return;
+      const rect = el.getBoundingClientRect();
+      const panelBottom = rect.bottom;
+      const handleY = e.clientY - rect.top;
+      const newHeight = Math.max(100, Math.min(panelBottom - rect.top - 100, panelBottom - e.clientY));
+      setCloudinaryHeight(newHeight);
+    };
+    const onMouseUp = () => { cloudinaryResizing.current = false; };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [cloudinaryOpen]);
+
+  const handleBackupToCloudinary = async () => {
+    if (!window.serverOperator?.cloudinaryUploadBackup || !window.serverOperator?.exportDatabaseSql) return;
+    setCloudinaryUploading(true);
+    setCloudinaryMessage(null);
+    try {
+      const exportRes = await window.serverOperator.exportDatabaseSql({ serverId: currentServer!.id, mode: 'full' });
+      if (!exportRes.ok || !exportRes.sql) {
+        setCloudinaryMessage({ type: 'error', text: exportRes.error || 'Export failed' });
+        return;
+      }
+      const filename = exportRes.filename || `database-backup-${Date.now()}.sql`;
+      const uploadRes = await window.serverOperator.cloudinaryUploadBackup({
+        sql: exportRes.sql,
+        filename,
+        serverName: currentServer?.name || '',
+        dbType,
+        dbName: database,
+      });
+      if (uploadRes.ok) {
+        setCloudinaryMessage({ type: 'success', text: `Backup uploaded successfully!` });
+        setCloudinaryOpen(true);
+        loadCloudinaryBackups();
+      } else {
+        setCloudinaryMessage({ type: 'error', text: uploadRes.error || 'Upload failed' });
+      }
+    } catch (err: any) {
+      setCloudinaryMessage({ type: 'error', text: err.message || String(err) });
+    } finally {
+      setCloudinaryUploading(false);
+    }
+  };
+
+  const handleRestoreFromCloudinary = async (publicId: string) => {
+    if (!window.serverOperator?.cloudinaryDownloadBackup || !window.serverOperator?.importDatabaseSql) return;
+    setCloudinaryRestoring(publicId);
+    setCloudinaryMessage(null);
+    try {
+      const downloadRes = await window.serverOperator.cloudinaryDownloadBackup({ publicId });
+      if (!downloadRes.ok || !downloadRes.sql) {
+        setCloudinaryMessage({ type: 'error', text: downloadRes.error || 'Download failed' });
+        return;
+      }
+      const importRes = await window.serverOperator.importDatabaseSql({ serverId: currentServer!.id, sql: downloadRes.sql });
+      if (importRes.ok) {
+        setCloudinaryMessage({ type: 'success', text: `Restored! ${importRes.statements || 0} SQL statements executed.` });
+        await fetchSchema();
+      } else {
+        setCloudinaryMessage({ type: 'error', text: importRes.error || 'Import failed' });
+      }
+    } catch (err: any) {
+      setCloudinaryMessage({ type: 'error', text: err.message || String(err) });
+    } finally {
+      setCloudinaryRestoring(null);
+    }
+  };
+
   const filteredMetadata = dbType === 'redis' 
     ? redisKeys.filter(k => k.toLowerCase().includes(metadataSearch.toLowerCase()))
     : tables.filter(t => t.toLowerCase().includes(metadataSearch.toLowerCase()));
@@ -449,9 +558,8 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
         </div>
       </div>
 
-      <div className="flex-1 flex min-h-0 divide-x divide-border/20">
-        {/* Connection Form & Schema Sidebar */}
-        <div className="w-[300px] flex flex-col shrink-0 min-h-0 bg-bg-secondary/25 border-r border-border/20 overflow-y-auto select-none">
+      {createPortal(
+        <div className="flex flex-col min-h-0 h-full">
           {/* Connection settings form */}
           {status !== 'connected' && status !== 'connecting' ? (
             <form onSubmit={handleConnect} className="p-4 border-b border-border/20 flex flex-col gap-3">
@@ -645,7 +753,7 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
 
           {/* Schema Explorer */}
           {status === 'connected' && (
-            <div className="flex-grow flex flex-col min-h-[300px]">
+            <div className="flex-grow flex flex-col min-h-[200px]">
               <div className="p-4 pb-2 flex justify-between items-center select-none">
                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
                   {dbType === 'redis' ? 'Keys Explorer' : 'Tables Explorer'}
@@ -703,10 +811,111 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
               </div>
             </div>
           )}
-        </div>
 
-        {/* Query Editor & Result Grid Workspace */}
-        <div className="flex-1 flex flex-col min-h-0 bg-bg-primary">
+          {/* Cloudinary Backups */}
+          <div className="border-t border-border/20 flex flex-col min-h-0" style={{ flex: cloudinaryOpen ? `0 0 ${cloudinaryHeight}px` : '0 0 auto' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setCloudinaryOpen((o) => !o);
+                if (!cloudinaryOpen && cloudinaryBackups.length === 0) loadCloudinaryBackups();
+              }}
+              className="w-full flex items-center justify-between gap-2 px-4 py-3 hover:bg-bg-tertiary/30 transition-colors cursor-pointer select-none shrink-0"
+            >
+              <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                <Cloud size={12} />
+                Cloudinary Backups
+              </span>
+              <div className="flex items-center gap-2">
+                {cloudinaryBackups.length > 0 && (
+                  <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/20">
+                    {cloudinaryBackups.length}
+                  </span>
+                )}
+                <ChevronDown size={12} className={`text-text-secondary transition-transform ${cloudinaryOpen ? '' : '-rotate-90'}`} />
+              </div>
+            </button>
+            {cloudinaryOpen && (
+              <>
+                <div
+                  className="h-1.5 cursor-row-resize hover:bg-accent/30 active:bg-accent/50 transition-colors shrink-0 relative group"
+                  onMouseDown={() => { cloudinaryResizing.current = true; }}
+                >
+                  <div className="absolute inset-x-2 top-1/2 -translate-y-1/2 h-[3px] rounded-full bg-border/30 group-hover:bg-accent/40 group-active:bg-accent/60" />
+                </div>
+                <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 space-y-2">
+                  <button
+                    type="button"
+                    onClick={loadCloudinaryBackups}
+                    disabled={cloudinaryBackupsLoading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/30 bg-bg-primary/50 text-text-primary text-[10px] font-semibold hover:border-border/60 hover:bg-bg-tertiary disabled:opacity-50 cursor-pointer transition-all w-full justify-center"
+                  >
+                    {cloudinaryBackupsLoading ? <RefreshCw size={10} className="animate-spin" /> : <RefreshCw size={10} />}
+                    Refresh
+                  </button>
+
+                  {cloudinaryBackupsError && (
+                    <p className="text-[10px] text-error font-mono bg-error/10 p-2 rounded-lg">{cloudinaryBackupsError}</p>
+                  )}
+
+                  {cloudinaryBackups.length === 0 && !cloudinaryBackupsLoading && !cloudinaryBackupsError && (
+                    <p className="text-[10px] text-text-muted text-center py-4 italic">
+                      No Cloudinary backups found. Configure Cloudinary in Settings, then use "Get Backup".
+                    </p>
+                  )}
+
+                  <div className="space-y-1.5">
+                    {cloudinaryBackups.map((backup) => (
+                      <div
+                        key={backup.publicId}
+                        className="rounded-lg border border-border/20 bg-bg-primary/40 p-2.5 text-[10px]"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-text-primary truncate" title={backup.filename}>
+                              {backup.filename}
+                            </p>
+                            <p className="text-text-muted mt-0.5">
+                              {backup.serverName && `${backup.serverName} · `}
+                              {backup.dbType && `${backup.dbType} · `}
+                              {backup.dbName && `${backup.dbName} · `}
+                              {backup.createdAt && new Date(backup.createdAt).toLocaleDateString()}
+                            </p>
+                            <p className="text-text-muted">
+                              {backup.size ? `${(backup.size / 1024).toFixed(1)} KB` : ''}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRestoreFromCloudinary(backup.publicId)}
+                            disabled={cloudinaryRestoring === backup.publicId}
+                            className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg bg-warning/15 text-warning text-[9px] font-semibold hover:bg-warning/25 disabled:opacity-50 cursor-pointer transition-colors"
+                          >
+                            {cloudinaryRestoring === backup.publicId ? <RefreshCw size={9} className="animate-spin" /> : <Download size={9} />}
+                            Restore
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {cloudinaryMessage && (
+                    <div className={`p-2 rounded-lg text-[10px] font-mono ${
+                      cloudinaryMessage.type === 'success' ? 'bg-success/10 text-success' : 'bg-error/10 text-error'
+                    }`}>
+                      {cloudinaryMessage.text}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>,
+        document.getElementById('database-sidebar-panel')!
+      )}
+
+      {/* Query Editor & Result Grid Workspace */}
+      <div className="flex-1 flex flex-col min-h-0 bg-bg-primary">
           {status !== 'connected' ? (
             <div className="flex-1 flex flex-col items-center justify-center text-text-secondary text-xs font-sans gap-2.5 p-6 text-center select-none max-w-lg mx-auto">
               <Database size={24} className="text-accent/60 animate-pulse mb-1" />
@@ -801,6 +1010,15 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                         >
                           {exportLoading === 'full' ? <RefreshCw size={10} className="animate-spin" /> : <Download size={10} />}
                           Export Full
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleBackupToCloudinary}
+                          disabled={!!cloudinaryUploading || !!exportLoading || importLoading}
+                          className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold border border-sky-500/35 bg-sky-500/10 text-sky-400 hover:bg-sky-500/15 rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
+                        >
+                          {cloudinaryUploading ? <RefreshCw size={10} className="animate-spin" /> : <Cloud size={10} />}
+                          Get Backup
                         </button>
                       </div>
                     </div>
@@ -1047,6 +1265,5 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
           )}
         </div>
       </div>
-    </div>
   );
 }
