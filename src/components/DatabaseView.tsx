@@ -21,7 +21,7 @@ import EyeOffIcon from './icons/EyeOffIcon';
 import type { ServerConnection, ProxySettings } from '../types';
 import Editor, { useMonaco } from '@monaco-editor/react';
 
-type DbType = 'mysql' | 'postgres' | 'redis';
+type DbType = 'mysql' | 'postgres' | 'redis' | 'sqlite';
 type ExportMode = 'schema' | 'data' | 'full';
 
 interface DockerDatabaseTarget {
@@ -42,9 +42,11 @@ interface DockerDatabaseTarget {
 interface DatabaseViewProps {
   currentServer: ServerConnection | null;
   proxy: ProxySettings;
+  connectedSqlitePath?: string | null;
+  onSqliteDisconnect?: () => void;
 }
 
-export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
+export function DatabaseView({ currentServer, proxy, connectedSqlitePath, onSqliteDisconnect }: DatabaseViewProps) {
   // Connection Form State
   const [dbType, setDbType] = useState<DbType>('mysql');
   const [host, setHost] = useState('127.0.0.1');
@@ -53,6 +55,7 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
   const [password, setPassword] = useState('');
   const [database, setDatabase] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [sqliteFilePath, setSqliteFilePath] = useState('');
   const skipNextEngineDefaults = useRef(false);
   const importFileInputRef = useRef<HTMLInputElement | null>(null);
   const importFullFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -94,6 +97,17 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
 
+  // Auto-connect when a sqlite file was opened from the file explorer
+  useEffect(() => {
+    if (!connectedSqlitePath) return;
+    setDbType('sqlite');
+    setSqliteFilePath(connectedSqlitePath);
+    setStatus('connected');
+    setLocalPort(0);
+    setError(null);
+    fetchSchema();
+  }, [connectedSqlitePath]);
+
   // Default Port Helper
   useEffect(() => {
     if (skipNextEngineDefaults.current) {
@@ -110,6 +124,8 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
       setPort('6379');
       setUsername('');
       setDatabase('0'); // Redis DB Index
+    } else if (dbType === 'sqlite') {
+      setSqliteFilePath('');
     }
     // Clear state on engine switch
     setQueryResult(null);
@@ -210,7 +226,9 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
     setRedisKeys([]);
 
     try {
-      const config: Record<string, string> = { host, port, username, password, database };
+      const config: Record<string, string> = dbType === 'sqlite'
+        ? { filePath: sqliteFilePath }
+        : { host, port, username, password, database };
       const res = await window.serverOperator.connectDatabase({
         connection: currentServer,
         proxy,
@@ -218,8 +236,12 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
         config,
       });
 
-      if (res.ok && res.localPort) {
-        setLocalPort(res.localPort);
+      if (res.ok) {
+        if (dbType === 'sqlite') {
+          setLocalPort(0);
+        } else if (res.localPort) {
+          setLocalPort(res.localPort);
+        }
         setStatus('connected');
         fetchSchema();
       } else {
@@ -248,6 +270,10 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
     setQueryError(null);
     setExecutionTime(null);
     setCurrentPage(1);
+    if (dbType === 'sqlite') {
+      setSqliteFilePath('');
+      onSqliteDisconnect?.();
+    }
   };
 
   const fetchSchema = async () => {
@@ -565,9 +591,15 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-bold text-text-primary">Database Tunnel Manager</h2>
               {status === 'connected' ? (
-                <span className="inline-flex items-center gap-1.5 text-[9px] font-extrabold bg-success/10 text-success border border-success/20 px-2.5 py-0.5 rounded-xl uppercase tracking-wider animate-pulse">
-                  <Wifi size={10} /> Active Tunnel (LPort: {localPort})
-                </span>
+                dbType === 'sqlite' ? (
+                  <span className="inline-flex items-center gap-1.5 text-[9px] font-extrabold bg-success/10 text-success border border-success/20 px-2.5 py-0.5 rounded-xl uppercase tracking-wider animate-pulse">
+                    <Database size={10} /> SQLite Open
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-[9px] font-extrabold bg-success/10 text-success border border-success/20 px-2.5 py-0.5 rounded-xl uppercase tracking-wider animate-pulse">
+                    <Wifi size={10} /> Active Tunnel (LPort: {localPort})
+                  </span>
+                )
               ) : status === 'connecting' ? (
                 <span className="inline-flex items-center gap-1.5 text-[9px] font-extrabold bg-warning/10 text-warning border border-warning/20 px-2.5 py-0.5 rounded-xl uppercase tracking-wider animate-pulse">
                   <RefreshCw size={10} className="animate-spin" /> Forwarding...
@@ -666,85 +698,102 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                   <option value="mysql">MySQL</option>
                   <option value="postgres">PostgreSQL</option>
                   <option value="redis">Redis</option>
+                  <option value="sqlite">SQLite (remote file)</option>
                 </select>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-2 flex flex-col gap-1">
-                  <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-0.5" htmlFor="host-input">Host</label>
+              {dbType === 'sqlite' ? (
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-0.5" htmlFor="sqlite-path-input">SQLite File Path (on server)</label>
                   <input
-                    id="host-input"
+                    id="sqlite-path-input"
                     type="text"
-                    value={host}
-                    onChange={(e) => setHost(e.target.value)}
+                    value={sqliteFilePath}
+                    onChange={(e) => setSqliteFilePath(e.target.value)}
+                    placeholder="/var/data/app.db"
                     className="w-full px-3 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent"
                   />
                 </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-0.5" htmlFor="port-input">Port</label>
-                  <input
-                    id="port-input"
-                    type="text"
-                    value={port}
-                    onChange={(e) => setPort(e.target.value)}
-                    className="w-full px-3 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none"
-                  />
-                </div>
-              </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-2 flex flex-col gap-1">
+                      <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-0.5" htmlFor="host-input">Host</label>
+                      <input
+                        id="host-input"
+                        type="text"
+                        value={host}
+                        onChange={(e) => setHost(e.target.value)}
+                        className="w-full px-3 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-0.5" htmlFor="port-input">Port</label>
+                      <input
+                        id="port-input"
+                        type="text"
+                        value={port}
+                        onChange={(e) => setPort(e.target.value)}
+                        className="w-full px-3 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none"
+                      />
+                    </div>
+                  </div>
 
-              {dbType !== 'redis' && (
-                <div className="flex flex-col gap-1">
-                  <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-0.5" htmlFor="user-input">Username</label>
-                  <input
-                    id="user-input"
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="w-full px-3 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none"
-                  />
-                </div>
+                  {dbType !== 'redis' && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-0.5" htmlFor="user-input">Username</label>
+                      <input
+                        id="user-input"
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className="w-full px-3 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none"
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-0.5" htmlFor="pass-input">Password</label>
+                    <div className="relative flex items-center">
+                      <input
+                        id="pass-input"
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Optional"
+                        className="w-full px-3 py-1.5 pr-10 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 text-text-secondary hover:text-text-primary focus:outline-none cursor-pointer"
+                      >
+                        {showPassword ? <EyeOffIcon size={14} /> : <EyeIcon size={14} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-0.5" htmlFor="db-input">
+                      {dbType === 'redis' ? 'DB Index' : 'Database'}
+                    </label>
+                    <input
+                      id="db-input"
+                      type="text"
+                      value={database}
+                      onChange={(e) => setDatabase(e.target.value)}
+                      placeholder={dbType === 'redis' ? '0' : 'Database Name'}
+                      className="w-full px-3 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none"
+                    />
+                  </div>
+                </>
               )}
-
-              <div className="flex flex-col gap-1">
-                <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-0.5" htmlFor="pass-input">Password</label>
-                <div className="relative flex items-center">
-                  <input
-                    id="pass-input"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Optional"
-                    className="w-full px-3 py-1.5 pr-10 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 text-text-secondary hover:text-text-primary focus:outline-none cursor-pointer"
-                  >
-                    {showPassword ? <EyeOffIcon size={14} /> : <EyeIcon size={14} />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-0.5" htmlFor="db-input">
-                  {dbType === 'redis' ? 'DB Index' : 'Database'}
-                </label>
-                <input
-                  id="db-input"
-                  type="text"
-                  value={database}
-                  onChange={(e) => setDatabase(e.target.value)}
-                  placeholder={dbType === 'redis' ? '0' : 'Database Name'}
-                  className="w-full px-3 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none"
-                />
-              </div>
 
               <button
                 type="submit"
                 className="w-full mt-3 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-sm"
               >
-                Establish DB Tunnel
+                {dbType === 'sqlite' ? 'Open SQLite File' : 'Establish DB Tunnel'}
               </button>
 
               {status === 'error' && error && (
@@ -763,15 +812,18 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                 </span>
               </div>
               <p className="text-xs font-mono text-text-primary break-all mt-1 leading-relaxed">
-                Target: {host}:{port} <br />
-                {database && `DB: ${database}`}
+                {dbType === 'sqlite' ? (
+                  <>File: {sqliteFilePath || '—'}</>
+                ) : (
+                  <>Target: {host}:{port} {database && <><br />DB: {database}</>}</>
+                )}
               </p>
               <button
                 type="button"
                 onClick={handleDisconnect}
                 className="w-full py-2 bg-error/15 hover:bg-error hover:text-white border border-error/25 hover:border-transparent text-error text-xs font-semibold rounded-xl transition-all cursor-pointer mt-2 select-none"
               >
-                Disconnect DB Tunnel
+                {dbType === 'sqlite' ? 'Close SQLite File' : 'Disconnect DB Tunnel'}
               </button>
             </div>
           )}
@@ -984,76 +1036,78 @@ export function DatabaseView({ currentServer, proxy }: DatabaseViewProps) {
                       <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
                         SQL Command Workspace
                       </h3>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <input
-                          ref={importFileInputRef}
-                          type="file"
-                          accept=".sql,application/sql,text/sql,text/plain"
-                          className="hidden"
-                          onChange={(e) => handleImportSqlFile(e.target.files?.[0] || null)}
-                        />
-                        <input
-                          ref={importFullFileInputRef}
-                          type="file"
-                          accept=".sql,application/sql,text/sql,text/plain"
-                          className="hidden"
-                          onChange={(e) => handleImportFullSqlFile(e.target.files?.[0] || null)}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => importFileInputRef.current?.click()}
-                          disabled={importLoading || !!exportLoading}
-                          className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold border border-warning/35 bg-warning/10 text-warning hover:bg-warning/15 rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
-                        >
-                          {importLoading ? <RefreshCw size={10} className="animate-spin" /> : <Download size={10} className="rotate-180" />}
-                          Import SQL
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => importFullFileInputRef.current?.click()}
-                          disabled={importLoading || !!exportLoading}
-                          className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold border border-error/35 bg-error/10 text-error hover:bg-error/15 rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
-                        >
-                          {importLoading ? <RefreshCw size={10} className="animate-spin" /> : <Download size={10} className="rotate-180" />}
-                          Import Full SQL
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleExportSql('schema')}
-                          disabled={!!exportLoading || importLoading}
-                          className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold border border-border/30 bg-bg-secondary hover:bg-bg-tertiary rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
-                        >
-                          {exportLoading === 'schema' ? <RefreshCw size={10} className="animate-spin" /> : <Download size={10} />}
-                          Export Schema
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleExportSql('data')}
-                          disabled={!!exportLoading || importLoading}
-                          className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold border border-border/30 bg-bg-secondary hover:bg-bg-tertiary rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
-                        >
-                          {exportLoading === 'data' ? <RefreshCw size={10} className="animate-spin" /> : <Download size={10} />}
-                          Export Data
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleExportSql('full')}
-                          disabled={!!exportLoading || importLoading}
-                          className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold border border-accent/35 bg-accent/10 text-accent hover:bg-accent/15 rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
-                        >
-                          {exportLoading === 'full' ? <RefreshCw size={10} className="animate-spin" /> : <Download size={10} />}
-                          Export Full
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleBackupToCloudinary}
-                          disabled={!!cloudinaryUploading || !!exportLoading || importLoading}
-                          className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold border border-sky-500/35 bg-sky-500/10 text-sky-400 hover:bg-sky-500/15 rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
-                        >
-                          {cloudinaryUploading ? <RefreshCw size={10} className="animate-spin" /> : <Cloud size={10} />}
-                          Get Backup
-                        </button>
-                      </div>
+                      {dbType !== 'sqlite' && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            ref={importFileInputRef}
+                            type="file"
+                            accept=".sql,application/sql,text/sql,text/plain"
+                            className="hidden"
+                            onChange={(e) => handleImportSqlFile(e.target.files?.[0] || null)}
+                          />
+                          <input
+                            ref={importFullFileInputRef}
+                            type="file"
+                            accept=".sql,application/sql,text/sql,text/plain"
+                            className="hidden"
+                            onChange={(e) => handleImportFullSqlFile(e.target.files?.[0] || null)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => importFileInputRef.current?.click()}
+                            disabled={importLoading || !!exportLoading}
+                            className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold border border-warning/35 bg-warning/10 text-warning hover:bg-warning/15 rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
+                          >
+                            {importLoading ? <RefreshCw size={10} className="animate-spin" /> : <Download size={10} className="rotate-180" />}
+                            Import SQL
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => importFullFileInputRef.current?.click()}
+                            disabled={importLoading || !!exportLoading}
+                            className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold border border-error/35 bg-error/10 text-error hover:bg-error/15 rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
+                          >
+                            {importLoading ? <RefreshCw size={10} className="animate-spin" /> : <Download size={10} className="rotate-180" />}
+                            Import Full SQL
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleExportSql('schema')}
+                            disabled={!!exportLoading || importLoading}
+                            className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold border border-border/30 bg-bg-secondary hover:bg-bg-tertiary rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
+                          >
+                            {exportLoading === 'schema' ? <RefreshCw size={10} className="animate-spin" /> : <Download size={10} />}
+                            Export Schema
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleExportSql('data')}
+                            disabled={!!exportLoading || importLoading}
+                            className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold border border-border/30 bg-bg-secondary hover:bg-bg-tertiary rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
+                          >
+                            {exportLoading === 'data' ? <RefreshCw size={10} className="animate-spin" /> : <Download size={10} />}
+                            Export Data
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleExportSql('full')}
+                            disabled={!!exportLoading || importLoading}
+                            className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold border border-accent/35 bg-accent/10 text-accent hover:bg-accent/15 rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
+                          >
+                            {exportLoading === 'full' ? <RefreshCw size={10} className="animate-spin" /> : <Download size={10} />}
+                            Export Full
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleBackupToCloudinary}
+                            disabled={!!cloudinaryUploading || !!exportLoading || importLoading}
+                            className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold border border-sky-500/35 bg-sky-500/10 text-sky-400 hover:bg-sky-500/15 rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
+                          >
+                            {cloudinaryUploading ? <RefreshCw size={10} className="animate-spin" /> : <Cloud size={10} />}
+                            Get Backup
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {importLog.length > 0 && (

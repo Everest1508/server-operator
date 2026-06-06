@@ -40,7 +40,7 @@ function loadComposePathsByServer(): Record<string, string[]> {
   }
 }
 
-const VIEW_IDS: ViewId[] = ['servers', 'files', 'docker', 'deploy', 'notes', 'database', 'guide', 'settings'];
+const VIEW_IDS: ViewId[] = ['servers', 'files', 'docker', 'deploy', 'notes', 'database', 'firewall', 'guide', 'settings'];
 const HASH_PREFIX = '#/';
 
 function viewFromHash(): ViewId {
@@ -164,6 +164,7 @@ export default function App() {
   const [connectingTo, setConnectingTo] = useState<string | null>(null);
   const [connectingToServer, setConnectingToServer] = useState<ServerConnection | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [connectedSqlitePath, setConnectedSqlitePath] = useState<string | null>(null);
   const connectCancelRef = useRef(false);
   const [selectedGuideId, setSelectedGuideId] = useState<string>('database');
   const [rightPanelWidth, setRightPanelWidth] = useState(RIGHT_PANEL_DEFAULT);
@@ -638,7 +639,47 @@ export default function App() {
     if (!treeListings[pathKey]) loadDir(pathKey, false);
   };
 
+  const isSqliteFile = (path: string) => {
+    const ext = path.split('.').pop()?.toLowerCase();
+    return ext === 'sqlite3' || ext === 'sqlite' || ext === 'db' || ext === 'db3';
+  };
+
+  const handleOpenSqlite = async (filePath: string) => {
+    if (!currentServer || !window.serverOperator) return;
+    setConnectingTo(currentServer.id);
+    setConnectingToServer(currentServer);
+    setConnectionError(null);
+
+    try {
+      const config: Record<string, string> = { filePath };
+      const api = window.serverOperator;
+      if (!api) return;
+      const res = await api.connectDatabase({
+        connection: currentServer,
+        proxy: proxyRef.current,
+        dbType: 'sqlite',
+        config,
+      });
+      if (res.ok) {
+        setConnectedSqlitePath(filePath);
+        setActiveViewAndRoute('database');
+      } else {
+        setConnectionError(res.error || 'Failed to open SQLite file');
+      }
+    } catch (err: unknown) {
+      const msg = err && typeof err === 'object' && 'message' in err ? String((err as Error).message) : String(err ?? 'Failed to open SQLite file');
+      setConnectionError(msg);
+    } finally {
+      setConnectingTo(null);
+      setConnectingToServer(null);
+    }
+  };
+
   const openFile = (filePath: string, opts?: { useSudo?: boolean }) => {
+    if (isSqliteFile(filePath)) {
+      handleOpenSqlite(filePath);
+      return;
+    }
     const useSudo = !!opts?.useSudo;
     setFileLoadError(null);
     setTabSudoByPath((prev) => {
@@ -1113,12 +1154,6 @@ export default function App() {
     localStorage.setItem(STORAGE_KEY_PROXY, JSON.stringify(proxy));
   }, [proxy]);
 
-  useEffect(() => {
-    if (window.serverOperator && window.serverOperator.setMonitoredServers) {
-      window.serverOperator.setMonitoredServers({ servers, proxy });
-    }
-  }, [servers, proxy]);
-
   const setProxyAndRef = (next: ProxySettings | ((prev: ProxySettings) => ProxySettings)) => {
     if (typeof next === 'function') {
       setProxy((prev) => {
@@ -1391,6 +1426,8 @@ export default function App() {
                 projectTreeListings={repoTreeListings}
                 bottomPanelOpen={panelOpen}
                 bottomPanelTab={panelTab}
+                connectedSqlitePath={connectedSqlitePath}
+                onSqliteDisconnect={() => setConnectedSqlitePath(null)}
               />
             ) : (
               <NoServerView

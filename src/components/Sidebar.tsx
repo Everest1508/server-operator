@@ -129,42 +129,6 @@ export function Sidebar({
   const [showDotfiles, setShowDotfiles] = useState(false);
   const createInputRef = useRef<HTMLInputElement>(null);
 
-  const [serverStatuses, setServerStatuses] = useState<Record<string, 'green' | 'yellow' | 'red'>>({});
-
-  useEffect(() => {
-    let isMounted = true;
-    if (window.serverOperator && window.serverOperator.getMonitoredServersStatus) {
-      window.serverOperator.getMonitoredServersStatus().then((list) => {
-        if (!isMounted) return;
-        const mapping: Record<string, 'green' | 'yellow' | 'red'> = {};
-        for (const item of list) {
-          mapping[item.serverId] = item.status;
-        }
-        setServerStatuses(mapping);
-      }).catch((err) => {
-        console.error('Failed to get initial server status:', err);
-      });
-    }
-
-    const handleUpdate = (e: Event) => {
-      const list = (e as CustomEvent).detail;
-      if (Array.isArray(list)) {
-        const mapping: Record<string, 'green' | 'yellow' | 'red'> = {};
-        for (const item of list) {
-          mapping[item.serverId] = item.status;
-        }
-        setServerStatuses(mapping);
-      }
-    };
-
-    window.addEventListener('monitored-servers-status-updated', handleUpdate);
-    return () => {
-      isMounted = false;
-      window.removeEventListener('monitored-servers-status-updated', handleUpdate);
-    };
-  }, []);
-
-
   useEffect(() => {
     if (!fileTreeMenu) return;
     const close = () => setFileTreeMenu(null);
@@ -402,6 +366,7 @@ export function Sidebar({
               {activeView === 'docker' && 'Docker'}
               {activeView === 'deploy' && 'Deploy'}
               {activeView === 'database' && 'Database'}
+              {activeView === 'firewall' && 'Firewall & Ports'}
             </span>
           </div>
           {showFileBrowser && (
@@ -487,6 +452,43 @@ export function Sidebar({
             </div>
           )}
           <div id="database-sidebar-panel" className="flex-1 flex flex-col overflow-y-auto py-1 min-h-0">
+            {activeView === 'firewall' && (
+              <div className="px-3 py-3 flex flex-col gap-4 select-none">
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-text-muted">Quick Reference</span>
+                  {[
+                    { port: '22', label: 'SSH' },
+                    { port: '80', label: 'HTTP' },
+                    { port: '443', label: 'HTTPS' },
+                    { port: '3306', label: 'MySQL' },
+                    { port: '5432', label: 'PostgreSQL' },
+                    { port: '6379', label: 'Redis' },
+                    { port: '27017', label: 'MongoDB' },
+                    { port: '8080', label: 'Alt HTTP' },
+                  ].map(({ port, label }) => (
+                    <div key={port} className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-bg-primary/30 border border-border/15">
+                      <span className="text-[10px] font-mono text-text-primary font-bold">{port}</span>
+                      <span className="text-[10px] text-text-muted">{label}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-text-muted">UFW Commands</span>
+                  {[
+                    'sudo ufw status verbose',
+                    'sudo ufw enable',
+                    'sudo ufw disable',
+                    'sudo ufw allow 80/tcp',
+                    'sudo ufw deny 3306',
+                    'sudo ufw delete 2',
+                    'nmap -p 22 192.168.1.0/24',
+                    'nmap -p 80 --open -T4 10.0.0.0/24',
+                  ].map((cmd) => (
+                    <div key={cmd} className="px-2.5 py-1.5 rounded-lg bg-bg-primary/30 border border-border/15 font-mono text-[9.5px] text-text-secondary break-all">{cmd}</div>
+                  ))}
+                </div>
+              </div>
+            )}
             {(activeView === 'servers' || activeView === 'docker' || activeView === 'deploy') && (
               <ul className="space-y-1 px-3 pb-4">
                 {servers.length === 0 && (
@@ -495,11 +497,7 @@ export function Sidebar({
                   </li>
                 )}
                 {servers.map((s) => {
-                  const status = serverStatuses[s.id] || 'gray';
-                  let badgeColor = 'bg-text-muted';
-                  if (status === 'green') badgeColor = 'bg-success shadow-[0_0_6px_rgba(78,201,176,0.6)]';
-                  else if (status === 'yellow') badgeColor = 'bg-warning shadow-[0_0_6px_rgba(220,220,170,0.6)]';
-                  else if (status === 'red') badgeColor = 'bg-error shadow-[0_0_6px_rgba(241,76,76,0.6)]';
+                  const badgeColor = 'bg-text-muted';
 
                   const isSelected = currentServer?.id === s.id;
 

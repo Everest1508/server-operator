@@ -7,6 +7,7 @@ import { DockerView } from './DockerView';
 import { DeployView } from './DeployView';
 import { ServerOverview } from './ServerOverview';
 import { DatabaseView } from './DatabaseView';
+import { FirewallView } from './FirewallView';
 
 function languageFromPath(path: string): string {
   if (path.startsWith('notes://')) return 'markdown';
@@ -63,6 +64,8 @@ interface EditorAreaProps {
   bottomPanelOpen?: boolean;
   bottomPanelTab?: 'logs' | 'terminal';
   selectedGuideId?: string;
+  connectedSqlitePath?: string | null;
+  onSqliteDisconnect?: () => void;
 }
 
 function basename(path: string): string {
@@ -114,6 +117,8 @@ export function EditorArea({
   bottomPanelOpen = false,
   bottomPanelTab = 'logs',
   selectedGuideId = 'database',
+  connectedSqlitePath = null,
+  onSqliteDisconnect,
 }: EditorAreaProps) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -276,7 +281,15 @@ export function EditorArea({
           <DatabaseView
             currentServer={currentServer}
             proxy={proxy}
+            connectedSqlitePath={connectedSqlitePath}
+            onSqliteDisconnect={onSqliteDisconnect}
           />
+        </div>
+      )}
+
+      {activeView === 'firewall' && currentServer && (
+        <div className="flex-1 flex flex-col min-h-0">
+          <FirewallView currentServer={currentServer} proxy={proxy} />
         </div>
       )}
       {activeView === 'files' && (

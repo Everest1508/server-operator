@@ -1,4 +1,4 @@
-export type ViewId = 'servers' | 'files' | 'docker' | 'deploy' | 'notes' | 'database' | 'guide' | 'settings';
+export type ViewId = 'servers' | 'files' | 'docker' | 'deploy' | 'notes' | 'database' | 'guide' | 'settings' | 'firewall';
 
 export interface FeatureFlags {
   deployModule: boolean;
@@ -6,6 +6,7 @@ export interface FeatureFlags {
   files: boolean;
   docker: boolean;
   database: boolean;
+  firewall: boolean;
   aiAssistant: boolean;
   shortcuts: boolean;
   serverAdmin: boolean;
@@ -22,6 +23,7 @@ export const DEFAULT_FLAGS: FeatureFlags = {
   files: true,
   docker: true,
   database: true,
+  firewall: true,
   aiAssistant: true,
   shortcuts: true,
   serverAdmin: true,

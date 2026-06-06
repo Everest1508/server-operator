@@ -98,53 +98,10 @@ export interface ServerOperatorAPI {
   getLogFilePath?: () => Promise<string>;
   readLogFile?: () => Promise<{ ok: boolean; content?: string; error?: string }>;
   clearLogFile?: () => Promise<{ ok: boolean; error?: string }>;
-  saveAlert: (opts: {
-    serverId: string;
-    serverName: string;
-    metricType: 'CPU' | 'RAM' | 'DISK';
-    metricValue: number;
-    thresholdValue: number;
-    message: string;
-    timestamp?: string;
-  }) => Promise<{ ok: boolean; id?: number; error?: string }>;
-  getAlertHistory: (opts: { serverId?: string }) => Promise<Array<{
-    id: number;
-    serverId: string;
-    serverName: string;
-    metricType: 'CPU' | 'RAM' | 'DISK';
-    metricValue: number;
-    thresholdValue: number;
-    message: string;
-    timestamp: string;
-  }>>;
-  clearAlertHistory: (opts: { serverId?: string }) => Promise<{ ok: boolean; error?: string }>;
-  sendWebhook: (opts: { url: string; payload: unknown }) => Promise<{ ok: boolean; status?: number; error?: string }>;
-  triggerNotification: (opts: { title: string; body: string }) => Promise<{ ok: boolean; error?: string }>;
-  setMonitoredServers: (opts: { servers: ServerConnection[]; proxy?: ProxySettings }) => Promise<{ ok: boolean; error?: string }>;
-  getMonitoredServersStatus: () => Promise<Array<{
-    serverId: string;
-    status: 'green' | 'yellow' | 'red';
-    latency: number;
-    lastChecked: string;
-    latencyHistory: Array<{ timestamp: string; latency: number }>;
-    services: Record<string, 'up' | 'down'>;
-  }>>;
-  getHistoricalMetrics: (opts: {
-    serverId: string;
-    timeWindow?: '1h' | '6h' | '24h' | '7d';
-    startDate?: string;
-    endDate?: string;
-  }) => Promise<Array<{
-    cpu: number;
-    ram: number;
-    disk: number;
-    timestamp: string;
-  }>>;
-  clearHistoricalMetrics: (opts: { serverId?: string }) => Promise<{ ok: boolean; error?: string }>;
   connectDatabase: (opts: {
     connection: ServerConnection;
     proxy?: ProxySettings;
-    dbType: 'mysql' | 'postgres' | 'redis';
+    dbType: 'mysql' | 'postgres' | 'redis' | 'sqlite';
     config: Record<string, string>;
   }) => Promise<{ ok: boolean; localPort?: number; error?: string }>;
   disconnectDatabase: (opts: { serverId: string }) => Promise<{ ok: boolean; error?: string }>;
@@ -212,6 +169,8 @@ export interface ServerOperatorAPI {
   deleteSnippet: (opts: { id: number }) => Promise<{ ok: boolean; error?: string }>;
   loadFeaturesConfig: () => Promise<any>;
   saveFeaturesConfig: (config: any) => Promise<{ ok: boolean; error?: string }>;
+  openTunnel: (opts: { connection: any; proxy?: any; remoteHost: string; remotePort: number }) => Promise<{ ok: boolean; localPort?: number; tunnelId?: string; error?: string }>;
+  closeTunnel: (opts: { tunnelId: string }) => Promise<{ ok: boolean }>;
   // Updates
   checkForUpdates?: () => Promise<{ ok: boolean }>;
   openReleasePage?: (url: string) => Promise<{ ok: boolean; error?: string }>;

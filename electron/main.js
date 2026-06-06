@@ -49,7 +49,7 @@ function setupCrashLogging() {
 }
 setupCrashLogging();
 
-// ----- Initialize SQLite Database for Alert History -----
+// ----- Initialize SQLite Database for Deployment History -----
 let db;
 try {
   const sqlite3 = require('sqlite3').verbose();
@@ -63,53 +63,6 @@ try {
   });
 
   db.serialize(() => {
-    db.run(`
-      CREATE TABLE IF NOT EXISTS alerts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        serverId TEXT,
-        serverName TEXT,
-        metricType TEXT,
-        metricValue REAL,
-        thresholdValue REAL,
-        message TEXT,
-        timestamp TEXT
-      )
-    `, (err) => {
-      if (err) {
-        log('SQLite table create error', { error: err.message });
-      } else {
-        log('SQLite alerts table initialized');
-      }
-    });
-
-    db.run(`
-      CREATE TABLE IF NOT EXISTS historical_metrics (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        serverId TEXT,
-        cpu REAL,
-        ram REAL,
-        disk REAL,
-        timestamp TEXT
-      )
-    `, (err) => {
-      if (err) {
-        log('SQLite table historical_metrics create error', { error: err.message });
-      } else {
-        log('SQLite historical_metrics table initialized');
-      }
-    });
-
-    db.run(`
-      CREATE INDEX IF NOT EXISTS idx_historical_metrics_server_time 
-      ON historical_metrics (serverId, timestamp)
-    `, (err) => {
-      if (err) {
-        log('SQLite index creation error', { error: err.message });
-      } else {
-        log('SQLite historical_metrics index initialized');
-      }
-    });
-
     db.run(`
       CREATE TABLE IF NOT EXISTS deployment_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1956,132 +1909,6 @@ ipcMain.handle('app:clear-log-file', async () => {
   }
 });
 
-// ── Alerting System IPC Handlers ─────────────────────────────────────
-ipcMain.handle('alerts:save', async (_, alert) => {
-  return new Promise((resolve) => {
-    if (!db) {
-      resolve({ ok: false, error: 'Database not initialized' });
-      return;
-    }
-    const stmt = db.prepare(`
-      INSERT INTO alerts (serverId, serverName, metricType, metricValue, thresholdValue, message, timestamp)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
-    stmt.run(
-      alert.serverId,
-      alert.serverName,
-      alert.metricType,
-      alert.metricValue,
-      alert.thresholdValue,
-      alert.message,
-      alert.timestamp || new Date().toISOString(),
-      function(err) {
-        if (err) {
-          log('SQLite save error', { error: err.message });
-          resolve({ ok: false, error: err.message });
-        } else {
-          resolve({ ok: true, id: this.lastID });
-        }
-      }
-    );
-    stmt.finalize();
-  });
-});
-
-ipcMain.handle('alerts:get-history', async (_, { serverId }) => {
-  return new Promise((resolve) => {
-    if (!db) {
-      resolve([]);
-      return;
-    }
-    let sql = 'SELECT * FROM alerts';
-    const params = [];
-    if (serverId) {
-      sql += ' WHERE serverId = ?';
-      params.push(serverId);
-    }
-    sql += ' ORDER BY id DESC LIMIT 200';
-    db.all(sql, params, (err, rows) => {
-      if (err) {
-        log('SQLite get error', { error: err.message });
-        resolve([]);
-      } else {
-        resolve(rows || []);
-      }
-    });
-  });
-});
-
-ipcMain.handle('alerts:clear-history', async (_, { serverId }) => {
-  return new Promise((resolve) => {
-    if (!db) {
-      resolve({ ok: false, error: 'Database not initialized' });
-      return;
-    }
-    let sql = 'DELETE FROM alerts';
-    const params = [];
-    if (serverId) {
-      sql += ' WHERE serverId = ?';
-      params.push(serverId);
-    }
-    db.run(sql, params, (err) => {
-      if (err) {
-        log('SQLite delete error', { error: err.message });
-        resolve({ ok: false, error: err.message });
-      } else {
-        resolve({ ok: true });
-      }
-    });
-  });
-});
-
-ipcMain.handle('alerts:trigger-notification', (_, { title, body }) => {
-  const { Notification } = require('electron');
-  try {
-    if (Notification.isSupported()) {
-      new Notification({ title, body }).show();
-      return { ok: true };
-    }
-    return { ok: false, error: 'Notifications not supported' };
-  } catch (e) {
-    log('Notification error', { error: String(e) });
-    return { ok: false, error: String(e) };
-  }
-});
-
-ipcMain.handle('alerts:send-webhook', async (_, { url, payload }) => {
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-    return { ok: response.ok, status: response.status };
-  } catch (e) {
-    log('Webhook error', { error: String(e) });
-    return { ok: false, error: String(e) };
-  }
-});
-
-// ── Uptime Monitoring System IPC Handlers (Disabled) ────────────────
-ipcMain.handle('monitoring:set-servers', () => {
-  return { ok: true };
-});
-
-ipcMain.handle('monitoring:get-statuses', () => {
-  return [];
-});
-
-ipcMain.handle('metrics:get-history', async () => {
-  return [];
-});
-
-ipcMain.handle('metrics:clear-history', async () => {
-  return { ok: true };
-});
-
 // ----- Database Tunneling and Queries Handling -----
 const activeDbConnections = new Map(); // serverId -> { tunnelServer, dbClient, dbType, localPort, databaseName }
 const net = require('net');
@@ -2131,6 +1958,17 @@ async function closeDbConnection(serverId) {
   log('Closing database connection and tunnel', { serverId, dbType: connInfo.dbType });
   
   try {
+    if (connInfo.sqliteDb) {
+      await new Promise((resolve) => connInfo.sqliteDb.close(() => resolve()));
+    }
+    if (connInfo.localTmp) {
+      try { fs.unlinkSync(connInfo.localTmp); } catch (_) {}
+    }
+  } catch (e) {
+    log('Error closing SQLite local db', { serverId, error: e.message });
+  }
+
+  try {
     if (connInfo.dbClient) {
       if (connInfo.dbType === 'mysql') {
         await connInfo.dbClient.end();
@@ -2157,12 +1995,64 @@ async function closeDbConnection(serverId) {
   activeDbConnections.delete(serverId);
 }
 
+async function runSqliteCommand(sshConn, filePath, args) {
+  const escapedPath = filePath.replace(/'/g, "'\\''");
+  const escapedArgs = args.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(' ');
+  return new Promise((resolve, reject) => {
+    sshConn.exec(`sqlite3 '${escapedPath}' ${escapedArgs} 2>&1`, (err, stream) => {
+      if (err) { reject(err); return; }
+      let stdout = '';
+      let stderr = '';
+      stream.on('data', (d) => { stdout += d.toString(); });
+      stream.stderr.on('data', (d) => { stderr += d.toString(); });
+      stream.on('close', (code) => {
+        if (code === 0) resolve(stdout);
+        else reject(new Error(stderr || stdout || `sqlite3 exited with code ${code}`));
+      });
+    });
+  });
+}
+
 ipcMain.handle('database:connect', async (_, { connection, proxy, dbType, config }) => {
   const serverId = connection.id;
   await closeDbConnection(serverId);
 
   try {
     const sshConn = await getOrCreateConnection(connection, proxy);
+
+    if (dbType === 'sqlite') {
+      const filePath = config.filePath;
+      if (!filePath) {
+        return { ok: false, error: 'SQLite file path is required' };
+      }
+      // Download remote .db file to a local temp path and open with local sqlite3 module
+      const os = require('os');
+      const localTmp = path.join(os.tmpdir(), `serop-sqlite-${serverId}-${Date.now()}.db`);
+      const sftp = await openSftp(sshConn);
+      await new Promise((resolve, reject) => {
+        sftp.fastGet(filePath, localTmp, (err) => err ? reject(err) : resolve());
+      });
+      sftp.end();
+
+      const sqlite3 = require('sqlite3').verbose();
+      const sqliteDb = await new Promise((resolve, reject) => {
+        const db = new sqlite3.Database(localTmp, (err) => err ? reject(err) : resolve(db));
+      });
+
+      activeDbConnections.set(serverId, {
+        dbType: 'sqlite',
+        filePath,
+        localTmp,
+        sqliteDb,
+        sshConn,
+        connection,
+        proxy,
+      });
+
+      log('SQLite database opened via SFTP', { serverId, filePath, localTmp });
+      return { ok: true, localPort: 0 };
+    }
+
     const remoteHost = config.host || '127.0.0.1';
     let defaultPort = 3306;
     if (dbType === 'postgres') defaultPort = 5432;
@@ -2245,27 +2135,36 @@ ipcMain.handle('database:disconnect', async (_, { serverId }) => {
 
 ipcMain.handle('database:query', async (_, { serverId, query }) => {
   const connInfo = activeDbConnections.get(serverId);
-  if (!connInfo || !connInfo.dbClient) {
+  if (!connInfo) {
     return { ok: false, error: 'No active database connection' };
   }
 
   try {
-    const { dbClient, dbType } = connInfo;
+    const { dbType } = connInfo;
     
     if (dbType === 'mysql') {
-      const [rows] = await dbClient.query(query);
+      if (!connInfo.dbClient) return { ok: false, error: 'DB client not available' };
+      const [rows] = await connInfo.dbClient.query(query);
       return { ok: true, result: rows };
       
     } else if (dbType === 'postgres') {
-      const res = await dbClient.query(query);
+      if (!connInfo.dbClient) return { ok: false, error: 'DB client not available' };
+      const res = await connInfo.dbClient.query(query);
       return { ok: true, result: res.rows };
       
     } else if (dbType === 'redis') {
+      if (!connInfo.dbClient) return { ok: false, error: 'DB client not available' };
       const parts = query.trim().split(/\s+/);
       const cmd = parts[0];
       const args = parts.slice(1);
-      const res = await dbClient.call(cmd, ...args);
+      const res = await connInfo.dbClient.call(cmd, ...args);
       return { ok: true, result: res };
+
+    } else if (dbType === 'sqlite') {
+      const rows = await new Promise((resolve, reject) => {
+        connInfo.sqliteDb.all(query, [], (err, rows) => err ? reject(err) : resolve(rows));
+      });
+      return { ok: true, result: rows || [] };
     }
     
     return { ok: false, error: `Unknown database type: ${dbType}` };
@@ -2277,20 +2176,22 @@ ipcMain.handle('database:query', async (_, { serverId, query }) => {
 
 ipcMain.handle('database:get-schema', async (_, { serverId }) => {
   const connInfo = activeDbConnections.get(serverId);
-  if (!connInfo || !connInfo.dbClient) {
+  if (!connInfo) {
     return { ok: false, error: 'No active database connection' };
   }
 
   try {
-    const { dbClient, dbType } = connInfo;
+    const { dbType } = connInfo;
     
     if (dbType === 'mysql') {
-      const [tablesRows] = await dbClient.query('SHOW TABLES');
+      if (!connInfo.dbClient) return { ok: false, error: 'DB client not available' };
+      const [tablesRows] = await connInfo.dbClient.query('SHOW TABLES');
       const tables = tablesRows.map(row => Object.values(row)[0]);
       return { ok: true, tables };
       
     } else if (dbType === 'postgres') {
-      const res = await dbClient.query(`
+      if (!connInfo.dbClient) return { ok: false, error: 'DB client not available' };
+      const res = await connInfo.dbClient.query(`
         SELECT table_name 
         FROM information_schema.tables 
         WHERE table_schema = 'public' 
@@ -2300,8 +2201,15 @@ ipcMain.handle('database:get-schema', async (_, { serverId }) => {
       return { ok: true, tables };
       
     } else if (dbType === 'redis') {
-      const keys = await dbClient.call('KEYS', '*');
+      if (!connInfo.dbClient) return { ok: false, error: 'DB client not available' };
+      const keys = await connInfo.dbClient.call('KEYS', '*');
       return { ok: true, keys: keys || [] };
+
+    } else if (dbType === 'sqlite') {
+      const rows = await new Promise((resolve, reject) => {
+        connInfo.sqliteDb.all("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name", [], (err, r) => err ? reject(err) : resolve(r));
+      });
+      return { ok: true, tables: rows.map(r => r.name) };
     }
     
     return { ok: false, error: `Unknown database type: ${dbType}` };
@@ -2633,7 +2541,42 @@ function buildDockerDumpCommand(images, dumpTool, mode, dbName, user, pass) {
 
 ipcMain.handle('database:export-sql', async (_, { serverId, mode }) => {
   const connInfo = activeDbConnections.get(serverId);
-  if (!connInfo || !connInfo.dbClient) {
+  if (!connInfo) {
+    return { ok: false, error: 'No active database connection' };
+  }
+
+  // SQLite: generate SQL export from local copy of the db
+  if (connInfo.dbType === 'sqlite') {
+    try {
+      const sqliteDb = connInfo.sqliteDb;
+      const dbAll = (q) => new Promise((res, rej) => sqliteDb.all(q, [], (e, r) => e ? rej(e) : res(r)));
+
+      const schemaRows = await dbAll("SELECT sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY rootpage");
+      const schemaSql = schemaRows.map(r => r.sql + ';').join('\n');
+
+      let dataSql = '';
+      if (mode !== 'schema') {
+        const tables = await dbAll("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+        for (const { name } of tables) {
+          const rows = await dbAll(`SELECT * FROM "${name.replace(/"/g, '""')}"`);
+          for (const row of rows) {
+            const cols = Object.keys(row).map(c => `"${c.replace(/"/g, '""')}"`).join(', ');
+            const vals = Object.values(row).map(v => v === null ? 'NULL' : typeof v === 'number' ? v : `'${String(v).replace(/'/g, "''")}'`).join(', ');
+            dataSql += `INSERT INTO "${name.replace(/"/g, '""')}" (${cols}) VALUES (${vals});\n`;
+          }
+        }
+      }
+
+      const sql = mode === 'schema' ? schemaSql : mode === 'data' ? dataSql : schemaSql + '\n' + dataSql;
+      const safeBase = connInfo.filePath.split('/').pop().replace(/[^a-z0-9_.-]+/gi, '_') || 'sqlite';
+      const filename = `${safeBase}-${mode}-${timestampForFilename()}.sql`;
+      return { ok: true, sql, filename };
+    } catch (err) {
+      return { ok: false, error: err.message || String(err) };
+    }
+  }
+
+  if (!connInfo.dbClient) {
     return { ok: false, error: 'No active database connection' };
   }
 
@@ -2888,7 +2831,7 @@ function isSqlImportNoop(statement) {
 
 ipcMain.handle('database:import-sql', async (event, { serverId, sql }) => {
   const connInfo = activeDbConnections.get(serverId);
-  if (!connInfo || !connInfo.dbClient) {
+  if (!connInfo) {
     return { ok: false, error: 'No active database connection' };
   }
 
@@ -2899,6 +2842,25 @@ ipcMain.handle('database:import-sql', async (event, { serverId, sql }) => {
     const { dbClient, dbType } = connInfo;
     if (dbType === 'redis') {
       return { ok: false, error: 'Redis does not support .sql imports.' };
+    }
+
+    // SQLite: run statements on local db copy, then upload back to server
+    if (dbType === 'sqlite') {
+      const statements = splitSqlStatements(String(sql || '')).filter((s) => !isSqlImportNoop(s));
+      if (!statements.length) return { ok: false, error: 'No SQL statements found in the selected file.' };
+      event.sender.send('import-progress', { serverId, type: 'start', total: statements.length });
+      for (const statement of statements) {
+        lastStatement = statement.slice(0, 120);
+        await new Promise((res, rej) => connInfo.sqliteDb.run(statement, [], (e) => e ? rej(e) : res()));
+        executed++;
+        if (executed % 50 === 0) event.sender.send('import-progress', { serverId, type: 'progress', executed, total: statements.length });
+      }
+      // Upload modified db back to server
+      const sftp = await openSftp(connInfo.sshConn);
+      await sftpFastPut(sftp, connInfo.localTmp, connInfo.filePath);
+      sftp.end();
+      event.sender.send('import-progress', { serverId, type: 'complete', executed });
+      return { ok: true, statements: executed };
     }
 
     const statements = splitSqlStatements(String(sql || '')).filter((statement) => !isSqlImportNoop(statement));
@@ -2948,7 +2910,7 @@ ipcMain.handle('database:import-sql', async (event, { serverId, sql }) => {
 
 ipcMain.handle('database:import-sql-full', async (event, { serverId, sql }) => {
   const connInfo = activeDbConnections.get(serverId);
-  if (!connInfo || !connInfo.dbClient) {
+  if (!connInfo) {
     return { ok: false, error: 'No active database connection' };
   }
 
@@ -2960,6 +2922,33 @@ ipcMain.handle('database:import-sql-full', async (event, { serverId, sql }) => {
     if (dbType === 'redis') {
       return { ok: false, error: 'Redis does not support SQL imports.' };
     }
+
+    // SQLite: drop all user tables, then replay statements on local db, upload back
+    if (dbType === 'sqlite') {
+      const dbRun = (q) => new Promise((res, rej) => connInfo.sqliteDb.run(q, [], (e) => e ? rej(e) : res()));
+      const dbAll = (q) => new Promise((res, rej) => connInfo.sqliteDb.all(q, [], (e, r) => e ? rej(e) : res(r)));
+      const existingTables = (await dbAll("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")).map(r => r.name);
+      event.sender.send('import-progress', { serverId, type: 'start', stage: 'prepare' });
+      for (const t of existingTables) {
+        await dbRun(`DROP TABLE IF EXISTS "${t.replace(/"/g, '""')}"`);
+      }
+      const statements = splitSqlStatements(String(sql || '')).filter((s) => !isSqlImportNoop(s));
+      if (!statements.length) return { ok: false, error: 'No SQL statements found in the selected file.' };
+      event.sender.send('import-progress', { serverId, type: 'start', total: statements.length });
+      for (const statement of statements) {
+        lastStatement = statement.slice(0, 120);
+        await dbRun(statement);
+        executed++;
+        if (executed % 50 === 0) event.sender.send('import-progress', { serverId, type: 'progress', executed, total: statements.length, lastStatement });
+      }
+      const sftp = await openSftp(connInfo.sshConn);
+      await sftpFastPut(sftp, connInfo.localTmp, connInfo.filePath);
+      sftp.end();
+      event.sender.send('import-progress', { serverId, type: 'complete', executed });
+      return { ok: true, statements: executed };
+    }
+
+    if (!dbClient) return { ok: false, error: 'No active database connection' };
 
     log('Full import started', { serverId, dbType });
     event.sender.send('import-progress', { serverId, type: 'start', stage: 'prepare' });
@@ -3034,6 +3023,31 @@ function getFeaturesConfigPath() {
     return path.join(process.cwd(), 'features.json');
   }
 }
+
+// ── Generic port-forward tunnels (for RDP, VNC, etc.) ─────────────────────
+const activeTunnels = new Map(); // tunnelId -> { server, serverId }
+
+ipcMain.handle('tunnel:open', async (_, { connection, proxy, remoteHost, remotePort }) => {
+  try {
+    const sshConn = await getOrCreateConnection(connection, proxy);
+    const server = await createTunnel(sshConn, remoteHost, Number(remotePort));
+    const localPort = server.address().port;
+    const tunnelId = `${connection.id}:${remoteHost}:${remotePort}`;
+    activeTunnels.set(tunnelId, { server, serverId: connection.id });
+    log('Port tunnel opened', { tunnelId, localPort });
+    return { ok: true, localPort, tunnelId };
+  } catch (err) {
+    return { ok: false, error: err.message || String(err) };
+  }
+});
+
+ipcMain.handle('tunnel:close', async (_, { tunnelId }) => {
+  const t = activeTunnels.get(tunnelId);
+  if (!t) return { ok: true };
+  await new Promise((resolve) => t.server.close(() => resolve()));
+  activeTunnels.delete(tunnelId);
+  return { ok: true };
+});
 
 ipcMain.handle('features:load', async () => {
   try {
