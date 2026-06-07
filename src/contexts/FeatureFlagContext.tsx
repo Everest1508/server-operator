@@ -44,7 +44,7 @@ export const FeatureFlagProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const toggleFlag = (key: keyof FeatureFlags) => {
     if (key === 'sidebarUx') return;
-    const CORE_KEYS: string[] = ['servers', 'files', 'docker', 'deployModule', 'notes', 'aiAssistant', 'configCreators', 'serverAdmin', 'database', 'deployPipeline', 'deployHistory'];
+    const CORE_KEYS: string[] = ['servers', 'files', 'docker', 'deployModule', 'notes', 'aiAssistant', 'configCreators', 'serverAdmin'];
     if (CORE_KEYS.includes(key)) return; // Core features cannot be turned off
 
     const currentVal = flags[key] as boolean;
