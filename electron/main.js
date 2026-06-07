@@ -4,6 +4,19 @@ const path = require('path');
 const fs = require('fs');
 const { execSync, spawn } = require('child_process');
 
+// Fix PATH on macOS when launched as a GUI app (so it can find cloudflared, docker, etc. installed via Homebrew)
+if (process.platform === 'darwin') {
+  const defaultPaths = ['/opt/homebrew/bin', '/usr/local/bin'];
+  const currentPaths = (process.env.PATH || '').split(path.delimiter);
+  const updatedPaths = [...currentPaths];
+  for (const p of defaultPaths) {
+    if (!currentPaths.includes(p) && fs.existsSync(p)) {
+      updatedPaths.unshift(p);
+    }
+  }
+  process.env.PATH = updatedPaths.join(path.delimiter);
+}
+
 /**
  * Logs + app state live under Electron userData (Linux: usually ~/.config/server-operator).
  * That path is outside the .deb payload (/opt/Server Operator/…). Reinstalling or upgrading
