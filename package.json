@@ -64,7 +64,7 @@
   },
   "build": {
     "appId": "com.server-operator.app",
-    "productName": "Server Operator",
+    "productName": "Serop",
     "files": [
       "dist/**",
       "electron/**",
@@ -126,8 +126,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Server Operator",
-      "uninstallDisplayName": "Server Operator",
+      "shortcutName": "Serop",
+      "uninstallDisplayName": "Serop",
       "artifactName": "${productName}-${version}-Setup-${arch}.${ext}"
     },
     "directories": {

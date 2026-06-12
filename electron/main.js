@@ -19,7 +19,7 @@ if (process.platform === 'darwin') {
 
 /**
  * Logs + app state live under Electron userData (Linux: usually ~/.config/server-operator).
- * That path is outside the .deb payload (/opt/Server Operator/…). Reinstalling or upgrading
+ * That path is outside the .deb payload (/opt/Serop/…). Reinstalling or upgrading
  * the package only replaces files under /opt and the /usr/bin wrapper; it does not remove
  * userData, so saved servers, proxy settings, and dummy-root files persist.
  */
