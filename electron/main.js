@@ -314,9 +314,9 @@ function createWindow() {
     height: 900,
     minWidth: 900,
     minHeight: 600,
+    transparent: true,
     frame: isMac,
     titleBarStyle: isMac ? 'hidden' : undefined,
-    backgroundColor: '#1e1e1e',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

@@ -3,11 +3,11 @@
 @theme {
   --font-sans: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, monospace;
   --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, monospace;
-  --color-bg-primary: #1e1e1e;
-  --color-bg-secondary: #252526;
-  --color-bg-tertiary: #2a2d2e;
-  --color-bg-activity: #333333;
-  --color-border: #3c3c3c;
+  --color-bg-primary: rgba(30, 30, 30, 0.55);
+  --color-bg-secondary: rgba(37, 37, 38, 0.45);
+  --color-bg-tertiary: rgba(42, 45, 46, 0.40);
+  --color-bg-activity: rgba(51, 51, 51, 0.50);
+  --color-border: rgba(60, 60, 60, 0.50);
   --color-text-primary: #cccccc;
   --color-text-secondary: #858585;
   --color-text-muted: #6e7681;
@@ -16,7 +16,7 @@
   --color-success: #4ec9b0;
   --color-warning: #dcdcaa;
   --color-error: #f14c4c;
-  --color-input-bg: #3c3c3c;
+  --color-input-bg: rgba(60, 60, 60, 0.40);
 }
 
 :root[data-app-theme='glassy'] {
@@ -48,7 +48,7 @@
 body {
   margin: 0;
   font-family: var(--font-sans);
-  background: var(--color-bg-primary);
+  background: transparent;
   color: var(--color-text-primary);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
@@ -60,20 +60,28 @@ body::before {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.25s ease;
-}
-
-:root[data-app-theme='glassy'] body {
-  background:
-    radial-gradient(circle at top left, rgba(92, 200, 255, 0.12), transparent 30%),
-    radial-gradient(circle at top right, rgba(99, 102, 241, 0.14), transparent 35%),
-    radial-gradient(circle at bottom center, rgba(34, 197, 94, 0.08), transparent 30%),
-    linear-gradient(135deg, #071018 0%, #0d1321 50%, #111827 100%);
+  z-index: -1;
+  background: rgba(15, 15, 20, 0.72);
+  backdrop-filter: blur(28px) saturate(1.2);
+  -webkit-backdrop-filter: blur(28px) saturate(1.2);
 }
 
 :root[data-app-theme='glassy'] body::before {
-  opacity: 1;
+  background:
+    radial-gradient(circle at top left, rgba(92, 200, 255, 0.18), transparent 35%),
+    radial-gradient(circle at top right, rgba(99, 102, 241, 0.2), transparent 40%),
+    radial-gradient(circle at bottom center, rgba(34, 197, 94, 0.1), transparent 35%),
+    linear-gradient(135deg, rgba(7, 16, 24, 0.8), rgba(13, 19, 33, 0.75), rgba(17, 24, 39, 0.7));
+  backdrop-filter: blur(32px) saturate(1.25);
+  -webkit-backdrop-filter: blur(32px) saturate(1.25);
+}
+
+:root[data-app-theme='glassy'] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
   background:
     linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
