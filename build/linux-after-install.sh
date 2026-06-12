@@ -7,3 +7,5 @@ if [ -f "$SANDBOX_PATH" ]; then
   chown root:root "$SANDBOX_PATH" || true
   chmod 4755 "$SANDBOX_PATH" || true
 fi
+
+ln -sf /opt/Serop/serop /usr/bin/serop
