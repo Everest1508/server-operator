@@ -1215,12 +1215,23 @@ ipcMain.handle('server:get-docker-databases', async (_, { connection, proxy }) =
   try {
     if (isLocalWorkspace(connection)) {
       const cwd = ensureLocalWorkspace(connection);
-      const result = execLocalCommand('ids=$(docker ps -a -q); if [ -z "$ids" ]; then echo "[]"; else docker inspect $ids; fi', cwd);
-      if (!result.ok) {
-        return { ok: false, error: result.stderr || result.stdout || 'Failed to inspect Docker containers', databases: [] };
+      const currentCtx = String(execSync('docker context show', { encoding: 'utf8', shell: true }) || 'default').trim();
+      const fallbackContexts = ['default', 'desktop-linux'].filter((ctx) => ctx !== currentCtx);
+      const allContexts = [currentCtx, ...fallbackContexts];
+      let containers = [];
+      for (const ctx of allContexts) {
+        const cmd = `ids=$(docker --context "${ctx}" ps -a -q 2>/dev/null); if [ -z "$ids" ]; then echo "[]"; else docker --context "${ctx}" inspect $ids 2>/dev/null; fi`;
+        const result = execLocalCommand(cmd, cwd);
+        if (!result.ok) continue;
+        try {
+          const parsed = JSON.parse(result.stdout || '[]');
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            containers = parsed;
+            break;
+          }
+        } catch {}
       }
-      const containers = JSON.parse(result.stdout || '[]');
-      const databases = (Array.isArray(containers) ? containers : []).map(dockerDatabasePreset).filter(Boolean);
+      const databases = containers.map(dockerDatabasePreset).filter(Boolean);
       return { ok: true, databases };
     }
     const conn = await getOrCreateConnection(connection, proxy);
