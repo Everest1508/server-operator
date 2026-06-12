@@ -119,6 +119,15 @@ function buildLocalWorkspaceServer(folderPath: string): ServerConnection {
   };
 }
 
+function upsertLocalWorkspaceServer(prev: ServerConnection[], folderPath: string): ServerConnection[] {
+  const localServer = buildLocalWorkspaceServer(folderPath);
+  const existing = prev.find((server) => server.id === localServer.id);
+  if (existing) {
+    return prev.map((server) => (server.id === localServer.id ? { ...server, ...localServer } : server));
+  }
+  return [...prev, localServer];
+}
+
 const SIDEBAR_MIN = 180;
 const SIDEBAR_MAX = 480;
 const SIDEBAR_DEFAULT = 256;
@@ -139,22 +148,23 @@ export default function App() {
     window.serverOperator?.getLaunchContext?.().then((context) => {
       const folder = context?.localFolder?.trim();
       if (cancelled || !folder) return;
-      const localServer = buildLocalWorkspaceServer(folder);
-      setServers((prev) => {
-        const existing = prev.find((server) => server.id === localServer.id);
-        if (existing) {
-          return prev.map((server) => server.id === localServer.id ? { ...server, ...localServer } : server);
-        }
-        return [...prev, localServer];
-      });
-      setCurrentServer(localServer);
-      setActiveViewAndRoute('files');
+      openLocalWorkspace(folder);
     }).catch(() => {
       // ignore launch context failures
     });
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ folderPath?: string }>).detail;
+      const folder = detail?.folderPath?.trim();
+      if (folder) openLocalWorkspace(folder);
+    };
+    window.addEventListener('open-local-folder', handler as EventListener);
+    return () => window.removeEventListener('open-local-folder', handler as EventListener);
   }, []);
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -166,6 +176,15 @@ export default function App() {
   const [pendingTerminalCommand, setPendingTerminalCommand] = useState<string | null>(null);
   const [pendingTerminalLabel, setPendingTerminalLabel] = useState<string | null>(null);
   const [currentServer, setCurrentServer] = useState<ServerConnection | null>(null);
+
+  const openLocalWorkspace = (folderPath: string) => {
+    const normalized = folderPath.trim();
+    if (!normalized) return;
+    const localServer = buildLocalWorkspaceServer(normalized);
+    setServers((prev) => upsertLocalWorkspaceServer(prev, normalized));
+    setCurrentServer(localServer);
+    setActiveViewAndRoute('files');
+  };
 
   const openTerminalAndRun = (command: string, label?: string) => {
     setPanelOpen(true);

@@ -86,6 +86,9 @@
         "--no-sandbox"
       ]
     },
+    "deb": {
+      "afterInstall": "build/linux-after-install.sh"
+    },
     "win": {
       "target": [
         {

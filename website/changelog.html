@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Full release changelog for Server Operator — see what's new in every version." />
+    <title>Changelog — Server Operator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-nav">
+      <a class="site-nav__brand" href="index.html">
+        <span class="site-nav__logo">SO</span>
+        Server Operator
+      </a>
+      <nav aria-label="Primary">
+        <ul class="site-nav__links">
+          <li><a href="index.html#features">Features</a></li>
+          <li><a href="index.html#stack">Tech</a></li>
+          <li><a href="index.html#shortcuts">Shortcuts</a></li>
+          <li><a href="changelog.html" aria-current="page">Changelog</a></li>
+          <li><a href="index.html#downloads">Downloads</a></li>
+          <li>
+            <a class="btn btn--primary btn--sm" href="index.html#downloads">Download</a>
+          </li>
+        </ul>
+      </nav>
+    </header>
+
+    <main>
+      <section class="section" aria-labelledby="changelog-heading">
+        <div class="section__inner">
+          <h1 class="section__title" id="changelog-heading">Changelog</h1>
+          <p class="section__subtitle">
+            Every release of Server Operator, from the initial launch to the latest update.
+          </p>
+
+          <!-- 2.0.1 — Glass Harbor -->
+          <div class="release-card" style="margin-bottom: 32px;">
+            <div class="release-card__header">
+              <div>
+                <span class="release-badge">v2.0.1</span>
+                <h3>Glass Harbor</h3>
+              </div>
+              <p>2026-06-12</p>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 15px; margin: 0 0 24px;">
+              This release adds real local workspace support, the new <code class="mono">serop</code> folder launcher, inline SQL row editing, a glassy terminal-style appearance option, and a much more capable deploy assistant with cleaner chat rendering and project-aware command suggestions.
+            </p>
+            <div class="release-grid">
+              <article class="release-block">
+                <h4>Local Workspace Mode</h4>
+                <ul>
+                  <li>Added a Local Workspace connection type so you can open a folder from your own machine inside Server Operator without SSH.</li>
+                  <li>Local workspaces now support file browsing, terminal access, Docker inspection, compose logs, database tooling, deploy commands, and <code class="mono">.serop</code> shortcuts.</li>
+                  <li>Added startup folder handoff so launching the app with a folder automatically opens it as a local workspace profile.</li>
+                  <li>Added the new <code class="mono">serop</code> launcher flow so <code class="mono">serop .</code> opens Server Operator directly in the current directory.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Deploy Assistant & Shortcuts</h4>
+                <ul>
+                  <li>Deploy AI chat now returns real answers plus optional runnable commands instead of command-only output.</li>
+                  <li>Added response parsing, malformed-tag recovery, model fallback on Groq rate limits, and cleaner command presentation cards.</li>
+                  <li>Normalized deploy project paths to absolute remote paths so project switching no longer breaks with relative <code class="mono">cd</code> commands.</li>
+                  <li>Moved deploy project chips, context, and <code class="mono">.serop</code> shortcuts into the main sidebar with accordion-based command editing and direct run actions.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Database Editing & Appearance</h4>
+                <ul>
+                  <li>Added first-pass inline table editing for SQL databases, including row update, insert, and delete actions for table browse views.</li>
+                  <li>Table metadata is now used to detect primary keys and build safer row predicates for edits and deletes.</li>
+                  <li>Added a new Glassy Terminal appearance mode for a transparent, blurred, Linux-terminal-inspired desktop theme.</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+
+          <!-- 1.0.1 — Amber Anchor -->
+          <div class="release-card" style="margin-bottom: 32px;">
+            <div class="release-card__header">
+              <div>
+                <span class="release-badge">v1.0.1</span>
+                <h3>Amber Anchor</h3>
+              </div>
+              <p>2026-06-02</p>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 15px; margin: 0 0 24px;">
+              This release introduces critical SSH stability improvements, a connection queuing manager to prevent session exhaustion, custom toggles, password visibility eye toggles, multi-architecture macOS build support, Tailwind CSS v4 styling migration, and significant CPU optimization by removing redundant periodic uptime monitoring loops.
+            </p>
+            <div class="release-grid">
+              <article class="release-block">
+                <h4>SSH Stability & Queuing</h4>
+                <ul>
+                  <li>Implemented a sequential FIFO Promise queue (connectionQueues) to serialize remote execution requests and prevent MaxSessions channel open failures.</li>
+                  <li>Added SSH keepalive heartbeats (keepaliveInterval: 10000, keepaliveCountMax: 3) to automatically teardown dead or timed-out connection sockets.</li>
+                  <li>Cleared connection queue state upon socket closure, errors, or idle timeout evictions to prevent reference memory leaks.</li>
+                  <li>Completely removed the 60-second periodic background uptime monitoring checks to eliminate unnecessary SSH load on servers.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Visual Refinements & Controls</h4>
+                <ul>
+                  <li>Integrated an interactive eye icon visibility toggle for masked server passwords under the Authentication table column.</li>
+                  <li>Replaced native browser checkboxes across server configuration forms, Docker views, and settings with sleek custom React buttons.</li>
+                  <li>Fixed bottom terminal active checks to prevent active SSH stream sessions from unmounting and disconnecting during drawer toggles.</li>
+                  <li>Migrated custom UI styling and theme colors to Tailwind CSS v4 design specifications.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Deployment & Core Infrastructure</h4>
+                <ul>
+                  <li>Configured explicit multi-arch macOS targets supporting both Apple Silicon (ARM64) and Intel (x64) architectures.</li>
+                  <li>Refined Certbot automatic SSL detection and status verification logic for server domains.</li>
+                  <li>Optimized Tor SOCKS5 proxy toggle defaults for SSH connections.</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+
+          <!-- 1.0.0 — Cobalt Catalyst -->
+          <div class="release-card">
+            <div class="release-card__header">
+              <div>
+                <span class="release-badge">v1.0.0</span>
+                <h3>Cobalt Catalyst</h3>
+              </div>
+              <p>2026-05-27</p>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 15px; margin: 0 0 24px;">
+              The first full release of Serop — a desktop server management suite built on Electron, React, and SSH. Cobalt Catalyst introduces an auto-updating notification system, a custom app logo icon, and a default-disabled feature toggling mechanism.
+            </p>
+            <div class="release-grid">
+              <article class="release-block">
+                <h4>Auto-Update System</h4>
+                <ul>
+                  <li>GitHub Releases API silent check to automatically check for new versions on launch</li>
+                  <li>Non-intrusive floating toast alerts for new release tags with an expandable changelog body</li>
+                  <li>Persistent version dismissals stored in local storage to prevent duplicate alerts</li>
+                  <li>Check for Updates option inside the application Help menu</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Visual Identity & Custom Icon</h4>
+                <ul>
+                  <li>New custom-designed squircle brand logo mark deployed at all standard system icon sizes</li>
+                  <li>Support for dynamic Dock icon loading at runtime during macOS development</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Disabled-by-Default Feature Suite</h4>
+                <ul>
+                  <li>All optional server and deployment modules disabled by default on clean installations</li>
+                  <li>On-demand opt-in control panel allowing users to only turn on features they require</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>SQL Query Runner</h4>
+                <ul>
+                  <li>Monaco Editor input with SQL syntax highlighting for MySQL and PostgreSQL</li>
+                  <li>Run button that executes queries over the SSH-tunneled database connection</li>
+                  <li>Paginated results table with row count and execution time display</li>
+                  <li>Inline error reporting for database and connection failures</li>
+                  <li>Autocomplete for table names pulled from the live schema</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Git Deployment Pipeline</h4>
+                <ul>
+                  <li>Server + project directory selector with one-click Deploy action</li>
+                  <li>SSHes in and runs git pull, npm install / pip install, migrations, and service restart</li>
+                  <li>Supports pm2 restart and systemctl restart as service managers</li>
+                  <li>Real-time output streamed into the integrated terminal during deployment</li>
+                  <li>Terminal input is locked while a deployment is in progress</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Deployment History & Rollbacks</h4>
+                <ul>
+                  <li>All deploys logged to a local SQLite table (timestamp, branch, commit hash, status, output)</li>
+                  <li>Per-server/project deploy history list with colored success/failure badges</li>
+                  <li>Visual log viewer with expandable terminal output per deploy entry</li>
+                  <li>Rollback button — SSHes in, runs git checkout &lt;commit&gt;, and restarts the service</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Terminal Snippet Library</h4>
+                <ul>
+                  <li>Save commands with a title, description, and body to a persistent local library</li>
+                  <li>Searchable side panel with instant fuzzy filtering across all snippets</li>
+                  <li>Click a snippet to paste it directly into the active terminal</li>
+                  <li>Variable placeholder support: <code class="mono">{{domain}}</code>, <code class="mono">{{port}}</code>, etc. — prompts for values before pasting</li>
+                  <li>Copy-to-clipboard button on every snippet card</li>
+                  <li>Seed snippets included out of the box (nginx reload, pm2 status, docker prune, etc.)</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Core Infrastructure</h4>
+                <ul>
+                  <li>Electron + React + TypeScript foundation with Vite bundler</li>
+                  <li>SSH connection manager with EC2 key-pair, password, and Cloudflare Tunnel modes</li>
+                  <li>Tor SOCKS5 proxy support for anonymous SSH connections</li>
+                  <li>Remote file explorer with Monaco editor, uploads, downloads, and search</li>
+                  <li>Docker container monitor — logs, rebuilds, and service status management</li>
+                  <li>Server admin panel with OS info, service controller, and performance charts</li>
+                  <li>Config creator wizards for systemd units and Nginx reverse-proxy blocks</li>
+                  <li>AI assistant integration for shell diagnostics and query optimization</li>
+                  <li>Persistent markdown notes synced with the Monaco editor workspace</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer__inner">
+        <p>© Ritesh Mahale · Server Operator <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.0.1</span></p>
+        <div class="site-footer__links">
+          <a href="https://github.com/everest1508/server-operator">GitHub</a>
+          <a href="https://github.com/everest1508/server-operator/issues">Issues</a>
+          <a href="index.html#features">Features</a>
+          <a href="changelog.html">Changelog</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

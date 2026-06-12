@@ -19,6 +19,9 @@ ipcRenderer.on('update-check-result', (_event, payload) => {
 ipcRenderer.on('import-progress', (_event, payload) => {
   window.dispatchEvent(new CustomEvent('import-progress', { detail: payload }));
 });
+ipcRenderer.on('open-local-folder', (_event, payload) => {
+  window.dispatchEvent(new CustomEvent('open-local-folder', { detail: payload }));
+});
 
 contextBridge.exposeInMainWorld('serverOperator', {
   testConnection: (opts) => ipcRenderer.invoke('server:test-connection', opts),

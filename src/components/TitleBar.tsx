@@ -56,7 +56,14 @@ export function TitleBar({ currentServer, sidebarOpen, onSidebarToggle }: TitleB
 
   const triggerMenuAction = (action: string) => {
     setActiveMenu(null);
-    switch (action) {
+      switch (action) {
+      case 'open-local-folder':
+        window.serverOperator?.pickLocalFolder?.().then((res) => {
+          if (res?.ok && !res.canceled && res.folderPath) {
+            window.dispatchEvent(new CustomEvent('open-local-folder', { detail: { folderPath: res.folderPath } }));
+          }
+        });
+        break;
       // File actions
       case 'reload-window':
         window.location.reload();
@@ -141,6 +148,14 @@ export function TitleBar({ currentServer, sidebarOpen, onSidebarToggle }: TitleB
             </button>
             {activeMenu === 'file' && (
               <div className="absolute top-[110%] left-0 w-52 bg-bg-tertiary/95 border border-border/50 shadow-2xl rounded-lg py-1 flex flex-col z-50 text-text-primary font-sans backdrop-blur-md animate-in fade-in slide-in-from-top-1 duration-100">
+                <button
+                  onClick={() => triggerMenuAction('open-local-folder')}
+                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
+                >
+                  <span>Open Local Folder…</span>
+                  <span className="text-[10px] text-text-muted">Ctrl+O</span>
+                </button>
+                <div className="h-[1px] bg-border/40 my-1" />
                 <button
                   onClick={() => triggerMenuAction('reload-window')}
                   className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"

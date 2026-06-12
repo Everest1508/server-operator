@@ -188,6 +188,24 @@ function parseLaunchLocalFolder(argv) {
 
 launchLocalFolder = parseLaunchLocalFolder(process.argv);
 
+async function promptLocalFolderAndNotify() {
+  try {
+    const win = BrowserWindow.getFocusedWindow() || mainWindow;
+    const picked = await dialog.showOpenDialog(win, {
+      properties: ['openDirectory'],
+      title: 'Open local workspace folder',
+    });
+    if (picked.canceled || !picked.filePaths?.[0]) return;
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('open-local-folder', { folderPath: picked.filePaths[0] });
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  } catch (e) {
+    log('open-local-folder failed', { error: errMsg(e) });
+  }
+}
+
 // Use a Chrome-like user agent so Web Speech API (voice input) has a better chance to reach Google's service.
 // In many Electron setups speech still fails; then use the app in Chrome (e.g. http://localhost:5173) for voice.
 const CHROME_UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -228,7 +246,15 @@ function installApplicationMenu() {
       : [
           {
             label: 'File',
-            submenu: [{ role: 'quit' }],
+            submenu: [
+              {
+                label: 'Open Local Folder…',
+                accelerator: 'CmdOrCtrl+O',
+                click: () => promptLocalFolderAndNotify(),
+              },
+              { type: 'separator' },
+              { role: 'quit' },
+            ],
           },
         ]),
     {
