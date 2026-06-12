@@ -31,6 +31,26 @@ import {
 
 import { CHANGELOG, ChangeEntry } from './changelogData';
 
+const THEME_STORAGE_KEY = 'server-operator:theme';
+
+function loadThemeChoice(): 'default' | 'glassy' {
+  try {
+    const raw = localStorage.getItem(THEME_STORAGE_KEY);
+    return raw === 'glassy' ? 'glassy' : 'default';
+  } catch {
+    return 'default';
+  }
+}
+
+function applyThemeChoice(theme: 'default' | 'glassy') {
+  document.documentElement.dataset.appTheme = theme;
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  } catch {
+    // ignore
+  }
+}
+
 const TYPE_BADGE: Record<ChangeEntry['type'], { label: string; color: string; bg: string }> = {
   feat:    { label: 'NEW',     color: '#86efac', bg: 'rgba(134,239,172,0.12)' },
   fix:     { label: 'FIX',     color: '#fca5a5', bg: 'rgba(252,165,165,0.12)' },
@@ -259,12 +279,17 @@ function ModulesView() {
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsContent, setLogsContent] = useState('');
   const [logPath, setLogPath] = useState('');
+  const [themeChoice, setThemeChoice] = useState<'default' | 'glassy'>(loadThemeChoice);
 
   React.useEffect(() => {
     if (window.serverOperator?.getLogFilePath) {
       window.serverOperator.getLogFilePath().then((path: string) => setLogPath(path || ''));
     }
   }, []);
+
+  useEffect(() => {
+    applyThemeChoice(themeChoice);
+  }, [themeChoice]);
 
   const handleOpenDevTools = async () => {
     if (!window.serverOperator?.openDevTools) {
@@ -355,6 +380,17 @@ function ModulesView() {
             <option value="disabled">Disabled</option>
           </select>
         </div>
+        <div className="flex items-center gap-2.5 bg-bg-secondary/40 px-3 py-1.5 rounded-xl border border-border/30 self-start md:self-auto">
+          <span className="text-[11px] text-text-secondary font-semibold whitespace-nowrap">Appearance:</span>
+          <select
+            value={themeChoice}
+            onChange={(e) => setThemeChoice(e.target.value as 'default' | 'glassy')}
+            className="bg-bg-primary/50 border border-border/20 text-text-primary rounded-lg px-2 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent/40 cursor-pointer"
+          >
+            <option value="default">Default</option>
+            <option value="glassy">Glassy Terminal</option>
+          </select>
+        </div>
         <button
           onClick={resetToDefaults}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-bg-tertiary/60 hover:bg-bg-tertiary border border-border/30 hover:border-border/60 text-text-primary rounded-xl text-xs font-semibold transition-all duration-150 self-start md:self-auto"
@@ -366,6 +402,21 @@ function ModulesView() {
 
       {/* Progress Bar */}
       <div className="px-6 pb-4 shrink-0">
+        <div className="mb-3 rounded-xl border border-border/20 bg-bg-secondary/25 px-3.5 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold text-text-primary">Theme Preview</p>
+              <p className="text-[11px] text-text-secondary mt-0.5">
+                {themeChoice === 'glassy'
+                  ? 'Transparent layered panels with a Linux-terminal-style glass look.'
+                  : 'Standard dark operator theme with solid panels.'}
+              </p>
+            </div>
+            <div className={`h-12 w-24 rounded-xl border border-border/20 shadow-sm ${themeChoice === 'glassy' ? 'bg-white/8 backdrop-blur-md' : 'bg-bg-primary/80'}`}>
+              <div className="h-full w-full rounded-xl bg-[radial-gradient(circle_at_top_left,rgba(0,120,212,0.28),transparent_55%)]" />
+            </div>
+          </div>
+        </div>
         <div className="flex items-center justify-between text-[11px] font-semibold mb-1">
           <span className="text-text-secondary">Modules Active</span>
           <span className="text-accent">{enabledCount} / {totalCount} ({percentEnabled}%)</span>
@@ -852,4 +903,3 @@ export function SettingsView() {
     </div>
   );
 }
-

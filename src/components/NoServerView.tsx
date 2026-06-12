@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Server, Shield, Plus, Trash2, Edit2, LogIn, Key, Lock, AlertCircle, Check } from 'lucide-react';
+import { Server, Shield, Plus, Trash2, Edit2, LogIn, Key, Lock, AlertCircle, Check, MonitorCog, FolderOpen } from 'lucide-react';
 import EyeIcon from './icons/EyeIcon';
 import EyeOffIcon from './icons/EyeOffIcon';
 import type { ServerConnection, ProxySettings, ConnectionType } from '../types';
@@ -66,12 +66,13 @@ export function NoServerView({
   const submitAdd = (e: React.FormEvent) => {
     e.preventDefault();
     const isNameEmpty = !form.name.trim();
-    const isHostEmpty = !form.host.trim();
-    const isUserEmpty = !form.username.trim();
+    const isHostEmpty = connectionType !== 'local' && !form.host.trim();
+    const isUserEmpty = connectionType !== 'local' && !form.username.trim();
     const isKeyEmpty = connectionType === 'ec2' && !form.privateKeyPath.trim();
     const isPassEmpty = connectionType === 'password' && !form.password;
+    const isLocalPathEmpty = connectionType === 'local' && !form.projectPath.trim();
 
-    if (isNameEmpty || isHostEmpty || isUserEmpty || isKeyEmpty || isPassEmpty) {
+    if (isNameEmpty || isHostEmpty || isUserEmpty || isKeyEmpty || isPassEmpty || isLocalPathEmpty) {
       setShowValidationErrors(true);
       return;
     }
@@ -79,12 +80,14 @@ export function NoServerView({
     onAddServer({
       id: crypto.randomUUID(),
       name: form.name.trim(),
-      host: form.host.trim(),
-      username: form.username.trim(),
+      host: connectionType === 'local' ? 'localhost' : form.host.trim(),
+      username: connectionType === 'local' ? 'local' : form.username.trim(),
       connectionType,
       ...(connectionType === 'ec2'
         ? { privateKeyPath: form.privateKeyPath.trim() }
-        : { password: form.password }),
+        : connectionType === 'password'
+          ? { password: form.password }
+          : {}),
       projectPath: form.projectPath.trim() || undefined,
       cwd: form.projectPath.trim() || undefined,
       useProxy: form.useProxy,
@@ -164,6 +167,18 @@ export function NoServerView({
                   <Shield size={13} />
                   Cloudflare Tunnel
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setConnectionType('local')}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-200 cursor-pointer ${
+                    connectionType === 'local'
+                      ? 'bg-bg-tertiary border-border/40 text-success font-bold shadow-sm'
+                      : 'text-text-secondary hover:bg-bg-tertiary/30 hover:text-text-primary border-transparent'
+                  }`}
+                >
+                  <MonitorCog size={13} />
+                  Local Workspace
+                </button>
               </div>
               <form onSubmit={submitAdd} noValidate className="space-y-3 select-text">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.5fr_2fr_1.5fr_2fr_2fr_auto_auto] gap-3 items-end">
@@ -177,7 +192,7 @@ export function NoServerView({
                       className={getInputClass(form.name)}
                     />
                   </div>
-                  <div>
+                  <div className={connectionType === 'local' ? 'hidden' : ''}>
                     <label className="block text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-1.5">Hostname / IP</label>
                     <input
                       type="text"
@@ -187,7 +202,7 @@ export function NoServerView({
                       className={getInputClass(form.host)}
                     />
                   </div>
-                  <div>
+                  <div className={connectionType === 'local' ? 'hidden' : ''}>
                     <label className="block text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-1.5">Username</label>
                     <input
                       type="text"
@@ -208,7 +223,7 @@ export function NoServerView({
                         className={getInputClass(form.privateKeyPath)}
                       />
                     </div>
-                  ) : (
+                  ) : connectionType !== 'local' ? (
                     <div>
                       <label className="block text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-1.5">
                         {connectionType === 'cloudflare' ? 'SSH Password' : 'Password'}
@@ -230,18 +245,36 @@ export function NoServerView({
                         </button>
                       </div>
                     </div>
-                  )}
+                  ) : <div className="hidden lg:block" />}
                   <div>
-                    <label className="block text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-1.5">Project path (optional)</label>
-                    <input
-                      type="text"
-                      value={form.projectPath}
-                      onChange={(e) => setForm((f) => ({ ...f, projectPath: e.target.value }))}
-                      placeholder="/var/www/app"
-                      className={inputClass}
-                    />
+                    <label className="block text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-1.5">
+                      {connectionType === 'local' ? 'Local folder' : 'Project path (optional)'}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={form.projectPath}
+                        onChange={(e) => setForm((f) => ({ ...f, projectPath: e.target.value }))}
+                        placeholder={connectionType === 'local' ? '/home/user/my-app' : '/var/www/app'}
+                        className={connectionType === 'local' ? getInputClass(form.projectPath) : inputClass}
+                      />
+                      {connectionType === 'local' && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const res = await window.serverOperator?.pickLocalFolder?.();
+                            if (res?.ok && !res.canceled && res.folderPath) {
+                              setForm((f) => ({ ...f, projectPath: res.folderPath || '', host: 'localhost', username: 'local' }));
+                            }
+                          }}
+                          className="px-3 py-2 rounded-xl bg-bg-tertiary/60 hover:bg-bg-tertiary border border-border/30 text-text-primary text-xs font-semibold transition-all duration-150 cursor-pointer"
+                        >
+                          <span className="flex items-center gap-1.5"><FolderOpen size={13} />Browse</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center justify-center min-h-[36px]" title="Tunnel via Tor SOCKS proxy">
+                  <div className={`flex items-center justify-center min-h-[36px] ${connectionType === 'local' ? 'opacity-40 pointer-events-none' : ''}`} title="Tunnel via Tor SOCKS proxy">
                     <Tooltip content="Route via Proxy" position="top">
                       <button
                         type="button"
@@ -303,6 +336,7 @@ export function NoServerView({
                     )}
                     {servers.map((s) => {
                       const type = s.connectionType ?? (s.privateKeyPath ? 'ec2' : 'password');
+                      const isLocal = type === 'local';
                       return (
                         <tr
                           key={s.id}
@@ -311,7 +345,7 @@ export function NoServerView({
                           {editingId === s.id ? (
                             <>
                               <td className="px-4 py-2">
-                                <span className="text-[10px] font-bold text-text-secondary">{type === 'ec2' ? 'EC2' : type === 'cloudflare' ? 'CF' : 'PWD'}</span>
+                                <span className="text-[10px] font-bold text-text-secondary">{type === 'ec2' ? 'EC2' : type === 'cloudflare' ? 'CF' : type === 'local' ? 'LOCAL' : 'PWD'}</span>
                               </td>
                               <td className="px-4 py-2">
                                 <input
@@ -327,6 +361,7 @@ export function NoServerView({
                                   value={s.host}
                                   onChange={(e) => onUpdateServer(s.id, { host: e.target.value })}
                                   className={inputClass}
+                                  disabled={isLocal}
                                 />
                               </td>
                               <td className="px-4 py-2">
@@ -335,6 +370,7 @@ export function NoServerView({
                                   value={s.username}
                                   onChange={(e) => onUpdateServer(s.id, { username: e.target.value })}
                                   className={inputClass}
+                                  disabled={isLocal}
                                 />
                               </td>
                               <td className="px-4 py-2">
@@ -346,6 +382,8 @@ export function NoServerView({
                                     placeholder="Key path"
                                     className={inputClass}
                                   />
+                                ) : type === 'local' ? (
+                                  <span className="text-xs italic text-text-muted">local folder mode</span>
                                 ) : (
                                   <div className="relative flex items-center">
                                     <input
@@ -413,9 +451,11 @@ export function NoServerView({
                                     ? 'bg-success/10 text-success border-success/20'
                                     : type === 'cloudflare'
                                     ? 'bg-warning/10 text-warning border-warning/20'
+                                    : type === 'local'
+                                    ? 'bg-sky-500/10 text-sky-300 border-sky-500/20'
                                     : 'bg-accent/10 text-accent border-accent/20'
                                 }`}>
-                                  {type === 'ec2' ? 'SSH Key' : type === 'cloudflare' ? 'Tunnel' : 'Password'}
+                                  {type === 'ec2' ? 'SSH Key' : type === 'cloudflare' ? 'Tunnel' : type === 'local' ? 'Local' : 'Password'}
                                 </span>
                               </td>
                               <td className="px-4 py-3 font-semibold text-text-primary">{s.name}</td>
@@ -428,6 +468,8 @@ export function NoServerView({
                                   </div>
                                 ) : type === 'cloudflare' ? (
                                   <span className="italic text-xs text-text-muted select-none">cloudflared</span>
+                                ) : type === 'local' ? (
+                                  <span className="italic text-xs text-text-muted select-none">local shell + docker</span>
                                 ) : (
                                   <div className="flex items-center justify-between gap-2 max-w-[120px] group/pwd">
                                     <span className="truncate" title={revealedPasswords[s.id] ? s.password : 'Password hidden'}>
@@ -458,7 +500,7 @@ export function NoServerView({
                               </td>
                               <td className="px-4 py-3 text-right pr-6 select-none">
                                 <div className="flex items-center justify-end gap-1">
-                                  <Tooltip content={connectingTo === s.id ? 'Connecting…' : 'Connect via SSH'} position="top">
+                                  <Tooltip content={connectingTo === s.id ? 'Connecting…' : (isLocal ? 'Open local workspace' : 'Connect via SSH')} position="top">
                                     <button
                                       type="button"
                                       onClick={() => onSelectServer(s)}

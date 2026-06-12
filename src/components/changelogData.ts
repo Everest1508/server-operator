@@ -23,6 +23,47 @@ export interface ChangelogVersion {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: '2.0.1',
+    codename: 'Glass Harbor',
+    date: '2026-06-12',
+    summary:
+      'This release adds real local workspace support, the new `serop` folder launcher, inline SQL row editing, a glassy terminal-style appearance option, and a much more capable deploy assistant with cleaner chat rendering and project-aware command suggestions.',
+    groups: [
+      {
+        label: 'Local Workspace Mode',
+        icon: TerminalSquare,
+        color: '#93c5fd',
+        items: [
+          { type: 'feat', text: 'Added a Local Workspace connection type so you can open a folder from your own machine inside Server Operator without SSH.' },
+          { type: 'feat', text: 'Local workspaces now support file browsing, terminal access, Docker inspection, compose logs, database tooling, deploy commands, and `.serop` shortcuts.' },
+          { type: 'feat', text: 'Added startup folder handoff so launching the app with a folder automatically opens it as a local workspace profile.' },
+          { type: 'feat', text: 'Added the new `serop` launcher flow so `serop .` opens Server Operator directly in the current directory.' },
+        ],
+      },
+      {
+        label: 'Deploy Assistant & Shortcuts',
+        icon: Sparkles,
+        color: '#f0abfc',
+        items: [
+          { type: 'improve', text: 'Deploy AI chat now returns real answers plus optional runnable commands instead of command-only output.' },
+          { type: 'improve', text: 'Added response parsing, malformed-tag recovery, model fallback on Groq rate limits, and cleaner command presentation cards.' },
+          { type: 'fix', text: 'Normalized deploy project paths to absolute remote paths so project switching no longer breaks with relative `cd` commands.' },
+          { type: 'feat', text: 'Moved deploy project chips, context, and `.serop` shortcuts into the main sidebar with accordion-based command editing and direct run actions.' },
+        ],
+      },
+      {
+        label: 'Database Editing & Appearance',
+        icon: Database,
+        color: '#6ee7b7',
+        items: [
+          { type: 'feat', text: 'Added first-pass inline table editing for SQL databases, including row update, insert, and delete actions for table browse views.' },
+          { type: 'improve', text: 'Table metadata is now used to detect primary keys and build safer row predicates for edits and deletes.' },
+          { type: 'feat', text: 'Added a new Glassy Terminal appearance mode for a transparent, blurred, Linux-terminal-inspired desktop theme.' },
+        ],
+      },
+    ],
+  },
+  {
     version: '1.0.1',
     codename: 'Amber Anchor',
     date: '2026-06-02',

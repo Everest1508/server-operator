@@ -61,6 +61,9 @@ interface EditorAreaProps {
   composePaths?: string[];
   projectRepos?: string[];
   projectTreeListings?: Record<string, string>;
+  deploySelectedProjectPath?: string;
+  deployContextText?: string;
+  deployContextLoading?: boolean;
   bottomPanelOpen?: boolean;
   bottomPanelTab?: 'logs' | 'terminal';
   selectedGuideId?: string;
@@ -114,6 +117,9 @@ export function EditorArea({
   composePaths = [],
   projectRepos = [],
   projectTreeListings = {},
+  deploySelectedProjectPath = '',
+  deployContextText = '',
+  deployContextLoading = false,
   bottomPanelOpen = false,
   bottomPanelTab = 'logs',
   selectedGuideId = 'database',
@@ -251,6 +257,9 @@ export function EditorArea({
             activeFilePath={activeTabPath}
             projectRepos={projectRepos}
             projectTreeListings={projectTreeListings}
+            selectedDeployProjectPath={deploySelectedProjectPath}
+            deployContextText={deployContextText}
+            loadingDeployContext={deployContextLoading}
             onOpenTerminalAndRun={onOpenTerminalAndRun}
             bottomPanelOpen={bottomPanelOpen}
             bottomPanelTab={bottomPanelTab}

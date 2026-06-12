@@ -12,11 +12,28 @@ import type { ServerConnection, ViewId, ProxySettings, DockerContainer, FileTree
 import { escapeShellSingleQuotes } from './utils/shellQuote';
 import type { ServerSysInfo } from './components/ServerOverview';
 import { parseLsLine } from './utils/parseLs';
+import { resolveRemotePath } from './utils/remotePath';
+import { loadProjectContext } from './utils/loadProjectContext';
 
 const STORAGE_KEY_SERVERS = 'server-operator-servers';
 const STORAGE_KEY_PROXY = 'server-operator-proxy';
 const STORAGE_KEY_REPOS = 'server-operator:repos';
 const STORAGE_KEY_COMPOSE_PATHS = 'server-operator:compose-paths';
+const STORAGE_KEY_THEME = 'server-operator:theme';
+
+function loadAppTheme(): 'default' | 'glassy' {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_THEME);
+    return raw === 'glassy' ? 'glassy' : 'default';
+  } catch {
+    return 'default';
+  }
+}
+
+function applyAppTheme(theme: 'default' | 'glassy') {
+  if (typeof document === 'undefined') return;
+  document.documentElement.dataset.appTheme = theme;
+}
 
 function loadReposByServer(): Record<string, string[]> {
   try {
@@ -84,6 +101,24 @@ function loadProxy(): ProxySettings {
   }
 }
 
+function isAbsoluteRemotePath(path: string | undefined): boolean {
+  const trimmed = (path || '').trim();
+  return trimmed.startsWith('/') || trimmed === '~' || trimmed.startsWith('~/');
+}
+
+function buildLocalWorkspaceServer(folderPath: string): ServerConnection {
+  return {
+    id: `local:${folderPath}`,
+    name: folderPath.split('/').filter(Boolean).pop() || folderPath,
+    host: 'localhost',
+    username: 'local',
+    connectionType: 'local',
+    projectPath: folderPath,
+    cwd: folderPath,
+    useProxy: false,
+  };
+}
+
 const SIDEBAR_MIN = 180;
 const SIDEBAR_MAX = 480;
 const SIDEBAR_DEFAULT = 256;
@@ -95,6 +130,33 @@ const RIGHT_PANEL_MAX = 480;
 const RIGHT_PANEL_DEFAULT = 240;
 
 export default function App() {
+  useEffect(() => {
+    applyAppTheme(loadAppTheme());
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    window.serverOperator?.getLaunchContext?.().then((context) => {
+      const folder = context?.localFolder?.trim();
+      if (cancelled || !folder) return;
+      const localServer = buildLocalWorkspaceServer(folder);
+      setServers((prev) => {
+        const existing = prev.find((server) => server.id === localServer.id);
+        if (existing) {
+          return prev.map((server) => server.id === localServer.id ? { ...server, ...localServer } : server);
+        }
+        return [...prev, localServer];
+      });
+      setCurrentServer(localServer);
+      setActiveViewAndRoute('files');
+    }).catch(() => {
+      // ignore launch context failures
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
   const [activeView, setActiveView] = useState<ViewId>(() => viewFromHash());
@@ -213,6 +275,11 @@ export default function App() {
   const [reposByServer, setReposByServer] = useState<Record<string, string[]>>(() => loadReposByServer());
   const [composePathsByServer, setComposePathsByServer] = useState<Record<string, string[]>>(() => loadComposePathsByServer());
   const [selectedRepoPath, setSelectedRepoPath] = useState<string | null>(null);
+  const [deploySelectedProjectPath, setDeploySelectedProjectPath] = useState('');
+  const [deployContextText, setDeployContextText] = useState('');
+  const [deployContextLoading, setDeployContextLoading] = useState(false);
+  const [deployContextError, setDeployContextError] = useState<string | null>(null);
+  const [serverAbsoluteBaseById, setServerAbsoluteBaseById] = useState<Record<string, string>>({});
   const [repoTreeListings, setRepoTreeListings] = useState<Record<string, string>>({});
   const [repoOpenFolders, setRepoOpenFolders] = useState<Record<string, Set<string>>>({});
   const [repoCurrentPathByRepo, setRepoCurrentPathByRepo] = useState<Record<string, string>>({});
@@ -235,6 +302,9 @@ export default function App() {
       setLoadingPath(null);
       setFileLoadError(null);
       setSelectedRepoPath(null);
+      setDeploySelectedProjectPath('');
+      setDeployContextText('');
+      setDeployContextError(null);
       setRepoTreeListings({});
       setRepoOpenFolders({});
     }
@@ -249,6 +319,44 @@ export default function App() {
       loadRepoDir(selectedRepoPath, '.', false);
     }
   }, [selectedRepoPath, currentServer?.id]);
+
+  useEffect(() => {
+    if (!currentServer || !window.serverOperator) return;
+
+    const configuredBase = currentServer.projectPath || currentServer.cwd || '';
+    if (isAbsoluteRemotePath(configuredBase)) {
+      setServerAbsoluteBaseById((prev) => {
+        const normalized = resolveRemotePath(configuredBase, '.');
+        if (prev[currentServer.id] === normalized) return prev;
+        return { ...prev, [currentServer.id]: normalized };
+      });
+      return;
+    }
+
+    let cancelled = false;
+    window.serverOperator
+      .runCommand({
+        connection: currentServer,
+        command: 'pwd',
+        proxy: proxyRef.current,
+      })
+      .then((res) => {
+        if (cancelled || !res.ok || !res.stdout) return;
+        const pwd = res.stdout.trim();
+        if (!pwd) return;
+        setServerAbsoluteBaseById((prev) => {
+          if (prev[currentServer.id] === pwd) return prev;
+          return { ...prev, [currentServer.id]: pwd };
+        });
+      })
+      .catch(() => {
+        // ignore and keep fallback base path
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentServer?.id, currentServer?.projectPath, currentServer?.cwd]);
 
   useEffect(() => {
     const syncNotes = (e: Event) => {
@@ -358,7 +466,83 @@ export default function App() {
     setComposePaths(composePaths.filter((p) => p !== path));
   };
 
-  const repos = currentServer ? (reposByServer[currentServer.id] ?? []) : [];
+  const repoBasePath = currentServer
+    ? serverAbsoluteBaseById[currentServer.id] || currentServer.projectPath || currentServer.cwd || '.'
+    : '.';
+  const repos = currentServer
+    ? Array.from(new Set((reposByServer[currentServer.id] ?? []).map((path) => resolveRemotePath(repoBasePath, path))))
+    : [];
+  const deployProjectPaths = currentServer ? Array.from(new Set([resolveRemotePath(repoBasePath, '.'), ...repos])) : [];
+  const deployProjectPathsKey = deployProjectPaths.join('\n');
+  const activeDeployProjectPath = deploySelectedProjectPath || deployProjectPaths[0] || '';
+
+  useEffect(() => {
+    if (!currentServer) return;
+    const storedRepos = reposByServer[currentServer.id] ?? [];
+    if (!storedRepos.length) return;
+
+    const normalizedRepos = Array.from(new Set(storedRepos.map((path) => resolveRemotePath(repoBasePath, path))));
+    const unchanged =
+      storedRepos.length === normalizedRepos.length && storedRepos.every((path, index) => path === normalizedRepos[index]);
+
+    if (!unchanged) {
+      setReposByServer((prev) => ({
+        ...prev,
+        [currentServer.id]: normalizedRepos,
+      }));
+    }
+  }, [currentServer?.id, repoBasePath, reposByServer]);
+
+  useEffect(() => {
+    setSelectedRepoPath((prev) => {
+      if (!prev) return prev;
+      const normalized = resolveRemotePath(repoBasePath, prev);
+      return normalized === prev ? prev : normalized;
+    });
+  }, [currentServer?.id, repoBasePath]);
+
+  useEffect(() => {
+    setDeploySelectedProjectPath((prev) => (prev && deployProjectPaths.includes(prev) ? prev : (deployProjectPaths[0] ?? '')));
+  }, [currentServer?.id, deployProjectPathsKey]);
+
+  useEffect(() => {
+    if (!currentServer || !window.serverOperator || !activeDeployProjectPath) {
+      setDeployContextText('');
+      setDeployContextError(null);
+      return;
+    }
+
+    let cancelled = false;
+    const loadContext = async () => {
+      setDeployContextLoading(true);
+      setDeployContextError(null);
+      try {
+        const { context, error } = await loadProjectContext(
+          currentServer,
+          activeDeployProjectPath,
+          proxy?.enabled ? proxy : undefined,
+          {
+            listDir: window.serverOperator.listDir.bind(window.serverOperator),
+            readFile: window.serverOperator.readFile.bind(window.serverOperator),
+          }
+        );
+        if (cancelled) return;
+        if (error) {
+          setDeployContextError(error);
+          return;
+        }
+        setDeployContextText(context);
+      } finally {
+        if (!cancelled) setDeployContextLoading(false);
+      }
+    };
+
+    void loadContext();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeDeployProjectPath, currentServer, proxy?.enabled, proxy?.host, proxy?.port]);
+
   const addRepo = (path: string) => {
     if (!currentServer || repos.includes(path)) return;
     setReposByServer((prev) => ({
@@ -379,10 +563,11 @@ export default function App() {
 
   const onMakeGitRepo = async (path: string): Promise<{ ok: boolean; error?: string }> => {
     if (!currentServer || !window.serverOperator) return { ok: false, error: 'Not connected' };
+    const absolutePath = resolveRemotePath(repoBasePath, path);
     const res = await window.serverOperator.runCommand({
       connection: currentServer,
       command: 'git init',
-      cwd: path,
+      cwd: absolutePath,
       proxy,
     });
     return res.ok ? { ok: true } : { ok: false, error: res.error || res.stderr || 'git init failed' };
@@ -412,10 +597,11 @@ export default function App() {
 
   const onAddAsProject = async (path: string): Promise<{ ok: boolean; error?: string }> => {
     if (!currentServer || !window.serverOperator) return { ok: false, error: 'Not connected' };
-    addRepo(path);
+    const absolutePath = resolveRemotePath(repoBasePath, path);
+    addRepo(absolutePath);
     const listRes = await window.serverOperator.listDir({
       connection: currentServer,
-      dirPath: path,
+      dirPath: absolutePath,
       proxy,
     });
     if (listRes.ok && listRes.stdout) {
@@ -425,7 +611,7 @@ export default function App() {
         const name = (parsed?.name ?? line.trim()).toLowerCase().replace(/\/$/, '');
         return name === 'docker-compose.yml' || name === 'docker-compose.yaml';
       });
-      if (hasCompose) addComposePath(path);
+      if (hasCompose) addComposePath(absolutePath);
     }
     return { ok: true };
   };
@@ -1188,18 +1374,23 @@ export default function App() {
       return;
     }
     const host = server.host?.trim();
-    if (!host) {
+    if (server.connectionType !== 'local' && !host) {
       setConnectionError('Server host is required. Edit the server and set Host.');
       return;
     }
-    if (!server.username?.trim()) {
+    if (server.connectionType !== 'local' && !server.username?.trim()) {
       setConnectionError('SSH username is required. Edit the server and set Username.');
       return;
     }
+    if (server.connectionType === 'local' && !server.projectPath?.trim()) {
+      setConnectionError('Local workspace folder is required. Edit the profile and set a local folder.');
+      return;
+    }
     const isCloudflare = server.connectionType === 'cloudflare';
-    const usePassword = !isCloudflare && (server.connectionType === 'password' || (server.password && server.password.length > 0));
-    const useKey = !isCloudflare && !usePassword && server.privateKeyPath?.trim();
-    if (!isCloudflare && !usePassword && !useKey) {
+    const isLocal = server.connectionType === 'local';
+    const usePassword = !isCloudflare && !isLocal && (server.connectionType === 'password' || (server.password && server.password.length > 0));
+    const useKey = !isCloudflare && !isLocal && !usePassword && server.privateKeyPath?.trim();
+    if (!isCloudflare && !isLocal && !usePassword && !useKey) {
       setConnectionError('Set either SSH key path (EC2) or password for this server.');
       return;
     }
@@ -1278,6 +1469,7 @@ export default function App() {
           activeView={activeView}
           servers={servers}
           currentServer={currentServer}
+          proxy={proxy}
           connectingTo={connectingTo}
           connectionError={connectionError}
           onSelectServer={handleSelectServer}
@@ -1314,6 +1506,13 @@ export default function App() {
           onFileTreeRenamePath={promptRenamePath}
           onFileTreeDuplicatePath={duplicatePathOnServer}
           onFileTreeActionMessage={setFilesError}
+          deployProjectPaths={deployProjectPaths}
+          deploySelectedProjectPath={activeDeployProjectPath}
+          onDeploySelectProject={setDeploySelectedProjectPath}
+          deployContextText={deployContextText}
+          onDeployContextTextChange={setDeployContextText}
+          deployContextLoading={deployContextLoading}
+          deployContextError={deployContextError}
         />
       </div>
       <div
@@ -1424,6 +1623,9 @@ export default function App() {
                 onRefreshDocker={refreshDocker}
                 projectRepos={repos}
                 projectTreeListings={repoTreeListings}
+                deploySelectedProjectPath={activeDeployProjectPath}
+                deployContextText={deployContextText}
+                deployContextLoading={deployContextLoading}
                 bottomPanelOpen={panelOpen}
                 bottomPanelTab={panelTab}
                 connectedSqlitePath={connectedSqlitePath}

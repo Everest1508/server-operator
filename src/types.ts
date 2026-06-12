@@ -40,7 +40,7 @@ export interface ProxySettings {
   port: number;
 }
 
-export type ConnectionType = 'ec2' | 'password' | 'cloudflare';
+export type ConnectionType = 'ec2' | 'password' | 'cloudflare' | 'local';
 
 export interface ServerConnection {
   id: string;

@@ -1,6 +1,6 @@
 {
   "name": "server-operator",
-  "version": "1.0.0",
+  "version": "2.0.1",
   "description": "Premium server manager - deploy code, manage Docker, view logs",
   "author": {
     "name": "Ritesh Mahale",
@@ -9,7 +9,8 @@
   "homepage": "https://github.com/everest1508",
   "main": "electron/main.js",
   "bin": {
-    "server-operator-init": "scripts/server-operator-init.js"
+    "server-operator-init": "scripts/server-operator-init.js",
+    "serop": "scripts/serop.js"
   },
   "scripts": {
     "dev": "vite",
@@ -80,7 +81,7 @@
       ],
       "category": "Utility",
       "icon": "build/icons",
-      "executableName": "server-operator",
+      "executableName": "serop",
       "executableArgs": [
         "--no-sandbox"
       ]

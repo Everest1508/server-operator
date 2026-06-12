@@ -19,6 +19,23 @@
   --color-input-bg: #3c3c3c;
 }
 
+:root[data-app-theme='glassy'] {
+  --color-bg-primary: rgba(8, 12, 20, 0.48);
+  --color-bg-secondary: rgba(17, 24, 39, 0.34);
+  --color-bg-tertiary: rgba(30, 41, 59, 0.28);
+  --color-bg-activity: rgba(15, 23, 42, 0.62);
+  --color-border: rgba(148, 163, 184, 0.24);
+  --color-text-primary: #dbe5f5;
+  --color-text-secondary: #a8b6cc;
+  --color-text-muted: #7f8ca3;
+  --color-accent: #5cc8ff;
+  --color-accent-hover: #93ddff;
+  --color-success: #7ff0c2;
+  --color-warning: #ffe28a;
+  --color-error: #ff8f8f;
+  --color-input-bg: rgba(15, 23, 42, 0.35);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -35,12 +52,51 @@ body {
   color: var(--color-text-primary);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+:root[data-app-theme='glassy'] body {
+  background:
+    radial-gradient(circle at top left, rgba(92, 200, 255, 0.12), transparent 30%),
+    radial-gradient(circle at top right, rgba(99, 102, 241, 0.14), transparent 35%),
+    radial-gradient(circle at bottom center, rgba(34, 197, 94, 0.08), transparent 30%),
+    linear-gradient(135deg, #071018 0%, #0d1321 50%, #111827 100%);
+}
+
+:root[data-app-theme='glassy'] body::before {
+  opacity: 1;
+  background:
+    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,0.95), rgba(0,0,0,0.55));
 }
 
 #root {
   height: 100vh;
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+:root[data-app-theme='glassy'] #root {
+  backdrop-filter: saturate(1.1);
+}
+
+:root[data-app-theme='glassy'] .backdrop-blur-sm,
+:root[data-app-theme='glassy'] .backdrop-blur-md,
+:root[data-app-theme='glassy'] .backdrop-blur-xs,
+:root[data-app-theme='glassy'] [class*='bg-bg-'] {
+  backdrop-filter: blur(18px) saturate(1.15);
 }
 
 /* Scrollbars in base layer */

@@ -23,10 +23,11 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react';
-import type { ServerConnection, ViewId, FileTreeClipboard } from '../types';
+import type { ServerConnection, ViewId, FileTreeClipboard, ProxySettings } from '../types';
 import { parseLsLine } from '../utils/parseLs';
 import { Tooltip } from './Tooltip';
 import { NotesSidebar } from './NotesSidebar';
+import { DeploySidebar } from './DeploySidebar';
 
 interface FileTreeMenuState {
   kind: 'entry' | 'background';
@@ -76,6 +77,14 @@ interface SidebarProps {
   onFileTreeActionMessage?: (message: string | null) => void;
   selectedGuideId?: string;
   onSelectGuideId?: (id: string) => void;
+  proxy?: ProxySettings;
+  deployProjectPaths?: string[];
+  deploySelectedProjectPath?: string;
+  onDeploySelectProject?: (path: string) => void;
+  deployContextText?: string;
+  onDeployContextTextChange?: (text: string) => void;
+  deployContextLoading?: boolean;
+  deployContextError?: string | null;
 }
 
 function buildPath(prefix: string, name: string): string {
@@ -119,6 +128,14 @@ export function Sidebar({
   onFileTreeActionMessage,
   selectedGuideId,
   onSelectGuideId,
+  proxy = { enabled: false, host: '127.0.0.1', port: 9050 },
+  deployProjectPaths = [],
+  deploySelectedProjectPath = '',
+  onDeploySelectProject,
+  deployContextText = '',
+  onDeployContextTextChange,
+  deployContextLoading = false,
+  deployContextError = null,
 }: SidebarProps) {
   const [creatingType, setCreatingType] = useState<'file' | 'folder' | null>(null);
   const [creatingName, setCreatingName] = useState('');
@@ -620,34 +637,17 @@ export function Sidebar({
           </div>
         )}
         {activeView === 'deploy' && (
-          <div className="px-3 pt-2 space-y-3">
-            <div className="rounded-lg border border-border bg-bg-primary p-3 text-sm">
-              {!currentServer ? (
-                <div className="flex flex-col gap-3">
-                  <p className="text-text-secondary">Select a server above to run deploy commands.</p>
-                  <div className="border-t border-border pt-2.5 mt-1 flex flex-col gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">Relevant Guides</span>
-                    <button
-                      type="button"
-                      onClick={() => onSelectGuideId?.('pipeline')}
-                      className="text-xs text-accent hover:underline text-left cursor-pointer"
-                    >
-                      Deployment Pipeline Guide ↗
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onSelectGuideId?.('history')}
-                      className="text-xs text-accent hover:underline text-left cursor-pointer"
-                    >
-                      History & Rollbacks Guide ↗
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-accent text-xs">Viewing: {currentServer.name}</p>
-              )}
-            </div>
-          </div>
+          <DeploySidebar
+            currentServer={currentServer}
+            proxy={proxy}
+            projectPaths={deployProjectPaths}
+            selectedProjectPath={deploySelectedProjectPath}
+            onSelectProject={(path) => onDeploySelectProject?.(path)}
+            contextText={deployContextText}
+            onContextTextChange={(text) => onDeployContextTextChange?.(text)}
+            loadingContext={deployContextLoading}
+            contextError={deployContextError}
+          />
         )}
         {activeView === 'database' && !currentServer && (
           <div className="px-3 pt-2">

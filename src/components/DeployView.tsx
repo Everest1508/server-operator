@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { Fragment, useState, useRef, useEffect } from 'react';
 import { Rocket, Loader2, Key, FileCode, FolderTree, Send, Sparkles, Play, ChevronDown, Server, Copy, Wand2, GitBranch, RefreshCw } from 'lucide-react';
 import EyeIcon from './icons/EyeIcon';
 import EyeOffIcon from './icons/EyeOffIcon';
@@ -6,13 +6,13 @@ import { useFeatureFlag } from '../contexts/FeatureFlagContext';
 import type { ServerConnection, ProxySettings } from '../types';
 import { loadProjectContext } from '../utils/loadProjectContext';
 import { parseLsLine } from '../utils/parseLs';
+import { joinRemotePath, resolveRemotePath } from '../utils/remotePath';
 import { ConfigCreators } from './ConfigCreators';
 import { ProjectTerminal } from './ProjectTerminal';
 import { ServerToolsView } from './ServerToolsView';
-import { Select } from './Select';
 
 const GROQ_API_KEY_STORAGE = 'server-operator:groq-api-key';
-const GROQ_MODEL = 'llama-3.3-70b-versatile';
+const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'];
 
 function loadGroqApiKey(): string {
   try {
@@ -59,12 +59,162 @@ ${serverContext}`;
   }
   sys += `
 
-Your task: convert the user's request into a single shell command that fits this context.
-- Commands should run in or reference the current working directory when relevant.
-- If they mention a file or folder, use the current working directory or current file from the context.
-- Use docker compose when relevant (restart service, logs, etc.). Use the project/working directory for compose files if needed.
-- Reply with ONLY the command: no markdown, no explanation, no extra quotes. One command; chain steps with && if needed.`;
+Your task: understand the user's deploy/devops request like a real assistant, using the current project path, current file, and server context.
+- Think carefully about what directory, service, file, or tool they mean.
+- Prefer commands that match the selected project and current working directory.
+- Use docker compose when relevant.
+- If the user is asking a question, answer it clearly.
+- If the user wants an action, include the exact command to run.
+- If a command would be unsafe, destructive, or ambiguous, explain briefly and ask for the missing detail instead of guessing.
+
+Reply in exactly this format:
+<answer>
+A concise helpful answer for the user.
+</answer>
+<command>
+single runnable shell command, or leave empty if no command should be run
+</command>`;
   return sys;
+}
+
+function parseGroqDeployResponse(text: string): { answer: string; command: string } {
+  const trimmed = text.trim();
+  const answerMatch = trimmed.match(/<answer>([\s\S]*?)<\/answer>/i);
+  const commandMatch = trimmed.match(/<command>([\s\S]*?)<\/command>/i);
+  const answer = (answerMatch?.[1] || '').trim();
+  const command = (commandMatch?.[1] || '').trim().replace(/^`+|`+$/g, '').trim();
+
+  if (answer || command) {
+    return {
+      answer: answer || (command ? 'Here is the command for that request.' : ''),
+      command,
+    };
+  }
+
+  // Some model responses partially follow the format and may leave only
+  // closing tags or put prose outside the expected wrappers.
+  const cleaned = trimmed
+    .replace(/<\/?answer>/gi, '')
+    .replace(/<\/?command>/gi, '')
+    .trim();
+
+  const lines = cleaned.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const commandLikeLine = [...lines]
+    .reverse()
+    .find((line) => /^(cd|ls|pwd|cat|grep|find|git|docker|docker compose|npm|pnpm|yarn|python|python3|pip|systemctl|service|pm2|cp|mv|rm|mkdir|chmod|chown|sudo\s+)/i.test(line));
+
+  if (commandLikeLine) {
+    const answerLines = lines.filter((line) => line !== commandLikeLine);
+    return {
+      answer: answerLines.join('\n').trim() || 'Here is the command for that request.',
+      command: commandLikeLine,
+    };
+  }
+
+  return {
+    answer: cleaned,
+    command: '',
+  };
+}
+
+function normalizeAssistantAnswer(text: string): string {
+  return text.replace(/\r/g, '').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function renderInlineAssistantText(text: string, keyPrefix: string) {
+  return text.split(/(`[^`]+`)/g).filter(Boolean).map((segment, index) => {
+    if (segment.startsWith('`') && segment.endsWith('`')) {
+      return (
+        <code
+          key={`${keyPrefix}-code-${index}`}
+          className="rounded-md border border-border/20 bg-bg-primary/50 px-1.5 py-0.5 font-mono text-[11px] text-accent"
+        >
+          {segment.slice(1, -1)}
+        </code>
+      );
+    }
+    return <Fragment key={`${keyPrefix}-text-${index}`}>{segment}</Fragment>;
+  });
+}
+
+function renderAssistantTextBlock(text: string, keyPrefix: string) {
+  const lines = text.split('\n').map((line) => line.trim()).filter(Boolean);
+  const isNumberedList = lines.length > 1 && lines.every((line) => /^\d+\.\s+/.test(line));
+  const isBulletList = lines.length > 1 && lines.every((line) => /^[-*]\s+/.test(line));
+
+  if (isNumberedList) {
+    return (
+      <ol className="space-y-2 pl-5 list-decimal marker:text-accent/80">
+        {lines.map((line, lineIndex) => (
+          <li key={`${keyPrefix}-num-${lineIndex}`}>
+            {renderInlineAssistantText(line.replace(/^\d+\.\s+/, ''), `${keyPrefix}-num-${lineIndex}`)}
+          </li>
+        ))}
+      </ol>
+    );
+  }
+
+  if (isBulletList) {
+    return (
+      <ul className="space-y-2 pl-5 list-disc marker:text-accent/80">
+        {lines.map((line, lineIndex) => (
+          <li key={`${keyPrefix}-bullet-${lineIndex}`}>
+            {renderInlineAssistantText(line.replace(/^[-*]\s+/, ''), `${keyPrefix}-bullet-${lineIndex}`)}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  return (
+    <p>
+      {lines.map((line, lineIndex) => (
+        <Fragment key={`${keyPrefix}-line-${lineIndex}`}>
+          {lineIndex > 0 && <br />}
+          {renderInlineAssistantText(line, `${keyPrefix}-line-${lineIndex}`)}
+        </Fragment>
+      ))}
+    </p>
+  );
+}
+
+function renderAssistantAnswer(text: string) {
+  const normalized = normalizeAssistantAnswer(text);
+  const parts = normalized.split(/```([\w-]+)?\n([\s\S]*?)```/g);
+
+  return (
+    <div className="space-y-3 text-[13px] leading-6 text-text-primary/95">
+      {parts.map((part, index) => {
+        if (!part || !part.trim()) return null;
+
+        // Odd captured segments after split are the optional language labels.
+        if (index % 3 === 1) return null;
+
+        if (index % 3 === 2) {
+          const language = parts[index - 1]?.trim();
+          return (
+            <div key={`code-${index}`} className="rounded-xl border border-accent/15 bg-bg-primary/35 overflow-hidden">
+              <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border/10 bg-bg-primary/30 select-none">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                  {language || 'Code'}
+                </span>
+              </div>
+              <pre className="px-3 py-2.5 text-[11px] leading-6 font-mono text-text-secondary whitespace-pre-wrap break-words overflow-x-auto">
+                <code>{part.trim()}</code>
+              </pre>
+            </div>
+          );
+        }
+
+        const textBlocks = part.split(/\n\s*\n/).map((block) => block.trim()).filter(Boolean);
+        return textBlocks.map((block, blockIndex) => (
+          <Fragment key={`text-${index}-${blockIndex}`}>
+            {renderAssistantTextBlock(block, `text-${index}-${blockIndex}`)}
+          </Fragment>
+        ));
+      })}
+    </div>
+  );
 }
 
 interface SeropShortcut {
@@ -72,14 +222,6 @@ interface SeropShortcut {
   name: string;
   command: string;
   sourceLine: number;
-}
-
-function joinRemotePath(base: string, next: string): string {
-  const normalizedBase = (base || '').trim().replace(/\/+$/, '');
-  const normalizedNext = (next || '').trim().replace(/^\/+/, '');
-  if (!normalizedNext) return normalizedBase || '.';
-  if (!normalizedBase || normalizedBase === '.') return normalizedNext;
-  return `${normalizedBase}/${normalizedNext}`;
 }
 
 async function copyToClipboard(text: string): Promise<boolean> {
@@ -131,6 +273,12 @@ ${STARTER_SEROP_FILES[0].content.trim()}
 ${STARTER_SEROP_FILES[1].content.trim()}
 
 Use shell commands and keep file names ending in .serop.`;
+}
+
+function pathChipLabel(path: string): string {
+  const normalized = path.replace(/\/+$/, '');
+  if (normalized === '/' || !normalized) return path;
+  return normalized.split('/').pop() || normalized;
 }
 
 function parseSeropShortcuts(content: string): { shortcuts: SeropShortcut[]; warning?: string } {
@@ -204,32 +352,58 @@ async function suggestCommandWithGroq(
   conversationMessages: Array<{ role: 'user' | 'assistant'; content: string }>,
   serverContext: string,
   extraContext: string
-): Promise<{ command: string; error?: string }> {
+): Promise<{ answer: string; command: string; error?: string }> {
   const systemContent = buildDeploySystemMessage(serverContext, extraContext);
   const messages = [
     { role: 'system' as const, content: systemContent },
-    ...conversationMessages,
+    ...conversationMessages.map((message) => ({
+      role: message.role,
+      content: message.content,
+    })),
   ];
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages,
-      max_tokens: 256,
-      temperature: 0.2,
-    }),
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    return { command: '', error: `Groq API error: ${res.status} ${err}` };
+  let lastError = 'No response returned';
+
+  for (const model of GROQ_MODELS) {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        max_tokens: 256,
+        temperature: 0.2,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      lastError = `Groq API error: ${res.status} ${err}`;
+      const shouldRetryWithNextModel =
+        res.status === 429 && /rate limit|tokens per minute|tpm|limit reached/i.test(err);
+      if (shouldRetryWithNextModel) continue;
+      return { answer: '', command: '', error: lastError };
+    }
+
+    const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const text = data.choices?.[0]?.message?.content?.trim() || '';
+    if (!text) {
+      lastError = `No response returned from ${model}`;
+      continue;
+    }
+    const parsed = parseGroqDeployResponse(text);
+    return { answer: parsed.answer, command: parsed.command };
   }
-  const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  const text = data.choices?.[0]?.message?.content?.trim() || '';
-  return { command: text.replace(/^`+|`+$/g, '').trim(), error: text ? undefined : 'No command returned' };
+
+  return { answer: '', command: '', error: lastError };
+}
+
+interface DeployChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  command?: string;
 }
 
 interface DeployViewProps {
@@ -248,6 +422,9 @@ interface DeployViewProps {
   projectRepos?: string[];
   /** Cached repo tree listings (key "repoPath:pathKey") */
   projectTreeListings?: Record<string, string>;
+  selectedDeployProjectPath?: string;
+  deployContextText?: string;
+  loadingDeployContext?: boolean;
   /** Open panel terminal and run a command (e.g. cd to project then run) */
   onOpenTerminalAndRun?: (command: string, label?: string) => void;
   bottomPanelOpen?: boolean;
@@ -269,6 +446,9 @@ export function DeployView({
   activeFilePath,
   projectRepos = [],
   projectTreeListings = {},
+  selectedDeployProjectPath = '',
+  deployContextText = '',
+  loadingDeployContext = false,
   onOpenTerminalAndRun: _onOpenTerminalAndRun,
   bottomPanelOpen = false,
   bottomPanelTab = 'logs',
@@ -277,7 +457,6 @@ export function DeployView({
   const isPipelineEnabled = useFeatureFlag('deployPipeline');
   const isCreatorsEnabled = useFeatureFlag('configCreators');
   const isServerEnabled = useFeatureFlag('serverAdmin');
-  const isShortcutsEnabled = useFeatureFlag('shortcuts');
   const isAiEnabled = useFeatureFlag('aiAssistant');
 
   useEffect(() => {
@@ -293,15 +472,10 @@ export function DeployView({
   const showRightPanel =
     deploySubTab === 'pipeline' ||
     deploySubTab === 'server' ||
-    (deploySubTab === 'deploy' && (isShortcutsEnabled || isAiEnabled));
+    (deploySubTab === 'deploy' && isAiEnabled);
   const [command, setCommand] = useState('');
   const [groqApiKey, setGroqApiKey] = useState(loadGroqApiKey);
-  const [deployChatMessages, setDeployChatMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
-  const [deployContextText, setDeployContextText] = useState('');
-  const [deployContextCollapsed, setDeployContextCollapsed] = useState(false);
-  const [contextAccordionOpen, setContextAccordionOpen] = useState(false);
-  const [selectedDeployProjectPath, setSelectedDeployProjectPath] = useState('');
-  const [loadingDeployContext, setLoadingDeployContext] = useState(false);
+  const [deployChatMessages, setDeployChatMessages] = useState<DeployChatMessage[]>([]);
   const [deploySplitPercent, setDeploySplitPercent] = useState(65);
   const [deployResizing, setDeployResizing] = useState(false);
   const deployResizeStartRef = useRef({ x: 0, percent: 65 });
@@ -345,48 +519,12 @@ export function DeployView({
     fetchDeployHistory();
   }, [currentServer?.id, pipelineProjDir]);
 
-  const [selectedShortcutsProjectPath, setSelectedShortcutsProjectPath] = useState('');
-  const [shortcutFiles, setShortcutFiles] = useState<string[]>([]);
-  const [selectedShortcutFile, setSelectedShortcutFile] = useState('');
-  const [shortcutsLoading, setShortcutsLoading] = useState(false);
-  const [shortcutsError, setShortcutsError] = useState<string | null>(null);
-  const [shortcutsWarning, setShortcutsWarning] = useState<string | null>(null);
-  const [seropShortcuts, setSeropShortcuts] = useState<SeropShortcut[]>([]);
-  const [shortcutBootstrapBusy, setShortcutBootstrapBusy] = useState(false);
-  const [shortcutBootstrapMessage, setShortcutBootstrapMessage] = useState<string | null>(null);
-  const [shortcutBootstrapError, setShortcutBootstrapError] = useState<string | null>(null);
-  const [shortcutsRefreshToken, setShortcutsRefreshToken] = useState(0);
-
   const handleSaveGroqKey = () => {
     saveGroqApiKey(groqApiKey);
   };
 
   const serverContextSummary = buildServerContext(currentServer, currentPath, basePath, activeFilePath);
-
-  const onSelectDeployProjectForContext = async (projectPath: string) => {
-    setSelectedDeployProjectPath(projectPath);
-    if (!projectPath || !window.serverOperator) {
-      if (!projectPath) setDeployContextText('');
-      return;
-    }
-    setLoadingDeployContext(true);
-    setAiError(null);
-    try {
-      const { context, error } = await loadProjectContext(
-        currentServer,
-        projectPath,
-        proxy?.enabled ? proxy : undefined,
-        { listDir: window.serverOperator.listDir.bind(window.serverOperator), readFile: window.serverOperator.readFile.bind(window.serverOperator) }
-      );
-      if (error) {
-        setAiError(error);
-        return;
-      }
-      setDeployContextText(context);
-    } finally {
-      setLoadingDeployContext(false);
-    }
-  };
+  const activeProjectPath = selectedDeployProjectPath.trim() || currentServer.projectPath || currentServer.cwd || '';
 
   const sendDeployMessage = async () => {
     const key = groqApiKey.trim();
@@ -401,12 +539,12 @@ export function DeployView({
     }
     setAiError(null);
     setAiRequest('');
-    const newUserMessage = { role: 'user' as const, content: userContent };
+    const newUserMessage: DeployChatMessage = { role: 'user', content: userContent };
     setDeployChatMessages((prev) => [...prev, newUserMessage]);
     setAiSuggesting(true);
     try {
       const messagesForApi = [...deployChatMessages, newUserMessage];
-      const { command: suggested, error } = await suggestCommandWithGroq(
+      const { answer, command: suggested, error } = await suggestCommandWithGroq(
         key,
         messagesForApi,
         serverContextSummary,
@@ -419,20 +557,13 @@ export function DeployView({
       }
       saveGroqApiKey(key);
       if (suggested) setCommand(suggested);
-      setDeployChatMessages((prev) => [...prev, { role: 'assistant', content: suggested || '(no command)' }]);
+      setDeployChatMessages((prev) => [...prev, { role: 'assistant', content: answer || '(no response)', command: suggested || undefined }]);
     } finally {
       setAiSuggesting(false);
     }
   };
 
-  const runCwd = selectedDeployProjectPath?.trim() || currentServer.projectPath || currentServer.cwd || '';
-  const shortcutsProjectPath =
-    selectedShortcutsProjectPath.trim() ||
-    selectedDeployProjectPath.trim() ||
-    currentServer.projectPath ||
-    currentServer.cwd ||
-    '';
-  const seropFolderPath = joinRemotePath(shortcutsProjectPath || '.', '.server-operator');
+  const runCwd = activeProjectPath || currentServer.projectPath || currentServer.cwd || '';
 
   const executeInLeftTerminal = (cmd?: string) => {
     const toRun = (cmd ?? command).trim();
@@ -488,147 +619,15 @@ export function DeployView({
     }
   };
 
-  const handleCopyShortcutBootstrapPrompt = async () => {
-    const prompt = buildSeropAgentPrompt(shortcutsProjectPath || '.');
-    const ok = await copyToClipboard(prompt);
-    if (ok) {
-      setShortcutBootstrapError(null);
-      setShortcutBootstrapMessage('AI setup prompt copied.');
-      setTimeout(() => setShortcutBootstrapMessage((msg) => (msg === 'AI setup prompt copied.' ? null : msg)), 2000);
-      return;
-    }
-    setShortcutBootstrapError('Failed to copy prompt to clipboard.');
-  };
-
-  const handleCreateStarterShortcuts = async () => {
-    if (!window.serverOperator) return;
-    if (!shortcutsProjectPath) {
-      setShortcutBootstrapError('Set a project path first so files can be created in the right folder.');
-      return;
-    }
-    setShortcutBootstrapBusy(true);
-    setShortcutBootstrapError(null);
-    setShortcutBootstrapMessage(null);
-    try {
-      const mkdirRes = await window.serverOperator.mkdir({
-        connection: currentServer,
-        dirPath: seropFolderPath,
-        proxy: proxy?.enabled ? proxy : undefined,
-      });
-      if (!mkdirRes.ok) {
-        setShortcutBootstrapError(mkdirRes.error || `Failed to create ${seropFolderPath}`);
-        return;
-      }
-
-      for (const file of STARTER_SEROP_FILES) {
-        const writeRes = await window.serverOperator.writeFile({
-          connection: currentServer,
-          filePath: joinRemotePath(seropFolderPath, file.name),
-          content: file.content,
-          proxy: proxy?.enabled ? proxy : undefined,
-        });
-        if (!writeRes.ok) {
-          setShortcutBootstrapError(writeRes.error || `Failed to write ${file.name}`);
-          return;
-        }
-      }
-
-      setShortcutBootstrapMessage(`Created ${STARTER_SEROP_FILES.length} starter .serop files in ${seropFolderPath}.`);
-      setShortcutsRefreshToken((n) => n + 1);
-    } finally {
-      setShortcutBootstrapBusy(false);
-    }
-  };
-
-  const loadSeropFile = async (projectPath: string, fileName: string) => {
-    if (!window.serverOperator || !projectPath || !fileName) return;
-    setShortcutsLoading(true);
-    setShortcutsError(null);
-    setShortcutsWarning(null);
-    setSeropShortcuts([]);
-    try {
-      const folderPath = joinRemotePath(projectPath, '.server-operator');
-      const fullFilePath = joinRemotePath(folderPath, fileName);
-      const res = await window.serverOperator.readFile({
-        connection: currentServer,
-        filePath: fullFilePath,
-        proxy: proxy?.enabled ? proxy : undefined,
-      });
-      if (!res.ok) {
-        setShortcutsError(res.error || `Failed to read ${fileName}`);
-        return;
-      }
-      const parsed = parseSeropShortcuts(res.content || '');
-      setSeropShortcuts(parsed.shortcuts);
-      setShortcutsWarning(parsed.warning || null);
-    } finally {
-      setShortcutsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if (!window.serverOperator || !shortcutsProjectPath) {
-      setShortcutFiles([]);
-      setSelectedShortcutFile('');
-      setSeropShortcuts([]);
-      setShortcutsError(null);
-      setShortcutsWarning(null);
-      return;
-    }
-
-    let cancelled = false;
-    const loadSeropFiles = async () => {
-      setShortcutsLoading(true);
-      setShortcutsError(null);
-      setShortcutsWarning(null);
-      setSeropShortcuts([]);
-      try {
-        const folderPath = joinRemotePath(shortcutsProjectPath, '.server-operator');
-        const listRes = await window.serverOperator.listDir({
-          connection: currentServer,
-          dirPath: folderPath,
-          proxy: proxy?.enabled ? proxy : undefined,
-        });
-        if (cancelled) return;
-        if (!listRes.ok || !listRes.stdout) {
-          setShortcutFiles([]);
-          setSelectedShortcutFile('');
-          setShortcutsWarning(
-            `No shortcut folder found at ${folderPath}. Create it and add .serop files.`
-          );
-          return;
-        }
-
-        const files = listRes.stdout
-          .trim()
-          .split('\n')
-          .filter(Boolean)
-          .map((line) => parseLsLine(line))
-          .filter((entry): entry is { isDir: boolean; name: string } => !!entry && !entry.isDir)
-          .map((entry) => entry.name)
-          .filter((name) => name.toLowerCase().endsWith('.serop'))
-          .sort((a, b) => a.localeCompare(b));
-
-        setShortcutFiles(files);
-        if (!files.length) {
-          setSelectedShortcutFile('');
-          setShortcutsWarning('No .serop files found in .server-operator folder.');
-          return;
-        }
-
-        const preferred = files.includes(selectedShortcutFile) ? selectedShortcutFile : files[0];
-        setSelectedShortcutFile(preferred);
-        await loadSeropFile(shortcutsProjectPath, preferred);
-      } finally {
-        if (!cancelled) setShortcutsLoading(false);
-      }
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ command?: string }>).detail;
+      const toRun = detail?.command?.trim();
+      if (toRun) runCommandInTerminalRef.current?.(toRun);
     };
-
-    void loadSeropFiles();
-    return () => {
-      cancelled = true;
-    };
-  }, [currentServer.id, proxy?.enabled, proxy?.host, proxy?.port, shortcutsProjectPath, shortcutsRefreshToken]);
+    window.addEventListener('deploy-run-command', handler as EventListener);
+    return () => window.removeEventListener('deploy-run-command', handler as EventListener);
+  }, []);
 
   useEffect(() => {
     if (!deployResizing) return;
@@ -800,181 +799,20 @@ export function DeployView({
               }}
               className="flex flex-col min-h-0 overflow-hidden"
             >
-              {/* Deploy tab: Context + Chat */}
+              {/* Deploy tab: Chat */}
               <div
-                className="flex flex-col min-h-0 overflow-auto p-4 space-y-4"
+                className="flex flex-col h-full min-h-0 overflow-hidden"
                 style={{ display: deploySubTab === 'deploy' ? 'flex' : 'none' }}
               >
-                <div className="rounded-xl border border-border/20 bg-bg-secondary/35 shrink-0 overflow-hidden shadow-sm backdrop-blur-sm">
-                  <button
-                    type="button"
-                    onClick={() => setContextAccordionOpen((o) => !o)}
-                    className="w-full flex items-center justify-between gap-2.5 px-4 py-3 text-left hover:bg-bg-secondary/60 transition-colors cursor-pointer select-none"
-                  >
-                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">
-                      Environmental context parameters
-                    </span>
-                    <ChevronDown
-                      size={14}
-                      className={`text-text-secondary shrink-0 transition-transform duration-200 ${contextAccordionOpen ? 'rotate-0' : '-rotate-90'}`}
-                    />
-                  </button>
-                  <div className={`accordion-wrapper ${contextAccordionOpen ? 'open' : ''}`}>
-                    <div className="overflow-hidden">
-                      <div className="border-t border-border/20 p-4 space-y-3 select-text">
-                        <p className="text-xs text-text-primary break-words font-mono leading-relaxed bg-bg-primary/30 p-2.5 rounded-xl border border-border/10">{serverContextSummary}</p>
-                        <div className="flex flex-col gap-1.5 w-full select-none">
-                          <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Repository binding</label>
-                          <Select
-                            value={selectedDeployProjectPath}
-                            onChange={onSelectDeployProjectForContext}
-                            disabled={loadingDeployContext || !projectRepos.length}
-                            options={[
-                              { value: '', label: 'Link active repository tree…' },
-                              ...projectRepos.map((path) => ({ value: path, label: path })),
-                            ]}
-                          />
-                          <div className="flex items-center gap-2 mt-1">
-                            {loadingDeployContext && (
-                              <div className="flex items-center gap-1.5 text-xs text-text-secondary">
-                                <Loader2 size={13} className="animate-spin text-accent" />
-                                <span>Generating workspace tree context…</span>
-                              </div>
-                            )}
-                            {!projectRepos.length && (
-                              <span className="text-[10px] text-text-muted italic">Add projects via file tree context menus.</span>
-                            )}
+                {isAiEnabled && (
+                  <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
+                    <div className="p-4 border-b border-border/20 shrink-0 select-none">
+                      <div className="flex items-center gap-3">
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Chat</p>
+                            <span className="text-[10px] text-text-secondary truncate" title={activeProjectPath}>{activeProjectPath}</span>
                           </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDeployContextCollapsed((c) => !c)}
-                          className="flex items-center gap-2 text-xs font-semibold text-text-secondary hover:text-text-primary cursor-pointer select-none"
-                        >
-                          <FolderTree size={14} />
-                          {deployContextCollapsed ? 'View context parameters' : 'Collapse context parameters'}
-                          {deployContextText.trim() ? ` (${deployContextText.split('\n').filter(Boolean).length} lines)` : ''}
-                        </button>
-                        {!deployContextCollapsed && (
-                          <textarea
-                            value={deployContextText}
-                            onChange={(e) => {
-                              setDeployContextText(e.target.value);
-                              setAiError(null);
-                            }}
-                            placeholder="Select repository file structures above to inject code level-3 directories + configurations, or manually insert telemetry instructions."
-                            rows={4}
-                            className="w-full px-3 py-2 rounded-xl bg-bg-primary/50 border border-border/30 text-xs font-mono text-text-primary placeholder-text-muted resize-y"
-                          />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {(isShortcutsEnabled || isAiEnabled) && (
-                  <div className="rounded-xl border border-border/20 bg-bg-secondary/35 flex flex-col min-h-0 flex-1 shadow-sm backdrop-blur-sm overflow-hidden">
-                    {isShortcutsEnabled && (
-                      <div className="p-4 border-b border-border/20 space-y-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider select-none">
-                            Configured serial pipelines (.serop)
-                          </p>
-                        </div>
-                        <div className="flex flex-col gap-2 w-full select-none">
-                          <Select
-                            value={selectedShortcutsProjectPath}
-                            onChange={setSelectedShortcutsProjectPath}
-                            disabled={shortcutsLoading}
-                            options={[
-                              { value: '', label: `CWD: ${shortcutsProjectPath || 'not set'}` },
-                              ...projectRepos.map((path) => ({ value: path, label: path })),
-                            ]}
-                          />
-                          <Select
-                            value={selectedShortcutFile}
-                            onChange={(file) => {
-                              setSelectedShortcutFile(file);
-                              if (shortcutsProjectPath && file) void loadSeropFile(shortcutsProjectPath, file);
-                            }}
-                            disabled={shortcutsLoading || !shortcutFiles.length}
-                            options={[
-                              { value: '', label: 'Select recipe file…' },
-                              ...shortcutFiles.map((name) => ({ value: name, label: name })),
-                            ]}
-                          />
-                        </div>
-                        <div className="max-h-48 overflow-auto space-y-2 pr-1 select-text">
-                          {shortcutsLoading && (
-                            <p className="text-xs text-text-muted flex items-center gap-1.5 select-none">
-                              <Loader2 size={12} className="animate-spin text-accent" />
-                              Parsing build shortcuts…
-                            </p>
-                          )}
-                          {!shortcutsLoading && seropShortcuts.map((shortcut) => (
-                            <div
-                              key={shortcut.id}
-                              className="rounded-xl border border-border/20 bg-bg-primary/40 p-3 flex flex-col gap-2"
-                            >
-                              <div className="flex items-center gap-2 select-none">
-                                <span className="text-xs font-bold text-text-primary flex-1">
-                                  {shortcut.name}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => executeInLeftTerminal(shortcut.command)}
-                                  className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-accent/15 text-accent hover:bg-accent/25 transition-colors cursor-pointer"
-                                >
-                                  <Play size={10} />
-                                  Run
-                                </button>
-                              </div>
-                              <p className="text-[10px] text-text-secondary font-mono break-words bg-bg-primary/20 p-2 rounded border border-border/10">
-                                {shortcut.command}
-                              </p>
-                            </div>
-                          ))}
-                          {shortcutsError && <p className="text-xs text-error font-mono">{shortcutsError}</p>}
-                          {shortcutsWarning && !shortcutsError && (
-                            <p className="text-xs text-text-muted select-none">{shortcutsWarning}</p>
-                          )}
-                          {!shortcutsLoading && !seropShortcuts.length && !shortcutsWarning && !shortcutsError && (
-                            <p className="text-xs text-text-muted select-none">
-                              Create .serop target lists under project/.server-operator/.
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap select-none pt-1">
-                          <button
-                            type="button"
-                            onClick={handleCopyShortcutBootstrapPrompt}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border/30 bg-bg-primary/40 text-text-primary text-xs font-semibold hover:bg-bg-tertiary/60 transition-all cursor-pointer"
-                          >
-                            <Copy size={12} />
-                            Copy AI recipe prompt
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleCreateStarterShortcuts}
-                            disabled={shortcutBootstrapBusy || !shortcutsProjectPath}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs bg-accent/20 text-accent font-semibold hover:bg-accent/30 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                          >
-                            {shortcutBootstrapBusy ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
-                            Write starter shortcuts
-                          </button>
-                        </div>
-                        {shortcutBootstrapMessage && (
-                          <p className="text-xs text-text-secondary font-sans leading-relaxed">{shortcutBootstrapMessage}</p>
-                        )}
-                        {shortcutBootstrapError && (
-                          <p className="text-xs text-error font-mono">{shortcutBootstrapError}</p>
-                        )}
-                      </div>
-                    )}
-
-                    {isAiEnabled && (
-                      <>
-                        <div className="p-4 border-b border-border/20 shrink-0 select-none">
                           <div className="flex items-center gap-3">
                             <Key size={14} className="text-text-secondary shrink-0" />
                             <div className="relative flex-1 flex items-center min-w-0">
@@ -1003,80 +841,94 @@ export function DeployView({
                             </button>
                           </div>
                         </div>
-                        <div className="flex-1 min-h-[160px] flex flex-col overflow-hidden bg-bg-primary/10">
-                          <div className="flex-1 overflow-auto px-4 py-4 space-y-4 select-text">
-                            {deployChatMessages.length === 0 && (
-                              <div className="flex flex-col items-center justify-center py-8 text-center select-none">
-                                <Sparkles size={24} className="text-accent/60 mb-2.5 animate-pulse" />
-                                <p className="text-xs text-text-muted max-w-xs">
-                                  Request a command structure. Serop will compile prompt tokens into executable terminal lines.
-                                </p>
-                              </div>
-                            )}
-                            {deployChatMessages.map((m, i) => (
-                              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                <div
-                                  className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${
-                                    m.role === 'user'
-                                      ? 'bg-accent text-white rounded-br-md shadow-sm'
-                                      : 'bg-bg-secondary border border-border/20 text-text-primary font-mono rounded-bl-md shadow-xs'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2.5">
-                                    <span className="flex-1">{m.content}</span>
-                                    {m.role === 'assistant' && m.content.trim() && (
-                                      <button
-                                        type="button"
-                                        onClick={() => executeInLeftTerminal(m.content)}
-                                        className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-accent/20 text-accent hover:bg-accent/30 transition-colors cursor-pointer select-none"
-                                      >
-                                        <Play size={10} />
-                                        Execute
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                            {aiSuggesting && (
-                              <div className="flex justify-start select-none">
-                                <div className="max-w-[85%] rounded-2xl rounded-bl-md px-3.5 py-2.5 text-xs bg-bg-secondary border border-border/20 text-text-muted flex items-center gap-2 shadow-xs">
-                                  <Loader2 size={13} className="animate-spin text-accent" />
-                                  Prompting Groq model…
-                                </div>
-                              </div>
-                            )}
+                      </div>
+                    </div>
+                    <div className="flex-1 min-h-[160px] flex flex-col overflow-hidden bg-bg-primary/10">
+                      <div className="flex-1 overflow-auto px-4 py-4 space-y-4 select-text">
+                        {deployChatMessages.length === 0 && (
+                          <div className="flex flex-col items-center justify-center py-8 text-center select-none">
+                            <Sparkles size={24} className="text-accent/60 mb-2.5 animate-pulse" />
+                            <p className="text-xs text-text-muted max-w-xs">
+                              Request a command structure. Serop will compile prompt tokens into executable terminal lines.
+                            </p>
                           </div>
-                          <div className="shrink-0 p-3 pt-0">
-                            <div className="rounded-xl border border-border/20 bg-bg-primary/50 focus-within:ring-1 focus-within:ring-accent overflow-hidden select-none">
-                              <input
-                                type="text"
-                                value={aiRequest}
-                                onChange={(e) => {
-                                    setAiRequest(e.target.value);
-                                    setAiError(null);
-                                  }}
-                                onKeyDown={(e) => e.key === 'Enter' && sendDeployMessage()}
-                                placeholder="e.g. rebuild compose api service, show nginx active status"
-                                className="w-full px-4 py-2.5 bg-transparent border-0 text-xs text-text-primary placeholder-text-muted focus:outline-none select-text"
-                              />
-                              <div className="flex justify-end px-2.5 pb-2.5">
-                                <button
-                                  type="button"
-                                  onClick={sendDeployMessage}
-                                  disabled={aiSuggesting || !aiRequest.trim()}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-white text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shadow-sm"
-                                >
-                                  {aiSuggesting ? <Loader2 size={14} className="animate-spin" /> : <Send size={13} />}
-                                  Send
-                                </button>
-                              </div>
+                        )}
+                        {deployChatMessages.map((m, i) => (
+                          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            <div
+                              className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${
+                                m.role === 'user'
+                                  ? 'bg-accent text-white rounded-br-md shadow-sm'
+                                  : 'bg-gradient-to-b from-bg-secondary to-bg-secondary/85 border border-border/20 text-text-primary rounded-bl-md shadow-sm backdrop-blur-sm'
+                              }`}
+                            >
+                              {m.role === 'user' ? (
+                                <div>{m.content}</div>
+                              ) : (
+                                <div className="space-y-3">
+                                  <div className="rounded-xl bg-bg-primary/10 px-3 py-2.5 border border-border/10">
+                                    {renderAssistantAnswer(m.content)}
+                                  </div>
+                                  {m.command?.trim() && (
+                                    <div className="rounded-xl border border-accent/15 bg-bg-primary/30 p-2.5 space-y-2">
+                                      <div className="flex items-center justify-between gap-2 select-none">
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">Suggested Command</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => executeInLeftTerminal(m.command)}
+                                          className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-accent/20 text-accent hover:bg-accent/30 transition-colors cursor-pointer"
+                                        >
+                                          <Play size={10} />
+                                          Execute
+                                        </button>
+                                      </div>
+                                      <div className="rounded-lg border border-border/10 bg-bg-primary/35 px-2.5 py-2 text-[10px] font-mono text-text-secondary break-words whitespace-pre-wrap">
+                                        {m.command}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                            {aiError && <p className="mt-2 text-xs text-error font-mono">{aiError}</p>}
+                          </div>
+                        ))}
+                        {aiSuggesting && (
+                          <div className="flex justify-start select-none">
+                            <div className="max-w-[85%] rounded-2xl rounded-bl-md px-3.5 py-2.5 text-xs bg-bg-secondary border border-border/20 text-text-muted flex items-center gap-2 shadow-xs">
+                              <Loader2 size={13} className="animate-spin text-accent" />
+                              Prompting Groq model…
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="shrink-0 p-3 pt-0 mt-auto">
+                        <div className="rounded-xl border border-border/20 bg-bg-primary/50 focus-within:ring-1 focus-within:ring-accent overflow-hidden select-none">
+                          <input
+                            type="text"
+                            value={aiRequest}
+                            onChange={(e) => {
+                              setAiRequest(e.target.value);
+                              setAiError(null);
+                            }}
+                            onKeyDown={(e) => e.key === 'Enter' && sendDeployMessage()}
+                            placeholder="e.g. rebuild compose api service, show nginx active status"
+                            className="w-full px-4 py-2.5 bg-transparent border-0 text-xs text-text-primary placeholder-text-muted focus:outline-none select-text"
+                          />
+                          <div className="flex justify-end px-2.5 pb-2.5">
+                            <button
+                              type="button"
+                              onClick={sendDeployMessage}
+                              disabled={aiSuggesting || !aiRequest.trim()}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-white text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shadow-sm"
+                            >
+                              {aiSuggesting ? <Loader2 size={14} className="animate-spin" /> : <Send size={13} />}
+                              Send
+                            </button>
                           </div>
                         </div>
-                      </>
-                    )}
+                        {aiError && <p className="mt-2 text-xs text-error font-mono">{aiError}</p>}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

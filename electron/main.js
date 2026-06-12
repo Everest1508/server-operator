@@ -170,6 +170,23 @@ if (process.platform === 'linux') {
 const isDev = process.env.ELECTRON_DEV === '1';
 
 let mainWindow;
+let launchLocalFolder = null;
+
+function parseLaunchLocalFolder(argv) {
+  const args = Array.isArray(argv) ? argv.slice(1) : [];
+  for (const arg of args) {
+    if (!arg || String(arg).startsWith('-')) continue;
+    const candidate = path.resolve(String(arg));
+    try {
+      if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) {
+        return candidate;
+      }
+    } catch (_) {}
+  }
+  return null;
+}
+
+launchLocalFolder = parseLaunchLocalFolder(process.argv);
 
 // Use a Chrome-like user agent so Web Speech API (voice input) has a better chance to reach Google's service.
 // In many Electron setups speech still fails; then use the app in Chrome (e.g. http://localhost:5173) for voice.
@@ -259,6 +276,10 @@ function installApplicationMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+ipcMain.handle('app:get-launch-context', async () => ({
+  localFolder: launchLocalFolder,
+}));
+
 function createWindow() {
   const appIconPath = getAppIconPath();
   const isMac = process.platform === 'darwin';
@@ -335,9 +356,17 @@ function useProxy(connection, proxy) {
   return true;
 }
 
+function isLocalConnection(connection) {
+  return connection && connection.connectionType === 'local';
+}
+
 // ----- Dummy (local) server: use local dummy-root folder, no SSH -----
 function isDummy(connection) {
   return connection && (connection.id === 'dummy' || (connection.host && String(connection.host).trim() === 'dummy'));
+}
+
+function isLocalWorkspace(connection) {
+  return isDummy(connection) || isLocalConnection(connection);
 }
 
 function getDummyRoot() {
@@ -345,8 +374,15 @@ function getDummyRoot() {
   return path.join(base, 'dummy-root');
 }
 
+function getLocalWorkspaceRoot(connection) {
+  if (isLocalConnection(connection)) {
+    return path.resolve(String(connection.projectPath || connection.cwd || '.'));
+  }
+  return getDummyRoot();
+}
+
 function resolveDummyPath(connection, fileOrDirPath) {
-  const base = getDummyRoot();
+  const base = getLocalWorkspaceRoot(connection);
   let p = (fileOrDirPath || '.').trim().replace(/^\.\/?/, '') || '.';
   // Remove any leading prefix that equals dummy-root (full path or segment) so we never double the path
   const realBase = path.resolve(base);
@@ -392,6 +428,29 @@ services:
     log('dummy-root created', { root });
   }
 }
+
+function ensureLocalWorkspace(connection) {
+  if (isDummy(connection)) ensureDummyRoot();
+  const root = getLocalWorkspaceRoot(connection);
+  if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
+    throw new Error(`Local folder not found: ${root}`);
+  }
+  return root;
+}
+
+ipcMain.handle('server:pick-local-folder', async () => {
+  try {
+    const win = BrowserWindow.getFocusedWindow() || mainWindow;
+    const picked = await dialog.showOpenDialog(win, {
+      properties: ['openDirectory'],
+      title: 'Choose local workspace folder',
+    });
+    if (picked.canceled || !picked.filePaths?.[0]) return { ok: true, canceled: true };
+    return { ok: true, folderPath: picked.filePaths[0] };
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
+});
 
 function formatLsLine(name, stat) {
   const isDir = stat.isDirectory();
@@ -820,8 +879,26 @@ function sendShellOutput(shellId, data) {
 function registerShellHandlers() {
   ipcMain.handle('server:open-shell', async (_, { connection, proxy }) => {
     try {
-      if (isDummy(connection)) {
-        return { ok: false, error: 'Shell is not available for Dummy (local) server. Use your system terminal in the dummy-root folder to run commands.' };
+      if (isLocalWorkspace(connection)) {
+        const cwd = ensureLocalWorkspace(connection);
+        return await new Promise((resolve) => {
+          const shellBin = process.platform === 'win32' ? 'cmd.exe' : (process.env.SHELL || '/bin/bash');
+          const shellArgs = process.platform === 'win32' ? [] : ['-l'];
+          const proc = spawn(shellBin, shellArgs, { cwd, env: process.env });
+          const shellId = 'shell-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+          shells.set(shellId, { local: true, proc });
+          proc.stdout.on('data', (data) => sendShellOutput(shellId, data.toString()));
+          proc.stderr.on('data', (data) => sendShellOutput(shellId, data.toString()));
+          proc.on('close', () => {
+            shells.delete(shellId);
+            sendShellOutput(shellId, '\r\n[Shell closed]\r\n');
+          });
+          proc.on('error', (err) => {
+            shells.delete(shellId);
+            sendShellOutput(shellId, `\r\n[Shell error] ${err.message}\r\n`);
+          });
+          resolve({ ok: true, shellId });
+        });
       }
       const conn = await connectSSH(connection, proxy);
 
@@ -869,11 +946,21 @@ function registerShellHandlers() {
   });
   ipcMain.handle('server:shell-write', (_, { shellId, data }) => {
     const s = shells.get(shellId);
-    if (s && s.stream && !s.stream.writableEnded) s.stream.write(data);
+    if (!s) return;
+    if (s.local) {
+      if (s.proc && !s.proc.killed) s.proc.stdin.write(data);
+      return;
+    }
+    if (s.stream && !s.stream.writableEnded) s.stream.write(data);
   });
   ipcMain.handle('server:close-shell', (_, { shellId }) => {
     const s = shells.get(shellId);
     if (s) {
+      if (s.local) {
+        if (s.proc && !s.proc.killed) s.proc.kill();
+        shells.delete(shellId);
+        return;
+      }
       if (s.stream && !s.stream.writableEnded) s.stream.end();
       s.conn.end();
       shells.delete(shellId);
@@ -884,6 +971,14 @@ function registerShellHandlers() {
 
 ipcMain.handle('server:test-connection', async (_, { connection, proxy }) => {
   if (!connection) return { ok: false, error: 'No server config' };
+  if (isLocalConnection(connection)) {
+    try {
+      ensureLocalWorkspace(connection);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: errMsg(e) };
+    }
+  }
   if (isDummy(connection)) {
     ensureDummyRoot();
     return { ok: true };
@@ -929,20 +1024,13 @@ ipcMain.handle('server:test-connection', async (_, { connection, proxy }) => {
 
 ipcMain.handle('server:run-command', async (_, { host, username, privateKeyPath, command, cwd, connection, proxy }) => {
   try {
-    if (connection && isDummy(connection)) {
-      const root = getDummyRoot();
-      ensureDummyRoot();
+    if (connection && isLocalWorkspace(connection)) {
+      const root = ensureLocalWorkspace(connection);
       // Return '.' for pwd so the frontend never gets the full path and never sends it as a prefix
       const trimmedCmd = (command || '').trim();
-      if (trimmedCmd === 'pwd' || trimmedCmd === 'pwd;') {
-        return { ok: true, stdout: '.', stderr: '', code: 0 };
-      }
-      try {
-        const out = execSync(command, { cwd: root, encoding: 'utf8', timeout: 120000, maxBuffer: 10 * 1024 * 1024 });
-        return { ok: true, stdout: out || '', stderr: '', code: 0 };
-      } catch (e) {
-        return { ok: false, stdout: e.stdout || '', stderr: e.stderr || errMsg(e), code: e.status ?? 1 };
-      }
+      if (trimmedCmd === 'pwd' || trimmedCmd === 'pwd;') return { ok: true, stdout: root, stderr: '', code: 0 };
+      const workDir = cwd && String(cwd).trim() && String(cwd).trim() !== '.' ? resolveDummyPath(connection, cwd) : root;
+      return execLocalCommand(command, workDir);
     }
     if (connection) {
       const conn = await getOrCreateConnection(connection, proxy ?? null);
@@ -966,6 +1054,14 @@ ipcMain.handle('server:run-command', async (_, { host, username, privateKeyPath,
 
 ipcMain.handle('server:get-docker-ps', async (_, { connection, proxy }) => {
   try {
+    if (isLocalWorkspace(connection)) {
+      const cwd = ensureLocalWorkspace(connection);
+      const result = execLocalCommand('docker ps -a --format "{{json .}}"', cwd);
+      if (!result.ok) return { ok: false, error: result.stderr || result.stdout || 'Failed to fetch containers' };
+      const lines = result.stdout.trim().split('\n').filter(Boolean);
+      const containers = lines.map((line) => { try { return JSON.parse(line); } catch { return null; } }).filter(Boolean);
+      return { ok: true, containers };
+    }
     const conn = await getOrCreateConnection(connection, proxy);
     const result = await execDockerAwareCommand(conn, 'docker ps -a --format "{{json .}}"', connection.cwd, connection, proxy);
     if (result.code !== 0) {
@@ -1091,6 +1187,16 @@ function dockerDatabasePreset(container) {
 
 ipcMain.handle('server:get-docker-databases', async (_, { connection, proxy }) => {
   try {
+    if (isLocalWorkspace(connection)) {
+      const cwd = ensureLocalWorkspace(connection);
+      const result = execLocalCommand('ids=$(docker ps -a -q); if [ -z "$ids" ]; then echo "[]"; else docker inspect $ids; fi', cwd);
+      if (!result.ok) {
+        return { ok: false, error: result.stderr || result.stdout || 'Failed to inspect Docker containers', databases: [] };
+      }
+      const containers = JSON.parse(result.stdout || '[]');
+      const databases = (Array.isArray(containers) ? containers : []).map(dockerDatabasePreset).filter(Boolean);
+      return { ok: true, databases };
+    }
     const conn = await getOrCreateConnection(connection, proxy);
     const cwd = connection.cwd || connection.projectPath;
     const cmd = 'ids=$(docker ps -a -q); if [ -z "$ids" ]; then echo "[]"; else docker inspect $ids; fi';
@@ -1117,14 +1223,16 @@ function isComposeFilePath(p) {
 
 ipcMain.handle('server:get-docker-compose-services', async (_, { connection, composePath, proxy }) => {
   try {
-    if (isDummy(connection)) {
-      ensureDummyRoot();
-      const cwd = getDummyRoot();
-      const resolved = composePath ? resolveDummyPath(connection, composePath) : path.join(cwd, 'docker-compose.yml');
-      const pathEsc = resolved.replace(/'/g, "'\\''");
-      const cmd = `docker compose -f '${pathEsc}' config --services`;
+    if (isLocalWorkspace(connection)) {
+      const cwd = ensureLocalWorkspace(connection);
+      const pathEsc = (composePath || '').replace(/'/g, "'\\''");
+      const cmd = pathEsc
+        ? isComposeFilePath(composePath)
+          ? `docker compose -f '${pathEsc}' config --services`
+          : `docker compose --project-directory '${pathEsc}' config --services`
+        : 'docker compose config --services';
       try {
-        const out = execSync(cmd, { cwd, encoding: 'utf8' });
+        const out = execSync(cmd, { cwd, encoding: 'utf8', shell: true });
         const services = (out || '').trim().split(/\n/).map((s) => s.trim()).filter(Boolean);
         return { ok: true, services };
       } catch {
@@ -1156,6 +1264,27 @@ ipcMain.handle('server:get-docker-compose-services', async (_, { connection, com
 
 ipcMain.handle('server:get-docker-compose-logs', async (_, { connection, service, tail, proxy, composePath }) => {
   try {
+    if (isLocalWorkspace(connection)) {
+      const cwd = ensureLocalWorkspace(connection);
+      const pathEsc = (composePath || '').replace(/'/g, "'\\''");
+      const composeFlag = pathEsc
+        ? isComposeFilePath(composePath)
+          ? `-f '${pathEsc}' `
+          : `--project-directory '${pathEsc}' `
+        : '';
+      const cmd = service
+        ? `docker compose ${composeFlag}logs --tail=${tail || 500} ${service}`
+        : `docker compose ${composeFlag}logs --tail=${tail || 500}`;
+      const result = execLocalCommand(cmd, cwd);
+      const out = `${result.stdout || ''}${result.stderr || ''}`.trim();
+      if (!result.ok) {
+        const friendly = /no configuration file|not found/i.test(out)
+          ? (composePath ? `No compose file at "${composePath}".` : 'No docker-compose.yml (or docker-compose.yaml) found in the current local workspace.')
+          : out || 'Docker Compose command failed';
+        return { ok: false, error: friendly };
+      }
+      return { ok: true, logs: result.stdout + result.stderr };
+    }
     const conn = await getOrCreateConnection(connection, proxy);
     const cwd = connection.cwd || connection.projectPath;
     const pathEsc = (composePath || '').replace(/'/g, "'\\''");
@@ -1191,8 +1320,27 @@ function sendComposeLogsData(streamId, data) {
 
 ipcMain.handle('server:start-compose-logs-stream', async (event, { streamId, connection, composePath, service, tail, proxy }) => {
   try {
-    if (isDummy(connection)) {
-      return { ok: false, error: 'Streaming logs not available for Dummy (local) server. Use Deploy to run docker compose logs.' };
+    if (isLocalWorkspace(connection)) {
+      const cwd = ensureLocalWorkspace(connection);
+      const pathEsc = (composePath || '').replace(/'/g, "'\\''");
+      const composeFlag = pathEsc
+        ? isComposeFilePath(composePath)
+          ? `-f '${pathEsc}' `
+          : `--project-directory '${pathEsc}' `
+        : '';
+      const servicePart = service ? ` ${service}` : '';
+      const fullCmd = `docker compose ${composeFlag}logs -f --tail=${tail || 500}${servicePart}`;
+      const shellBin = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh';
+      const args = process.platform === 'win32' ? ['/d', '/s', '/c', fullCmd] : ['-c', fullCmd];
+      const proc = spawn(shellBin, args, { cwd, shell: true });
+      logStreams.set(streamId, { proc, local: true });
+      proc.stdout.on('data', (data) => sendComposeLogsData(streamId, data.toString().replace(/\r?\n/g, '\r\n')));
+      proc.stderr.on('data', (data) => sendComposeLogsData(streamId, data.toString().replace(/\r?\n/g, '\r\n')));
+      proc.on('close', () => {
+        logStreams.delete(streamId);
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('compose-logs-stream-ended', { streamId });
+      });
+      return { ok: true };
     }
     const cwd = connection.cwd || connection.projectPath;
     const pathEsc = (composePath || '').replace(/'/g, "'\\''");
@@ -1240,19 +1388,34 @@ ipcMain.handle('server:start-compose-logs-stream', async (event, { streamId, con
 ipcMain.handle('server:stop-compose-logs-stream', async (_, { streamId }) => {
   const s = logStreams.get(streamId);
   if (s) {
+    if (s.local) {
+      if (s.proc && !s.proc.killed) s.proc.kill();
+      logStreams.delete(streamId);
+      return;
+    }
     if (s.stream && !s.stream.writableEnded) s.stream.destroy();
     s.conn.end();
     logStreams.delete(streamId);
   }
 });
 
-ipcMain.handle('server:read-file', async (_, { connection, filePath, proxy, useSudo }) => {
+ipcMain.handle('server:read-file', async (_, { connection, filePath, proxy, useSudo, sudoPassword }) => {
   try {
+    if (isLocalWorkspace(connection)) {
+      const resolved = resolveDummyPath(connection, filePath);
+      return { ok: true, content: fs.readFileSync(resolved, 'utf8'), error: undefined };
+    }
     const conn = await getOrCreateConnection(connection, proxy);
     const pathEsc = filePath.replace(/"/g, '\\"');
     const cwd = connection.cwd || connection.projectPath;
     log('read-file', { filePath, cwd });
-    const result = await execCommand(conn, useSudo ? `sudo -n cat "${pathEsc}"` : `cat "${pathEsc}"`, cwd);
+    let sudoCmd;
+    if (useSudo) {
+      sudoCmd = sudoPassword
+        ? `echo ${JSON.stringify(sudoPassword)} | sudo -S cat "${pathEsc}"`
+        : `sudo -n cat "${pathEsc}"`;
+    }
+    const result = await execCommand(conn, useSudo ? sudoCmd : `cat "${pathEsc}"`, cwd);
     if (result.code !== 0) {
       const out = `${result.stderr || ''}\n${result.stdout || ''}`;
       if (useSudo && sudoNeedsPassword(out)) {
@@ -1277,10 +1440,10 @@ function sudoFilePermissionMessage(action) {
   return `Need elevated permissions to ${action} this file. Run one of these on the server: add this SSH user to a group with access, or allow passwordless sudo for this user.`;
 }
 
-ipcMain.handle('server:write-file', async (_, { connection, filePath, content, proxy, useSudo }) => {
+ipcMain.handle('server:write-file', async (_, { connection, filePath, content, proxy, useSudo, sudoPassword }) => {
   try {
-    if (isDummy(connection)) {
-      ensureDummyRoot();
+    if (isLocalWorkspace(connection)) {
+      ensureLocalWorkspace(connection);
       const resolved = resolveDummyPath(connection, filePath);
       fs.mkdirSync(path.dirname(resolved), { recursive: true });
       fs.writeFileSync(resolved, content, 'utf8');
@@ -1288,15 +1451,16 @@ ipcMain.handle('server:write-file', async (_, { connection, filePath, content, p
     }
     const pathEsc = escapeSingleQuotes(filePath);
     const conn = await getOrCreateConnection(connection, proxy);
+    const sudoPrefix = sudoPassword ? `echo ${JSON.stringify(sudoPassword)} | sudo -S` : 'sudo -n';
     let result;
     if (content === '') {
-      result = await execCommand(conn, useSudo ? `sudo -n touch '${pathEsc}'` : `touch '${pathEsc}'`, connection.cwd);
+      result = await execCommand(conn, useSudo ? `${sudoPrefix} touch '${pathEsc}'` : `touch '${pathEsc}'`, connection.cwd);
     } else {
       const b64 = Buffer.from(content, 'utf8').toString('base64');
       const delim = 'EOS' + Math.random().toString(36).slice(2);
       await execCommand(conn, `cat > /tmp/so-write.b64 << '${delim}'\n${b64}\n${delim}`, connection.cwd);
       if (useSudo) {
-        result = await execCommand(conn, `base64 -d /tmp/so-write.b64 | sudo -n tee '${pathEsc}' > /dev/null && rm -f /tmp/so-write.b64`, connection.cwd);
+        result = await execCommand(conn, `base64 -d /tmp/so-write.b64 | ${sudoPrefix} tee '${pathEsc}' > /dev/null && rm -f /tmp/so-write.b64`, connection.cwd);
       } else {
         result = await execCommand(conn, `base64 -d /tmp/so-write.b64 > '${pathEsc}' && rm -f /tmp/so-write.b64`, connection.cwd);
       }
@@ -1314,7 +1478,7 @@ ipcMain.handle('server:write-file', async (_, { connection, filePath, content, p
 
 ipcMain.handle('server:list-dir', async (_, { connection, dirPath, proxy }) => {
   try {
-    if (isDummy(connection)) {
+    if (isLocalWorkspace(connection)) {
       return listDirDummy(connection, dirPath);
     }
     const conn = await getOrCreateConnection(connection, proxy);
@@ -1327,8 +1491,8 @@ ipcMain.handle('server:list-dir', async (_, { connection, dirPath, proxy }) => {
 
 ipcMain.handle('server:mkdir', async (_, { connection, dirPath, proxy }) => {
   try {
-    if (isDummy(connection)) {
-      ensureDummyRoot();
+    if (isLocalWorkspace(connection)) {
+      ensureLocalWorkspace(connection);
       const resolved = resolveDummyPath(connection, dirPath);
       fs.mkdirSync(resolved, { recursive: true });
       return { ok: true };
@@ -1344,8 +1508,8 @@ ipcMain.handle('server:mkdir', async (_, { connection, dirPath, proxy }) => {
 
 ipcMain.handle('server:deletePath', async (_, { connection, filePath, proxy }) => {
   try {
-    if (isDummy(connection)) {
-      ensureDummyRoot();
+    if (isLocalWorkspace(connection)) {
+      ensureLocalWorkspace(connection);
       const resolved = resolveDummyPath(connection, filePath);
       if (fs.existsSync(resolved)) fs.rmSync(resolved, { recursive: true });
       return { ok: true };
@@ -1445,8 +1609,8 @@ ipcMain.handle('server:upload-local-file', async (_, { connection, proxy, remote
     if (!remoteFile) {
       return { ok: false, error: 'Invalid destination path' };
     }
-    if (isDummy(connection)) {
-      ensureDummyRoot();
+    if (isLocalWorkspace(connection)) {
+      ensureLocalWorkspace(connection);
       const resolved = resolveDummyPath(connection, remoteFile);
       fs.mkdirSync(path.dirname(resolved), { recursive: true });
       fs.copyFileSync(localPath, resolved);
@@ -1495,8 +1659,8 @@ ipcMain.handle('server:download-remote-file', async (_, { connection, proxy, rem
       return { ok: true, canceled: true };
     }
     const localOut = save.filePath;
-    if (isDummy(connection)) {
-      ensureDummyRoot();
+    if (isLocalWorkspace(connection)) {
+      ensureLocalWorkspace(connection);
       const resolved = resolveDummyPath(connection, remoteFilePath);
       if (!fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
         return { ok: false, error: 'Remote file not found' };
@@ -1602,20 +1766,23 @@ function execLocalCommandStream(command, cwd, onData) {
   });
 }
 
+function execLocalCommand(command, cwd) {
+  try {
+    const out = execSync(command, { cwd, encoding: 'utf8', timeout: 300000, maxBuffer: 10 * 1024 * 1024, shell: true });
+    return { ok: true, stdout: out || '', stderr: '', code: 0 };
+  } catch (e) {
+    return { ok: false, stdout: e.stdout || '', stderr: e.stderr || errMsg(e), code: e.status ?? 1 };
+  }
+}
+
 log('ipc handlers registered', { deletePath: true, uploadLocalFile: true, downloadRemoteFile: true });
 
 ipcMain.handle('server:deploy', async (_, { connection, deployCommand, proxy, cwd }) => {
   try {
-    if (isDummy(connection)) {
-      ensureDummyRoot();
-      const root = getDummyRoot();
-      const workDir = cwd && cwd.trim() && cwd !== '.' ? path.join(root, cwd.replace(/^dummy-root\/?/, '')) : root;
-      try {
-        const out = execSync(deployCommand, { cwd: workDir, encoding: 'utf8', timeout: 300000, maxBuffer: 10 * 1024 * 1024 });
-        return { ok: true, stdout: out || '', stderr: '', code: 0 };
-      } catch (e) {
-        return { ok: false, stdout: e.stdout || '', stderr: e.stderr || errMsg(e), code: e.status ?? 1 };
-      }
+    if (isLocalWorkspace(connection)) {
+      const root = ensureLocalWorkspace(connection);
+      const workDir = cwd && cwd.trim() && cwd !== '.' ? resolveDummyPath(connection, cwd) : root;
+      return execLocalCommand(deployCommand, workDir);
     }
     const conn = await getOrCreateConnection(connection, proxy);
     const workDir = cwd && cwd.trim() ? cwd : (connection.cwd || connection.projectPath);
@@ -1669,10 +1836,9 @@ ipcMain.handle('server:run-deploy-pipeline', async (_, { connection, shellId, pr
     let result;
     let workDir = projectDir;
     
-    if (isDummy(connection)) {
-      ensureDummyRoot();
-      const root = getDummyRoot();
-      workDir = projectDir && projectDir.trim() && projectDir !== '.' ? path.join(root, projectDir.replace(/^dummy-root\/?/, '')) : root;
+    if (isLocalWorkspace(connection)) {
+      const root = ensureLocalWorkspace(connection);
+      workDir = projectDir && projectDir.trim() && projectDir !== '.' ? resolveDummyPath(connection, projectDir) : root;
       result = await execLocalCommandStream(fullCommand, workDir, onData);
     } else {
       const conn = await getOrCreateConnection(connection, proxy);
@@ -1685,7 +1851,7 @@ ipcMain.handle('server:run-deploy-pipeline', async (_, { connection, shellId, pr
     if (result.code === 0) {
       try {
         let gitRes;
-        if (isDummy(connection)) {
+        if (isLocalWorkspace(connection)) {
           gitRes = await execLocalCommandStream('git rev-parse HEAD', workDir, () => {});
         } else {
           const conn = await getOrCreateConnection(connection, proxy);
@@ -1746,10 +1912,9 @@ ipcMain.handle('server:rollback-deploy', async (_, { connection, shellId, projec
     let result;
     let workDir = projectDir;
     
-    if (isDummy(connection)) {
-      ensureDummyRoot();
-      const root = getDummyRoot();
-      workDir = projectDir && projectDir.trim() && projectDir !== '.' ? path.join(root, projectDir.replace(/^dummy-root\/?/, '')) : root;
+    if (isLocalWorkspace(connection)) {
+      const root = ensureLocalWorkspace(connection);
+      workDir = projectDir && projectDir.trim() && projectDir !== '.' ? resolveDummyPath(connection, projectDir) : root;
       result = await execLocalCommandStream(fullCommand, workDir, onData);
     } else {
       const conn = await getOrCreateConnection(connection, proxy);
@@ -2031,6 +2196,77 @@ ipcMain.handle('database:connect', async (_, { connection, proxy, dbType, config
   await closeDbConnection(serverId);
 
   try {
+    if (isLocalWorkspace(connection)) {
+      if (dbType === 'sqlite') {
+        const filePath = config.filePath;
+        if (!filePath) return { ok: false, error: 'SQLite file path is required' };
+        const sqlite3 = require('sqlite3').verbose();
+        const sqliteDb = await new Promise((resolve, reject) => {
+          const db = new sqlite3.Database(filePath, (err) => err ? reject(err) : resolve(db));
+        });
+        activeDbConnections.set(serverId, {
+          dbType: 'sqlite',
+          filePath,
+          sqliteDb,
+          connection,
+          proxy,
+        });
+        return { ok: true, localPort: 0 };
+      }
+
+      let dbClient = null;
+      if (dbType === 'mysql') {
+        const mysql = require('mysql2/promise');
+        dbClient = await mysql.createConnection({
+          host: config.host || '127.0.0.1',
+          port: Number(config.port) || 3306,
+          user: config.username,
+          password: config.password,
+          database: config.database,
+          connectTimeout: 10000,
+        });
+        await dbClient.query('SELECT 1');
+      } else if (dbType === 'postgres') {
+        const { Client: PgClient } = require('pg');
+        dbClient = new PgClient({
+          host: config.host || '127.0.0.1',
+          port: Number(config.port) || 5432,
+          user: config.username,
+          password: config.password,
+          database: config.database,
+          connectionTimeoutMillis: 10000,
+        });
+        await dbClient.connect();
+        await dbClient.query('SELECT 1');
+      } else if (dbType === 'redis') {
+        const Redis = require('ioredis');
+        dbClient = new Redis({
+          host: config.host || '127.0.0.1',
+          port: Number(config.port) || 6379,
+          password: config.password || undefined,
+          db: Number(config.database) || 0,
+          connectTimeout: 10000,
+          lazyConnect: true,
+        });
+        await dbClient.connect();
+        await dbClient.ping();
+      }
+
+      activeDbConnections.set(serverId, {
+        dbClient,
+        dbType,
+        localPort: Number(config.port) || 0,
+        databaseName: config.database || (dbType === 'redis' ? '0' : 'database'),
+        username: config.username,
+        password: config.password,
+        remoteHost: config.host || '127.0.0.1',
+        remotePort: Number(config.port) || 0,
+        connection,
+        proxy,
+      });
+      return { ok: true, localPort: Number(config.port) || 0 };
+    }
+
     const sshConn = await getOrCreateConnection(connection, proxy);
 
     if (dbType === 'sqlite') {

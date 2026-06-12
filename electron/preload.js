@@ -22,6 +22,7 @@ ipcRenderer.on('import-progress', (_event, payload) => {
 
 contextBridge.exposeInMainWorld('serverOperator', {
   testConnection: (opts) => ipcRenderer.invoke('server:test-connection', opts),
+  pickLocalFolder: () => ipcRenderer.invoke('server:pick-local-folder'),
   runCommand: (opts) => ipcRenderer.invoke('server:run-command', opts),
   getDockerPs: (opts) => ipcRenderer.invoke('server:get-docker-ps', opts),
   getDockerDatabases: (opts) => ipcRenderer.invoke('server:get-docker-databases', opts),
@@ -41,6 +42,7 @@ contextBridge.exposeInMainWorld('serverOperator', {
   closeShell: (opts) => ipcRenderer.invoke('server:close-shell', opts),
   shellWrite: (opts) => ipcRenderer.invoke('server:shell-write', opts),
   openDevTools: () => ipcRenderer.invoke('app:open-devtools'),
+  getLaunchContext: () => ipcRenderer.invoke('app:get-launch-context'),
   getLogFilePath: () => ipcRenderer.invoke('app:get-log-file-path'),
   readLogFile: () => ipcRenderer.invoke('app:read-log-file'),
   clearLogFile: () => ipcRenderer.invoke('app:clear-log-file'),

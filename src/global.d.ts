@@ -1,7 +1,9 @@
 import type { ServerConnection, ProxySettings } from './types';
 
 export interface ServerOperatorAPI {
-  testConnection: (opts: { connection: ServerConnection; proxy?: ProxySettings }) => Promise<{ ok: boolean; error?: string }>;
+  testConnection: (opts: { connection: ServerConnection; proxy?: ProxySettings }) => Promise<{ ok: boolean; error?: string }>; 
+  pickLocalFolder?: () => Promise<{ ok: boolean; canceled?: boolean; folderPath?: string; error?: string }>;
+  getLaunchContext?: () => Promise<{ localFolder?: string | null }>;
   runCommand: (opts: {
     host?: string;
     username?: string;
@@ -51,7 +53,7 @@ export interface ServerOperatorAPI {
     proxy?: ProxySettings;
   }) => Promise<{ ok: boolean; error?: string }>;
   stopComposeLogsStream: (opts: { streamId: string }) => Promise<void>;
-  readFile: (opts: { connection: ServerConnection; filePath: string; proxy?: ProxySettings; useSudo?: boolean }) => Promise<{
+  readFile: (opts: { connection: ServerConnection; filePath: string; proxy?: ProxySettings; useSudo?: boolean; sudoPassword?: string }) => Promise<{
     ok: boolean;
     content?: string;
     error?: string;

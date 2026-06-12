@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { 
+import {
   Database, 
   Play, 
   Search, 
@@ -15,6 +15,11 @@ import {
   Cloud,
   Upload,
   ChevronDown,
+  Pencil,
+  Trash2,
+  Plus,
+  Check,
+  X,
 } from 'lucide-react';
 import EyeIcon from './icons/EyeIcon';
 import EyeOffIcon from './icons/EyeOffIcon';
@@ -23,6 +28,13 @@ import Editor, { useMonaco } from '@monaco-editor/react';
 
 type DbType = 'mysql' | 'postgres' | 'redis' | 'sqlite';
 type ExportMode = 'schema' | 'data' | 'full';
+
+interface TableColumnMeta {
+  name: string;
+  type: string;
+  nullable: boolean;
+  isPrimary: boolean;
+}
 
 interface DockerDatabaseTarget {
   id: string;
@@ -96,6 +108,16 @@ export function DatabaseView({ currentServer, proxy, connectedSqlitePath, onSqli
   const [executionTime, setExecutionTime] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [lastExecutedQuery, setLastExecutedQuery] = useState('');
+  const [activeTableName, setActiveTableName] = useState<string | null>(null);
+  const [tableColumns, setTableColumns] = useState<TableColumnMeta[]>([]);
+  const [tableEditorLoading, setTableEditorLoading] = useState(false);
+  const [tableEditorError, setTableEditorError] = useState<string | null>(null);
+  const [editingRowKey, setEditingRowKey] = useState<string | null>(null);
+  const [editingRowValues, setEditingRowValues] = useState<Record<string, string>>({});
+  const [addingRow, setAddingRow] = useState(false);
+  const [newRowValues, setNewRowValues] = useState<Record<string, string>>({});
+  const [rowMutationLoading, setRowMutationLoading] = useState(false);
 
   // Auto-connect when a sqlite file was opened from the file explorer
   useEffect(() => {
@@ -215,6 +237,164 @@ export function DatabaseView({ currentServer, proxy, connectedSqlitePath, onSqli
     return () => window.removeEventListener('import-progress', handler);
   }, []);
 
+  const quoteIdentifier = (name: string) => {
+    if (dbType === 'mysql') return `\`${String(name).replace(/`/g, '``')}\``;
+    return `"${String(name).replace(/"/g, '""')}"`;
+  };
+
+  const buildTableBrowseQuery = (tableName: string) => `SELECT * FROM ${quoteIdentifier(tableName)} LIMIT 100;`;
+
+  const parseCellInputValue = (value: string) => {
+    const trimmed = value.trim();
+    if (trimmed === 'NULL') return null;
+    return value;
+  };
+
+  const sqlValueLiteral = (value: unknown) => {
+    if (value === null || value === undefined) return 'NULL';
+    if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'NULL';
+    if (typeof value === 'bigint') return String(value);
+    if (typeof value === 'boolean') return dbType === 'postgres' ? (value ? 'TRUE' : 'FALSE') : (value ? '1' : '0');
+    const str = typeof value === 'object' ? JSON.stringify(value) : String(value);
+    return `'${str.replace(/'/g, "''")}'`;
+  };
+
+  const rowIdentityKey = (row: Record<string, any>) => {
+    const primaryColumns = tableColumns.filter((column) => column.isPrimary).map((column) => column.name);
+    const columnsForIdentity = primaryColumns.length ? primaryColumns : Object.keys(row);
+    return JSON.stringify(columnsForIdentity.map((column) => [column, row[column] ?? null]));
+  };
+
+  const buildRowPredicate = (row: Record<string, any>) => {
+    const primaryColumns = tableColumns.filter((column) => column.isPrimary).map((column) => column.name);
+    const columnsForPredicate = primaryColumns.length ? primaryColumns : Object.keys(row);
+    return columnsForPredicate.map((column) => {
+      const value = row[column];
+      const ident = quoteIdentifier(column);
+      return value === null || value === undefined
+        ? `${ident} IS NULL`
+        : `${ident} = ${sqlValueLiteral(value)}`;
+    }).join(' AND ');
+  };
+
+  const runSqlQuery = async (query: string, options?: { keepEditorText?: boolean }) => {
+    if (!currentServer || !window.serverOperator || !query.trim()) return { ok: false, error: 'No active database connection' };
+    setQueryLoading(true);
+    setQueryError(null);
+    setQueryResult(null);
+    setExecutionTime(null);
+    setCurrentPage(1);
+    setLastExecutedQuery(query.trim());
+    if (!options?.keepEditorText) setQueryText(query);
+
+    const startTime = performance.now();
+    try {
+      const res = await window.serverOperator.queryDatabase({
+        serverId: currentServer.id,
+        query: query.trim(),
+      });
+      const endTime = performance.now();
+      setExecutionTime(Math.round(endTime - startTime));
+
+      if (res.ok) {
+        let data = res.result;
+        if (dbType === 'redis') {
+          if (!Array.isArray(data)) {
+            data = typeof data === 'object' && data !== null ? [data] : [{ result: String(data) }];
+          } else {
+            data = data.map((item) => typeof item === 'object' ? item : { value: item });
+          }
+        }
+        const rows = Array.isArray(data) ? data : [];
+        setQueryResult(rows);
+        return { ok: true, rows };
+      }
+
+      setQueryError(res.error || 'Query failed');
+      return { ok: false, error: res.error || 'Query failed' };
+    } catch (err: any) {
+      const message = err.message || String(err);
+      setQueryError(message);
+      return { ok: false, error: message };
+    } finally {
+      setQueryLoading(false);
+    }
+  };
+
+  const loadTableColumns = async (tableName: string) => {
+    if (!currentServer || !window.serverOperator || dbType === 'redis') return;
+    setTableEditorLoading(true);
+    setTableEditorError(null);
+    try {
+      let query = '';
+      if (dbType === 'mysql') {
+        query = `SHOW COLUMNS FROM ${quoteIdentifier(tableName)};`;
+      } else if (dbType === 'postgres') {
+        query = `
+          SELECT
+            c.column_name AS name,
+            c.data_type AS type,
+            c.is_nullable = 'YES' AS nullable,
+            EXISTS (
+              SELECT 1
+              FROM information_schema.table_constraints tc
+              JOIN information_schema.key_column_usage kcu
+                ON tc.constraint_name = kcu.constraint_name
+               AND tc.table_schema = kcu.table_schema
+             WHERE tc.constraint_type = 'PRIMARY KEY'
+               AND tc.table_schema = 'public'
+               AND tc.table_name = ${sqlValueLiteral(tableName)}
+               AND kcu.column_name = c.column_name
+            ) AS is_primary
+          FROM information_schema.columns c
+          WHERE c.table_schema = 'public' AND c.table_name = ${sqlValueLiteral(tableName)}
+          ORDER BY c.ordinal_position;
+        `;
+      } else if (dbType === 'sqlite') {
+        query = `PRAGMA table_info(${sqlValueLiteral(tableName)});`;
+      }
+
+      const res = await window.serverOperator.queryDatabase({ serverId: currentServer.id, query });
+      if (!res.ok) {
+        setTableColumns([]);
+        setTableEditorError(res.error || 'Failed to load table columns');
+        return;
+      }
+
+      const rows = Array.isArray(res.result) ? res.result : [];
+      const columns = rows.map((row: any) => {
+        if (dbType === 'mysql') {
+          return {
+            name: String(row.Field),
+            type: String(row.Type || ''),
+            nullable: String(row.Null || '').toUpperCase() === 'YES',
+            isPrimary: String(row.Key || '').toUpperCase() === 'PRI',
+          };
+        }
+        if (dbType === 'postgres') {
+          return {
+            name: String(row.name),
+            type: String(row.type || ''),
+            nullable: Boolean(row.nullable),
+            isPrimary: Boolean(row.is_primary),
+          };
+        }
+        return {
+          name: String(row.name),
+          type: String(row.type || ''),
+          nullable: !Boolean(row.notnull),
+          isPrimary: Number(row.pk) > 0,
+        };
+      });
+      setTableColumns(columns);
+    } catch (err: any) {
+      setTableColumns([]);
+      setTableEditorError(err.message || String(err));
+    } finally {
+      setTableEditorLoading(false);
+    }
+  };
+
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentServer || !window.serverOperator) return;
@@ -270,6 +450,14 @@ export function DatabaseView({ currentServer, proxy, connectedSqlitePath, onSqli
     setQueryError(null);
     setExecutionTime(null);
     setCurrentPage(1);
+    setLastExecutedQuery('');
+    setActiveTableName(null);
+    setTableColumns([]);
+    setTableEditorError(null);
+    setEditingRowKey(null);
+    setEditingRowValues({});
+    setAddingRow(false);
+    setNewRowValues({});
     if (dbType === 'sqlite') {
       setSqliteFilePath('');
       onSqliteDisconnect?.();
@@ -309,54 +497,25 @@ export function DatabaseView({ currentServer, proxy, connectedSqlitePath, onSqli
   };
 
   const handleRunQuery = async () => {
-    if (!currentServer || !window.serverOperator || !queryText.trim()) return;
-    setQueryLoading(true);
-    setQueryError(null);
-    setQueryResult(null);
-    setExecutionTime(null);
-    setCurrentPage(1);
-
-    const startTime = performance.now();
-    try {
-      const res = await window.serverOperator.queryDatabase({
-        serverId: currentServer.id,
-        query: queryText.trim(),
-      });
-      const endTime = performance.now();
-      setExecutionTime(Math.round(endTime - startTime));
-
-      if (res.ok) {
-        // Normalize Redis result to render nicely in tables
-        let data = res.result;
-        if (dbType === 'redis') {
-          if (!Array.isArray(data)) {
-            data = typeof data === 'object' && data !== null 
-              ? [data] 
-              : [{ result: String(data) }];
-          } else {
-            data = data.map(item => typeof item === 'object' ? item : { value: item });
-          }
-        }
-        setQueryResult(Array.isArray(data) ? data : []);
-      } else {
-        setQueryError(res.error || 'Query failed');
-      }
-    } catch (err: any) {
-      setQueryError(err.message || String(err));
-    } finally {
-      setQueryLoading(false);
-    }
+    await runSqlQuery(queryText);
   };
 
   const handleMetadataItemClick = (item: string) => {
     if (dbType === 'redis') {
       const query = `GET ${item}`;
+      setActiveTableName(null);
+      setTableColumns([]);
       setQueryText(query);
       setTimeout(() => {
         handleRunQuery();
       }, 50);
     } else {
-      const query = `SELECT * FROM ${item} LIMIT 100;`;
+      const query = buildTableBrowseQuery(item);
+      setActiveTableName(item);
+      setEditingRowKey(null);
+      setAddingRow(false);
+      setNewRowValues({});
+      void loadTableColumns(item);
       setQueryText(query);
     }
   };
@@ -550,6 +709,11 @@ export function DatabaseView({ currentServer, proxy, connectedSqlitePath, onSqli
     ? redisKeys.filter(k => k.toLowerCase().includes(metadataSearch.toLowerCase()))
     : tables.filter(t => t.toLowerCase().includes(metadataSearch.toLowerCase()));
 
+  const isEditableTableView =
+    dbType !== 'redis' &&
+    !!activeTableName &&
+    lastExecutedQuery.trim() === buildTableBrowseQuery(activeTableName).trim();
+
   const filteredResults = queryResult 
     ? queryResult.filter(row => {
         return Object.values(row).some(val => 
@@ -569,6 +733,113 @@ export function DatabaseView({ currentServer, proxy, connectedSqlitePath, onSqli
   const displayResults = dbType === 'redis' 
     ? filteredResults 
     : paginatedResults;
+
+  const beginEditRow = (row: Record<string, any>) => {
+    const values = Object.fromEntries(Object.keys(row).map((key) => [key, row[key] === null || row[key] === undefined ? 'NULL' : String(row[key]) ]));
+    setEditingRowKey(rowIdentityKey(row));
+    setEditingRowValues(values);
+    setAddingRow(false);
+  };
+
+  const cancelEditRow = () => {
+    setEditingRowKey(null);
+    setEditingRowValues({});
+  };
+
+  const beginAddRow = () => {
+    const values = Object.fromEntries(tableColumns.map((column) => [column.name, '']));
+    setAddingRow(true);
+    setNewRowValues(values);
+    setEditingRowKey(null);
+  };
+
+  const cancelAddRow = () => {
+    setAddingRow(false);
+    setNewRowValues({});
+  };
+
+  const refreshActiveTable = async () => {
+    if (!activeTableName) return;
+    await runSqlQuery(buildTableBrowseQuery(activeTableName), { keepEditorText: true });
+  };
+
+  const saveEditedRow = async (originalRow: Record<string, any>) => {
+    if (!currentServer || !activeTableName) return;
+    const setClause = tableColumns
+      .map((column) => `${quoteIdentifier(column.name)} = ${sqlValueLiteral(parseCellInputValue(editingRowValues[column.name] ?? ''))}`)
+      .join(', ');
+    const whereClause = buildRowPredicate(originalRow);
+    if (!whereClause) {
+      setQueryError('Cannot update row without a stable row identity.');
+      return;
+    }
+
+    setRowMutationLoading(true);
+    try {
+      const query = `UPDATE ${quoteIdentifier(activeTableName)} SET ${setClause} WHERE ${whereClause};`;
+      const res = await window.serverOperator!.queryDatabase({ serverId: currentServer.id, query });
+      if (!res.ok) {
+        setQueryError(res.error || 'Failed to update row');
+        return;
+      }
+      cancelEditRow();
+      await refreshActiveTable();
+    } finally {
+      setRowMutationLoading(false);
+    }
+  };
+
+  const deleteRow = async (row: Record<string, any>) => {
+    if (!currentServer || !activeTableName) return;
+    const whereClause = buildRowPredicate(row);
+    if (!whereClause) {
+      setQueryError('Cannot delete row without a stable row identity.');
+      return;
+    }
+    if (!window.confirm('Delete this row? This action cannot be undone.')) return;
+
+    setRowMutationLoading(true);
+    try {
+      const query = `DELETE FROM ${quoteIdentifier(activeTableName)} WHERE ${whereClause};`;
+      const res = await window.serverOperator!.queryDatabase({ serverId: currentServer.id, query });
+      if (!res.ok) {
+        setQueryError(res.error || 'Failed to delete row');
+        return;
+      }
+      await refreshActiveTable();
+    } finally {
+      setRowMutationLoading(false);
+    }
+  };
+
+  const insertRow = async () => {
+    if (!currentServer || !activeTableName) return;
+    const columns = tableColumns.filter((column) => {
+      const raw = newRowValues[column.name] ?? '';
+      return raw.trim() !== '' || !column.isPrimary;
+    });
+    if (!columns.length) {
+      setQueryError('Enter at least one value before inserting a row.');
+      return;
+    }
+
+    const names = columns.map((column) => quoteIdentifier(column.name)).join(', ');
+    const values = columns.map((column) => sqlValueLiteral(parseCellInputValue(newRowValues[column.name] ?? ''))).join(', ');
+
+    setRowMutationLoading(true);
+    try {
+      const query = `INSERT INTO ${quoteIdentifier(activeTableName)} (${names}) VALUES (${values});`;
+      const res = await window.serverOperator!.queryDatabase({ serverId: currentServer.id, query });
+      if (!res.ok) {
+        setQueryError(res.error || 'Failed to insert row');
+        return;
+      }
+      cancelAddRow();
+      await refreshActiveTable();
+    } finally {
+      setRowMutationLoading(false);
+    }
+  };
 
   if (!currentServer) {
     return (
@@ -1188,6 +1459,12 @@ export function DatabaseView({ currentServer, proxy, connectedSqlitePath, onSqli
                     <span>{queryError}</span>
                   </div>
                 )}
+                {tableEditorError && (
+                  <div className="p-3 rounded-xl bg-warning/10 border border-warning/20 text-warning text-xs flex gap-1.5 items-start font-mono select-text">
+                    <AlertTriangle size={14} className="shrink-0 mt-0.5 text-warning" />
+                    <span>{tableEditorError}</span>
+                  </div>
+                )}
               </div>
 
               {/* Query Results View Grid */}
@@ -1200,9 +1477,24 @@ export function DatabaseView({ currentServer, proxy, connectedSqlitePath, onSqli
                       <span className="text-[9px] font-extrabold px-2 py-0.5 bg-bg-tertiary border border-border/30 rounded-xl text-text-secondary font-sans uppercase tracking-wider">
                         {filteredResults.length} records
                       </span>
+                      {isEditableTableView && activeTableName && (
+                        <span className="text-[9px] font-extrabold px-2 py-0.5 bg-accent/10 border border-accent/20 rounded-xl text-accent font-sans uppercase tracking-wider">
+                          Editable: {activeTableName}
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2">
+                      {isEditableTableView && tableColumns.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={beginAddRow}
+                          disabled={addingRow || rowMutationLoading}
+                          className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold border border-accent/35 bg-accent/10 text-accent hover:bg-accent/15 rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
+                        >
+                          <Plus size={10} /> Add Row
+                        </button>
+                      )}
                       {/* Filter records input */}
                       <div className="relative">
                         <Search size={10} className="absolute left-2.5 top-2.5 text-text-muted" />
@@ -1246,6 +1538,9 @@ export function DatabaseView({ currentServer, proxy, connectedSqlitePath, onSqli
                       <thead>
                         <tr className="border-b border-border/20 bg-bg-secondary/35 text-text-secondary sticky top-0 z-10 select-none">
                           <th className="px-3.5 py-2 font-bold border-r border-border/20">#</th>
+                          {isEditableTableView && (
+                            <th className="px-3.5 py-2 font-bold border-r border-border/20 whitespace-nowrap">Actions</th>
+                          )}
                           {Object.keys(filteredResults[0]).map((header) => (
                             <th key={header} className="px-3.5 py-2 font-bold border-r border-border/20 max-w-xs truncate" title={header}>
                               {header}
@@ -1254,15 +1549,102 @@ export function DatabaseView({ currentServer, proxy, connectedSqlitePath, onSqli
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/10 text-text-primary">
+                        {isEditableTableView && addingRow && tableColumns.length > 0 && (
+                          <tr className="bg-accent/5 border-b border-accent/10">
+                            <td className="px-3.5 py-2 border-r border-border/10 text-text-muted select-none">New</td>
+                            <td className="px-3.5 py-2 border-r border-border/10">
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={insertRow}
+                                  disabled={rowMutationLoading}
+                                  className="p-1.5 rounded-lg bg-success/15 text-success hover:bg-success/25 disabled:opacity-50 transition-colors cursor-pointer"
+                                  title="Insert row"
+                                >
+                                  {rowMutationLoading ? <RefreshCw size={12} className="animate-spin" /> : <Check size={12} />}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelAddRow}
+                                  disabled={rowMutationLoading}
+                                  className="p-1.5 rounded-lg bg-bg-secondary text-text-secondary hover:text-text-primary hover:bg-bg-tertiary disabled:opacity-50 transition-colors cursor-pointer"
+                                  title="Cancel"
+                                >
+                                  <X size={12} />
+                                </button>
+                              </div>
+                            </td>
+                            {tableColumns.map((column) => (
+                              <td key={column.name} className="px-3.5 py-2 border-r border-border/10 align-top">
+                                <input
+                                  type="text"
+                                  value={newRowValues[column.name] ?? ''}
+                                  onChange={(e) => setNewRowValues((prev) => ({ ...prev, [column.name]: e.target.value }))}
+                                  placeholder={column.nullable ? 'NULL' : column.type || column.name}
+                                  className="w-full px-2.5 py-1.5 rounded-lg bg-bg-primary/60 border border-border/20 text-[10px] text-text-primary focus:outline-none focus:border-accent"
+                                />
+                              </td>
+                            ))}
+                          </tr>
+                        )}
                         {displayResults && displayResults.map((row, idx) => {
                           const rowNum = dbType === 'redis' 
                             ? idx + 1 
                             : (activePage - 1) * pageSize + idx + 1;
+                          const rowKey = rowIdentityKey(row);
+                          const isEditing = editingRowKey === rowKey;
                           return (
                             <tr key={idx} className="hover:bg-bg-tertiary/20 transition-colors duration-150">
                               <td className="px-3.5 py-1.5 border-r border-border/10 text-text-muted select-none">
                                 {rowNum}
                               </td>
+                              {isEditableTableView && (
+                                <td className="px-3.5 py-1.5 border-r border-border/10 align-top select-none">
+                                  {isEditing ? (
+                                    <div className="flex items-center gap-1.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => saveEditedRow(row)}
+                                        disabled={rowMutationLoading}
+                                        className="p-1.5 rounded-lg bg-success/15 text-success hover:bg-success/25 disabled:opacity-50 transition-colors cursor-pointer"
+                                        title="Save row"
+                                      >
+                                        {rowMutationLoading ? <RefreshCw size={12} className="animate-spin" /> : <Check size={12} />}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={cancelEditRow}
+                                        disabled={rowMutationLoading}
+                                        className="p-1.5 rounded-lg bg-bg-secondary text-text-secondary hover:text-text-primary hover:bg-bg-tertiary disabled:opacity-50 transition-colors cursor-pointer"
+                                        title="Cancel"
+                                      >
+                                        <X size={12} />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-1.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => beginEditRow(row)}
+                                        disabled={rowMutationLoading}
+                                        className="p-1.5 rounded-lg bg-accent/15 text-accent hover:bg-accent/25 disabled:opacity-50 transition-colors cursor-pointer"
+                                        title="Edit row"
+                                      >
+                                        <Pencil size={12} />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => deleteRow(row)}
+                                        disabled={rowMutationLoading}
+                                        className="p-1.5 rounded-lg bg-error/15 text-error hover:bg-error/25 disabled:opacity-50 transition-colors cursor-pointer"
+                                        title="Delete row"
+                                      >
+                                        <Trash2 size={12} />
+                                      </button>
+                                    </div>
+                                  )}
+                                </td>
+                              )}
                               {Object.keys(filteredResults[0]).map((header) => {
                                 const val = row[header];
                                 const renderVal = val === null || val === undefined 
@@ -1273,7 +1655,15 @@ export function DatabaseView({ currentServer, proxy, connectedSqlitePath, onSqli
                                 
                                 return (
                                   <td key={header} className="px-3.5 py-1.5 border-r border-border/10 truncate max-w-md" title={String(renderVal)}>
-                                    {renderVal}
+                                    {isEditing ? (
+                                      <input
+                                        type="text"
+                                        value={editingRowValues[header] ?? ''}
+                                        onChange={(e) => setEditingRowValues((prev) => ({ ...prev, [header]: e.target.value }))}
+                                        placeholder="NULL"
+                                        className="w-full px-2.5 py-1.5 rounded-lg bg-bg-primary/60 border border-border/20 text-[10px] text-text-primary focus:outline-none focus:border-accent"
+                                      />
+                                    ) : renderVal}
                                   </td>
                                 );
                               })}
