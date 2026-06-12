@@ -23,7 +23,7 @@ interface UfwRule {
 
 interface SecurityGroup {
   name: string;
-  rules: { port: string; proto: string; from: string }[];
+  rules: { port: string; proto: string; from: string; action?: string }[];
 }
 
 const PRESET_GROUPS: SecurityGroup[] = [
