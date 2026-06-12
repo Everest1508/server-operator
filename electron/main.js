@@ -431,26 +431,6 @@ function ensureDummyRoot() {
   const root = getDummyRoot();
   if (!fs.existsSync(root)) {
     fs.mkdirSync(root, { recursive: true });
-    const compose = `version: '3.8'
-services:
-  web:
-    image: nginx:alpine
-    ports:
-      - "8080:80"
-    restart: unless-stopped
-  app:
-    image: node:20-alpine
-    working_dir: /app
-    volumes:
-      - .:/app
-    command: sh -c "npm install && npm start"
-    restart: unless-stopped
-`;
-    fs.writeFileSync(path.join(root, 'docker-compose.yml'), compose, 'utf8');
-    fs.writeFileSync(path.join(root, 'README.md'), '# Dummy root\n\nUse this folder to simulate a server. Add files and run `docker compose up` from here.\n', 'utf8');
-    fs.writeFileSync(path.join(root, '.env.example'), 'NODE_ENV=development\nPORT=3000\n', 'utf8');
-    fs.writeFileSync(path.join(root, 'package.json'), '{"name":"dummy-app","version":"1.0.0","scripts":{"start":"node index.js"}}\n', 'utf8');
-    fs.writeFileSync(path.join(root, 'index.js'), "console.log('Hello from dummy root');\n", 'utf8');
     log('dummy-root created', { root });
   }
 }
