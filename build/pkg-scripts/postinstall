@@ -1,0 +1,4 @@
+#!/bin/bash
+set -e
+
+ln -sf /Applications/Serop.app/Contents/MacOS/serop /usr/local/bin/serop
