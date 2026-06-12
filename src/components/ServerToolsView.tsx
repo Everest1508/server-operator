@@ -116,6 +116,7 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
     },
     [currentServer, proxy]
   );
+  const isLocal = currentServer.connectionType === 'local';
 
   const loadCron = useCallback(async () => {
     setCronLoading(true);
@@ -199,17 +200,21 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
   }, [runCmd]);
 
   useEffect(() => {
+    if (isLocal) return;
     loadCron();
-  }, [loadCron]);
+  }, [loadCron, isLocal]);
   useEffect(() => {
+    if (isLocal) return;
     loadNginx();
-  }, [loadNginx]);
+  }, [loadNginx, isLocal]);
   useEffect(() => {
+    if (isLocal) return;
     checkCertbot();
-  }, [checkCertbot]);
+  }, [checkCertbot, isLocal]);
   useEffect(() => {
+    if (isLocal) return;
     if (certbotInstalled) loadCertList();
-  }, [certbotInstalled, loadCertList]);
+  }, [certbotInstalled, loadCertList, isLocal]);
 
   const handleInstallCertbot = async () => {
     const cmd = 'sudo snap install --classic certbot 2>&1 && sudo ln -sf /snap/bin/certbot /usr/local/bin/certbot 2>&1';
@@ -455,6 +460,20 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
       loadNginx();
     } else setNginxConfigError(res.error || 'Failed to write file');
   };
+
+  if (isLocal) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-8 select-none">
+        <div className="max-w-sm text-center space-y-3">
+          <Server size={32} className="mx-auto text-text-muted opacity-50" />
+          <p className="text-sm font-semibold text-text-primary">Server Administration</p>
+          <p className="text-xs text-text-muted leading-relaxed">
+            Server administration tools (nginx, certbot, cron) are only available for remote SSH connections.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 overflow-auto p-4 space-y-4 select-none">

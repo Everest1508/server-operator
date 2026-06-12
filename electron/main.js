@@ -1757,7 +1757,7 @@ function execLocalCommandStream(command, cwd, onData) {
     const shell = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh';
     const args = process.platform === 'win32' ? ['/d', '/s', '/c', command] : ['-c', command];
     
-    const proc = spawn(shell, args, { cwd, shell: true });
+    const proc = spawn(shell, args, { cwd });
     let output = '';
     
     proc.stdout.on('data', (data) => {
