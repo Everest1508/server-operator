@@ -2628,10 +2628,17 @@ async function exportPostgresEnums(dbClient) {
     rows.push(...res.rows);
   } catch (_) {}
   if (!rows.length) return '';
-  const chunks = rows.map((r) => {
-    const vals = r.enum_values.map((v) => `'${v.replace(/'/g, "''")}'`).join(', ');
-    return `CREATE TYPE ${pgIdent(r.enum_schema)}.${pgIdent(r.enum_name)} AS ENUM (${vals});\n`;
-  });
+  const chunks = [];
+  for (const r of rows) {
+    let arr = r.enum_values;
+    if (!arr) continue;
+    if (typeof arr === 'string') {
+      arr = arr.replace(/^{|}$/g, '').split(',').filter(Boolean);
+    }
+    if (!Array.isArray(arr) || !arr.length) continue;
+    const vals = arr.map((v) => `'${String(v).replace(/'/g, "''")}'`).join(', ');
+    chunks.push(`CREATE TYPE ${pgIdent(r.enum_schema)}.${pgIdent(r.enum_name)} AS ENUM (${vals});\n`);
+  }
   chunks.push('\n');
   return chunks.join('');
 }
