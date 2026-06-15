@@ -82,4 +82,5 @@ contextBridge.exposeInMainWorld('serverOperator', {
   maximizeWindow: () => ipcRenderer.invoke('window:maximize'),
   closeWindow: () => ipcRenderer.invoke('window:close'),
   isWindowMaximized: () => ipcRenderer.invoke('window:isMaximized'),
+  setWindowOpacity: (opacity) => ipcRenderer.invoke('window:set-opacity', opacity),
 });

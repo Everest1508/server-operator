@@ -3366,6 +3366,11 @@ ipcMain.handle('window:close', async () => {
 ipcMain.handle('window:isMaximized', async () => {
   return mainWindow ? mainWindow.isMaximized() : false;
 });
+ipcMain.handle('window:set-opacity', async (_, opacity) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.setOpacity(Math.max(0.6, Math.min(1, opacity)));
+  }
+});
 
 // ── Cloudinary Backup/Restore IPC Handlers ──────────────────────────
 function getCloudinaryConfigPath() {

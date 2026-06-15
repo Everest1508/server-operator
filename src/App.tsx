@@ -20,6 +20,8 @@ const STORAGE_KEY_PROXY = 'server-operator-proxy';
 const STORAGE_KEY_REPOS = 'server-operator:repos';
 const STORAGE_KEY_COMPOSE_PATHS = 'server-operator:compose-paths';
 const STORAGE_KEY_THEME = 'server-operator:theme';
+const STORAGE_KEY_OPACITY = 'server-operator:opacity';
+const STORAGE_KEY_BLUR = 'server-operator:blur';
 
 function loadAppTheme(): 'default' | 'glassy' {
   try {
@@ -33,6 +35,28 @@ function loadAppTheme(): 'default' | 'glassy' {
 function applyAppTheme(theme: 'default' | 'glassy') {
   if (typeof document === 'undefined') return;
   document.documentElement.dataset.appTheme = theme;
+}
+
+function loadAppOpacity(): number {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_OPACITY);
+    if (raw === null) return 0.92;
+    const v = parseFloat(raw);
+    return isFinite(v) ? Math.max(0.6, Math.min(1, v)) : 0.92;
+  } catch {
+    return 0.92;
+  }
+}
+
+function loadAppBlur(): number {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_BLUR);
+    if (raw === null) return 28;
+    const v = parseFloat(raw);
+    return isFinite(v) ? Math.max(4, Math.min(40, v)) : 28;
+  } catch {
+    return 28;
+  }
 }
 
 function loadReposByServer(): Record<string, string[]> {
@@ -141,6 +165,8 @@ const RIGHT_PANEL_DEFAULT = 240;
 export default function App() {
   useEffect(() => {
     applyAppTheme(loadAppTheme());
+    document.documentElement.style.setProperty('--glass-blur', `${loadAppBlur()}px`);
+    window.serverOperator?.setWindowOpacity?.(loadAppOpacity());
   }, []);
 
   useEffect(() => {

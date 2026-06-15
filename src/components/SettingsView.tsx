@@ -32,6 +32,8 @@ import {
 import { CHANGELOG, ChangeEntry } from './changelogData';
 
 const THEME_STORAGE_KEY = 'server-operator:theme';
+const OPACITY_STORAGE_KEY = 'server-operator:opacity';
+const BLUR_STORAGE_KEY = 'server-operator:blur';
 
 function loadThemeChoice(): 'default' | 'glassy' {
   try {
@@ -49,6 +51,48 @@ function applyThemeChoice(theme: 'default' | 'glassy') {
   } catch {
     // ignore
   }
+}
+
+function loadOpacity(): number {
+  try {
+    const raw = localStorage.getItem(OPACITY_STORAGE_KEY);
+    if (raw === null) return 0.92;
+    const v = parseFloat(raw);
+    return isFinite(v) ? Math.max(0.6, Math.min(1, v)) : 0.92;
+  } catch {
+    return 0.92;
+  }
+}
+
+function saveOpacity(value: number) {
+  try {
+    localStorage.setItem(OPACITY_STORAGE_KEY, String(value));
+  } catch {
+    // ignore
+  }
+}
+
+function loadBlur(): number {
+  try {
+    const raw = localStorage.getItem(BLUR_STORAGE_KEY);
+    if (raw === null) return 28;
+    const v = parseFloat(raw);
+    return isFinite(v) ? Math.max(4, Math.min(40, v)) : 28;
+  } catch {
+    return 28;
+  }
+}
+
+function saveBlur(value: number) {
+  try {
+    localStorage.setItem(BLUR_STORAGE_KEY, String(value));
+  } catch {
+    // ignore
+  }
+}
+
+function applyBlur(pixels: number) {
+  document.documentElement.style.setProperty('--glass-blur', `${pixels}px`);
 }
 
 const TYPE_BADGE: Record<ChangeEntry['type'], { label: string; color: string; bg: string }> = {
@@ -280,6 +324,8 @@ function ModulesView() {
   const [logsContent, setLogsContent] = useState('');
   const [logPath, setLogPath] = useState('');
   const [themeChoice, setThemeChoice] = useState<'default' | 'glassy'>(loadThemeChoice);
+  const [opacity, setOpacity] = useState<number>(loadOpacity);
+  const [blur, setBlur] = useState<number>(loadBlur);
 
   React.useEffect(() => {
     if (window.serverOperator?.getLogFilePath) {
@@ -290,6 +336,16 @@ function ModulesView() {
   useEffect(() => {
     applyThemeChoice(themeChoice);
   }, [themeChoice]);
+
+  useEffect(() => {
+    saveOpacity(opacity);
+    window.serverOperator?.setWindowOpacity?.(opacity);
+  }, [opacity]);
+
+  useEffect(() => {
+    saveBlur(blur);
+    applyBlur(blur);
+  }, [blur]);
 
   const handleOpenDevTools = async () => {
     if (!window.serverOperator?.openDevTools) {
@@ -416,6 +472,32 @@ function ModulesView() {
               <div className="h-full w-full rounded-xl bg-[radial-gradient(circle_at_top_left,rgba(0,120,212,0.28),transparent_55%)]" />
             </div>
           </div>
+        </div>
+        <div className="mb-3 rounded-xl border border-border/20 bg-bg-secondary/25 px-3.5 py-2.5 flex items-center gap-3">
+          <span className="text-[11px] text-text-secondary font-semibold whitespace-nowrap">Opacity</span>
+          <input
+            type="range"
+            min="0.6"
+            max="1"
+            step="0.01"
+            value={opacity}
+            onChange={(e) => setOpacity(parseFloat(e.target.value))}
+            className="flex-1 h-1.5 accent-accent cursor-pointer"
+          />
+          <span className="text-[11px] text-text-primary font-mono tabular-nums w-8 text-right">{Math.round(opacity * 100)}%</span>
+        </div>
+        <div className="mb-3 rounded-xl border border-border/20 bg-bg-secondary/25 px-3.5 py-2.5 flex items-center gap-3">
+          <span className="text-[11px] text-text-secondary font-semibold whitespace-nowrap">Blur</span>
+          <input
+            type="range"
+            min="4"
+            max="40"
+            step="1"
+            value={blur}
+            onChange={(e) => setBlur(parseInt(e.target.value, 10))}
+            className="flex-1 h-1.5 accent-accent cursor-pointer"
+          />
+          <span className="text-[11px] text-text-primary font-mono tabular-nums w-8 text-right">{blur}px</span>
         </div>
         <div className="flex items-center justify-between text-[11px] font-semibold mb-1">
           <span className="text-text-secondary">Modules Active</span>

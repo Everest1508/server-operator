@@ -181,6 +181,7 @@ export interface ServerOperatorAPI {
   maximizeWindow?: () => Promise<void>;
   closeWindow?: () => Promise<void>;
   isWindowMaximized?: () => Promise<boolean>;
+  setWindowOpacity?: (opacity: number) => Promise<void>;
 }
 
 declare global {
