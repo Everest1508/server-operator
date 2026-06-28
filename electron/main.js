@@ -4,9 +4,24 @@ const path = require('path');
 const fs = require('fs');
 const { execSync, spawn } = require('child_process');
 
-// Fix PATH on macOS when launched as a GUI app (so it can find cloudflared, docker, etc. installed via Homebrew)
+// Fix PATH on macOS and Windows when launched as a GUI app (so it can find cloudflared, docker, etc.)
 if (process.platform === 'darwin') {
   const defaultPaths = ['/opt/homebrew/bin', '/usr/local/bin'];
+  const currentPaths = (process.env.PATH || '').split(path.delimiter);
+  const updatedPaths = [...currentPaths];
+  for (const p of defaultPaths) {
+    if (!currentPaths.includes(p) && fs.existsSync(p)) {
+      updatedPaths.unshift(p);
+    }
+  }
+  process.env.PATH = updatedPaths.join(path.delimiter);
+} else if (process.platform === 'win32') {
+  const defaultPaths = [
+    'C:\\Program Files (x86)\\cloudflared',
+    'C:\\Program Files\\cloudflared',
+    path.join(process.env.USERPROFILE || '', 'AppData\\Local\\Microsoft\\WinGet\\Links'),
+    path.join(process.env.LOCALAPPDATA || '', 'Microsoft\\WinGet\\Links'),
+  ];
   const currentPaths = (process.env.PATH || '').split(path.delimiter);
   const updatedPaths = [...currentPaths];
   for (const p of defaultPaths) {
@@ -535,7 +550,11 @@ function connectSSH(connection, proxy) {
         const msg = errMsg(e);
         log('cloudflared spawn error', { host, error: msg });
         const hint = /ENOENT/.test(msg)
-          ? ' Make sure cloudflared is installed and in PATH (brew install cloudflare/cloudflare/cloudflared).'
+          ? process.platform === 'win32'
+            ? ' Make sure cloudflared is installed and in PATH (e.g. winget install Cloudflare.cloudflared).'
+            : process.platform === 'darwin'
+              ? ' Make sure cloudflared is installed and in PATH (brew install cloudflare/cloudflare/cloudflared).'
+              : ' Make sure cloudflared is installed and in PATH.'
           : '';
         reject(new Error('cloudflared: ' + msg + hint));
       });
