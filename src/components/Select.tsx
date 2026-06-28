@@ -13,10 +13,21 @@ interface SelectProps {
   options: SelectOption[];
   disabled?: boolean;
   className?: string;
+  containerClassName?: string;
   title?: string;
+  size?: 'sm' | 'md';
 }
 
-export function Select({ value, onChange, options, disabled = false, className = '', title }: SelectProps) {
+export function Select({
+  value,
+  onChange,
+  options,
+  disabled = false,
+  className = '',
+  containerClassName = '',
+  title,
+  size = 'md',
+}: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null);
   const [dropdownEl, setDropdownEl] = useState<HTMLDivElement | null>(null);
@@ -97,20 +108,22 @@ export function Select({ value, onChange, options, disabled = false, className =
   }, [isOpen, dropdownEl]);
 
   return (
-    <div className="relative inline-block w-full min-w-0">
+    <div className={`relative inline-block min-w-0 ${containerClassName || 'w-full'}`}>
       <button
         ref={triggerRef}
         type="button"
         onClick={toggleDropdown}
         disabled={disabled}
         title={title}
-        className={`w-full flex items-center justify-between gap-2 px-3.5 py-2 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-primary font-sans text-left transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent/40 disabled:opacity-50 disabled:cursor-not-allowed select-none ${className}`}
+        className={`w-full flex items-center justify-between gap-2 bg-bg-primary/50 border border-border/30 text-xs text-text-primary font-sans text-left transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent/40 disabled:opacity-50 disabled:cursor-not-allowed select-none ${
+          size === 'sm' ? 'px-2.5 py-1 rounded-lg' : 'px-3.5 py-2 rounded-xl'
+        } ${className}`}
       >
         <span className="truncate flex-1">
           {selectedOption ? selectedOption.label : ''}
         </span>
         <ChevronDown
-          size={14}
+          size={size === 'sm' ? 12 : 14}
           className={`text-text-secondary shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180 text-accent' : ''}`}
         />
       </button>

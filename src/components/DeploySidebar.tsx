@@ -3,6 +3,7 @@ import { ChevronDown, Copy, FolderTree, Loader2, Play, Wand2 } from 'lucide-reac
 import type { ProxySettings, ServerConnection } from '../types';
 import { parseLsLine } from '../utils/parseLs';
 import { joinRemotePath } from '../utils/remotePath';
+import { Select } from './Select';
 
 interface SeropShortcut {
   id: string;
@@ -335,17 +336,15 @@ export function DeploySidebar({
         </button>
         {shortcutsOpen && (
           <div className="border-t border-border/20 p-3 space-y-3">
-            <select
+            <Select
               value={selectedShortcutFile}
-              onChange={(e) => setSelectedShortcutFile(e.target.value)}
+              onChange={setSelectedShortcutFile}
               disabled={shortcutsLoading || !shortcutFiles.length}
-              className="w-full px-3 py-2 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-primary focus:outline-none focus:border-accent disabled:opacity-60"
-            >
-              <option value="">Select recipe file…</option>
-              {shortcutFiles.map((name) => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: 'Select recipe file…' },
+                ...shortcutFiles.map((name) => ({ value: name, label: name })),
+              ]}
+            />
             <div className="max-h-56 overflow-auto space-y-2 pr-1">
               {shortcutsLoading && <p className="text-xs text-text-muted flex items-center gap-1.5"><Loader2 size={12} className="animate-spin text-accent" />Parsing build shortcuts…</p>}
               {!shortcutsLoading && seropShortcuts.map((shortcut) => {

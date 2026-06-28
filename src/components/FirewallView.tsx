@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { ShieldCheck, ShieldOff, RefreshCw, Plus, Trash2, AlertTriangle, Lock, Unlock, Globe, Layers, ScanSearch } from 'lucide-react';
 import type { ServerConnection, ProxySettings } from '../types';
+import { Select } from './Select';
 
 interface FirewallViewProps {
   currentServer: ServerConnection;
@@ -343,10 +344,16 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
                 <div className="flex flex-wrap gap-2 items-end">
                   <div className="flex flex-col gap-1">
                     <label className="text-[9px] font-extrabold uppercase text-text-muted">Action</label>
-                    <select value={ruleAction} onChange={e => setRuleAction(e.target.value as any)} className="px-2.5 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent">
-                      <option value="allow">Allow</option>
-                      <option value="deny">Deny</option>
-                    </select>
+                    <Select
+                      value={ruleAction}
+                      onChange={val => setRuleAction(val as any)}
+                      size="sm"
+                      containerClassName="w-24"
+                      options={[
+                        { value: 'allow', label: 'Allow' },
+                        { value: 'deny', label: 'Deny' },
+                      ]}
+                    />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[9px] font-extrabold uppercase text-text-muted">Port</label>
@@ -354,11 +361,17 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[9px] font-extrabold uppercase text-text-muted">Proto</label>
-                    <select value={ruleProto} onChange={e => setRuleProto(e.target.value as any)} className="px-2.5 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent">
-                      <option value="tcp">TCP</option>
-                      <option value="udp">UDP</option>
-                      <option value="any">Any</option>
-                    </select>
+                    <Select
+                      value={ruleProto}
+                      onChange={val => setRuleProto(val as any)}
+                      size="sm"
+                      containerClassName="w-20"
+                      options={[
+                        { value: 'tcp', label: 'TCP' },
+                        { value: 'udp', label: 'UDP' },
+                        { value: 'any', label: 'Any' },
+                      ]}
+                    />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[9px] font-extrabold uppercase text-text-muted">From (IP or "any")</label>
@@ -493,10 +506,16 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[9px] font-extrabold uppercase text-text-muted">Tool</label>
-                  <select value={scanTool} onChange={e => setScanTool(e.target.value as any)} className="px-2.5 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent">
-                    <option value="nmap">nmap</option>
-                    <option value="bash">bash (fallback)</option>
-                  </select>
+                  <Select
+                    value={scanTool}
+                    onChange={val => setScanTool(val as any)}
+                    size="sm"
+                    containerClassName="w-36"
+                    options={[
+                      { value: 'nmap', label: 'nmap' },
+                      { value: 'bash', label: 'bash (fallback)' },
+                    ]}
+                  />
                 </div>
                 <button
                   type="button"

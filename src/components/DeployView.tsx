@@ -10,6 +10,7 @@ import { joinRemotePath, resolveRemotePath } from '../utils/remotePath';
 import { ConfigCreators } from './ConfigCreators';
 import { ProjectTerminal } from './ProjectTerminal';
 import { ServerToolsView } from './ServerToolsView';
+import { Select } from './Select';
 
 const GROQ_API_KEY_STORAGE = 'server-operator:groq-api-key';
 const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'];
@@ -953,22 +954,19 @@ export function DeployView({
                     {/* Server Selection */}
                     <div className="flex flex-col gap-1.5 select-none">
                       <label className="text-[10px] font-extrabold uppercase tracking-wider text-text-muted">Target server</label>
-                      <select
+                      <Select
                         value={currentServer.id}
-                        onChange={(e) => {
-                          const target = servers?.find(s => s.id === e.target.value);
+                        onChange={(val) => {
+                          const target = servers?.find(s => s.id === val);
                           if (target && onSelectServer) {
                             onSelectServer(target);
                           }
                         }}
-                        className="w-full px-3 py-2 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent"
-                      >
-                        {servers?.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name} ({s.username}@{s.host})
-                          </option>
-                        ))}
-                      </select>
+                        options={servers?.map((s) => ({
+                          value: s.id,
+                          label: `${s.name} (${s.username}@${s.host})`
+                        })) || []}
+                      />
                     </div>
 
                     {/* Project Directory */}
@@ -976,17 +974,21 @@ export function DeployView({
                       <div className="flex justify-between items-center select-none">
                         <label className="text-[10px] font-extrabold uppercase tracking-wider text-text-muted font-sans">Project root directory</label>
                         {projectRepos.length > 0 && (
-                          <select
-                            onChange={(e) => {
-                              if (e.target.value) setPipelineProjDir(e.target.value);
+                          <Select
+                            value=""
+                            onChange={(val) => {
+                              if (val) setPipelineProjDir(val);
                             }}
-                            className="px-2 py-0.5 border border-border/30 bg-bg-primary/50 rounded-lg text-[9px] font-semibold text-text-secondary focus:outline-none"
-                          >
-                            <option value="">Linked repos…</option>
-                            {projectRepos.map(path => (
-                              <option key={path} value={path}>{path.split('/').pop() || path}</option>
-                            ))}
-                          </select>
+                            size="sm"
+                            containerClassName="w-32"
+                            options={[
+                              { value: '', label: 'Linked repos…' },
+                              ...projectRepos.map(path => ({
+                                value: path,
+                                label: path.split('/').pop() || path
+                              }))
+                            ]}
+                          />
                         )}
                       </div>
                       <input
@@ -1013,45 +1015,45 @@ export function DeployView({
                     {/* Dependency Installer */}
                     <div className="flex flex-col gap-1.5 select-none">
                       <label className="text-[10px] font-extrabold uppercase tracking-wider text-text-muted">Dependency manager</label>
-                      <select
+                      <Select
                         value={pipelineDepType}
-                        onChange={(e) => setPipelineDepType(e.target.value as any)}
-                        className="w-full px-3 py-2 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent"
-                      >
-                        <option value="auto">Auto-detect build file profiles</option>
-                        <option value="npm">npm ci (Node.js environments)</option>
-                        <option value="pip">pip install -r requirements.txt (Python)</option>
-                        <option value="none">Bypass packages installation</option>
-                      </select>
+                        onChange={(val) => setPipelineDepType(val as any)}
+                        options={[
+                          { value: 'auto', label: 'Auto-detect build file profiles' },
+                          { value: 'npm', label: 'npm ci (Node.js environments)' },
+                          { value: 'pip', label: 'pip install -r requirements.txt (Python)' },
+                          { value: 'none', label: 'Bypass packages installation' }
+                        ]}
+                      />
                     </div>
 
                     {/* Database Migrations */}
                     <div className="flex flex-col gap-1.5 select-none">
                       <label className="text-[10px] font-extrabold uppercase tracking-wider text-text-muted">Database migrations</label>
-                      <select
+                      <Select
                         value={pipelineMigType}
-                        onChange={(e) => setPipelineMigType(e.target.value as any)}
-                        className="w-full px-3 py-2 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent"
-                      >
-                        <option value="auto">Auto-detect migrations triggers</option>
-                        <option value="npm">npm run migrate (Prisma / TypeORM)</option>
-                        <option value="pip">python manage.py migrate (Django)</option>
-                        <option value="none">Bypass migrations execute</option>
-                      </select>
+                        onChange={(val) => setPipelineMigType(val as any)}
+                        options={[
+                          { value: 'auto', label: 'Auto-detect migrations triggers' },
+                          { value: 'npm', label: 'npm run migrate (Prisma / TypeORM)' },
+                          { value: 'pip', label: 'python manage.py migrate (Django)' },
+                          { value: 'none', label: 'Bypass migrations execute' }
+                        ]}
+                      />
                     </div>
 
                     {/* Service Restart */}
                     <div className="flex flex-col gap-1.5 select-none">
                       <label className="text-[10px] font-extrabold uppercase tracking-wider text-text-muted">Graceful process restart</label>
-                      <select
+                      <Select
                         value={pipelineRestartType}
-                        onChange={(e) => setPipelineRestartType(e.target.value as any)}
-                        className="w-full px-3 py-2 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent"
-                      >
-                        <option value="none">Skip daemon reloads</option>
-                        <option value="pm2">PM2 Node.js process reloader</option>
-                        <option value="systemd">systemctl service unit manager</option>
-                      </select>
+                        onChange={(val) => setPipelineRestartType(val as any)}
+                        options={[
+                          { value: 'none', label: 'Skip daemon reloads' },
+                          { value: 'pm2', label: 'PM2 Node.js process reloader' },
+                          { value: 'systemd', label: 'systemctl service unit manager' }
+                        ]}
+                      />
                     </div>
 
                     {/* Service Name (PM2 / Systemd) */}

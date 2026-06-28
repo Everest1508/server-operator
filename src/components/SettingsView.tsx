@@ -30,6 +30,8 @@ import {
 } from 'lucide-react';
 
 import { CHANGELOG, ChangeEntry } from './changelogData';
+import { Select } from './Select';
+import packageJson from '../../package.json';
 
 const THEME_STORAGE_KEY = 'server-operator:theme';
 const OPACITY_STORAGE_KEY = 'server-operator:opacity';
@@ -427,25 +429,29 @@ function ModulesView() {
         </div>
         <div className="flex items-center gap-2.5 bg-bg-secondary/40 px-3 py-1.5 rounded-xl border border-border/30 self-start md:self-auto">
           <span className="text-[11px] text-text-secondary font-semibold whitespace-nowrap">Activity Bar:</span>
-          <select
+          <Select
             value={flags.sidebarUx}
-            onChange={(e) => setSidebarUx(e.target.value as 'hidden' | 'disabled')}
-            className="bg-bg-primary/50 border border-border/20 text-text-primary rounded-lg px-2 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent/40 cursor-pointer"
-          >
-            <option value="hidden">Hidden</option>
-            <option value="disabled">Disabled</option>
-          </select>
+            onChange={(val) => setSidebarUx(val as 'hidden' | 'disabled')}
+            size="sm"
+            containerClassName="w-24"
+            options={[
+              { value: 'hidden', label: 'Hidden' },
+              { value: 'disabled', label: 'Disabled' },
+            ]}
+          />
         </div>
         <div className="flex items-center gap-2.5 bg-bg-secondary/40 px-3 py-1.5 rounded-xl border border-border/30 self-start md:self-auto">
           <span className="text-[11px] text-text-secondary font-semibold whitespace-nowrap">Appearance:</span>
-          <select
+          <Select
             value={themeChoice}
-            onChange={(e) => setThemeChoice(e.target.value as 'default' | 'glassy')}
-            className="bg-bg-primary/50 border border-border/20 text-text-primary rounded-lg px-2 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent/40 cursor-pointer"
-          >
-            <option value="default">Default</option>
-            <option value="glassy">Glassy Terminal</option>
-          </select>
+            onChange={(val) => setThemeChoice(val as 'default' | 'glassy')}
+            size="sm"
+            containerClassName="w-36"
+            options={[
+              { value: 'default', label: 'Default' },
+              { value: 'glassy', label: 'Glassy Terminal' },
+            ]}
+          />
         </div>
         <button
           onClick={resetToDefaults}
@@ -946,7 +952,7 @@ export function SettingsView() {
             <span
               className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider border border-indigo-500/20 bg-indigo-500/5 text-indigo-400"
             >
-              v1.0.0
+              v{packageJson.version}
             </span>
             <span
               className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold border border-amber-500/20 bg-amber-500/5 text-amber-400 hidden sm:inline-flex"

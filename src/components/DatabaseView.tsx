@@ -25,6 +25,7 @@ import EyeIcon from './icons/EyeIcon';
 import EyeOffIcon from './icons/EyeOffIcon';
 import type { ServerConnection, ProxySettings } from '../types';
 import Editor, { useMonaco } from '@monaco-editor/react';
+import { Select } from './Select';
 
 type DbType = 'mysql' | 'postgres' | 'redis' | 'sqlite';
 type ExportMode = 'schema' | 'data' | 'full';
@@ -960,17 +961,16 @@ export function DatabaseView({ currentServer, proxy, connectedSqlitePath, onSqli
               
               <div className="flex flex-col gap-1">
                 <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-0.5" htmlFor="engine-select">DB Engine</label>
-                <select
-                  id="engine-select"
+                <Select
                   value={dbType}
-                  onChange={(e) => setDbType(e.target.value as any)}
-                  className="w-full px-3 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent"
-                >
-                  <option value="mysql">MySQL</option>
-                  <option value="postgres">PostgreSQL</option>
-                  <option value="redis">Redis</option>
-                  <option value="sqlite">SQLite (remote file)</option>
-                </select>
+                  onChange={(val) => setDbType(val as any)}
+                  options={[
+                    { value: 'mysql', label: 'MySQL' },
+                    { value: 'postgres', label: 'PostgreSQL' },
+                    { value: 'redis', label: 'Redis' },
+                    { value: 'sqlite', label: 'SQLite (remote file)' },
+                  ]}
+                />
               </div>
 
               {dbType === 'sqlite' ? (
@@ -1681,19 +1681,21 @@ export function DatabaseView({ currentServer, proxy, connectedSqlitePath, onSqli
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-1.5">
                         <span>Page Limit:</span>
-                        <select
-                          value={pageSize}
-                          onChange={(e) => {
-                            setPageSize(Number(e.target.value));
+                        <Select
+                          value={String(pageSize)}
+                          onChange={(val) => {
+                            setPageSize(Number(val));
                             setCurrentPage(1);
                           }}
-                          className="px-2.5 py-0.5 border border-border/30 bg-bg-primary/50 rounded-lg text-xs text-text-primary focus:outline-none"
-                        >
-                          <option value={10}>10</option>
-                          <option value={25}>25</option>
-                          <option value={50}>50</option>
-                          <option value={100}>100</option>
-                        </select>
+                          size="sm"
+                          containerClassName="w-20"
+                          options={[
+                            { value: '10', label: '10' },
+                            { value: '25', label: '25' },
+                            { value: '50', label: '50' },
+                            { value: '100', label: '100' },
+                          ]}
+                        />
                       </div>
                       <span>
                         Showing <strong className="text-text-primary">{(activePage - 1) * pageSize + 1}</strong> to{' '}
