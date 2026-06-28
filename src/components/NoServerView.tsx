@@ -44,6 +44,7 @@ export function NoServerView({
   const [showEditPassword, setShowEditPassword] = useState(false);
   const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({});
   const [showValidationErrors, setShowValidationErrors] = useState(false);
+  const [cfAuthType, setCfAuthType] = useState<'key' | 'password'>('key');
   const [form, setForm] = useState({
     name: '',
     host: '',
@@ -68,15 +69,14 @@ export function NoServerView({
     const isNameEmpty = !form.name.trim();
     const isHostEmpty = connectionType !== 'local' && !form.host.trim();
     const isUserEmpty = connectionType !== 'local' && !form.username.trim();
-    const isKeyEmpty = connectionType === 'ec2' && !form.privateKeyPath.trim();
-    const isPassEmpty = connectionType === 'password' && !form.password;
+    const isKeyEmpty = (connectionType === 'ec2' || (connectionType === 'cloudflare' && cfAuthType === 'key')) && !form.privateKeyPath.trim();
+    const isPassEmpty = (connectionType === 'password' || (connectionType === 'cloudflare' && cfAuthType === 'password')) && !form.password;
     const isLocalPathEmpty = connectionType === 'local' && !form.projectPath.trim();
 
     if (isNameEmpty || isHostEmpty || isUserEmpty || isKeyEmpty || isPassEmpty || isLocalPathEmpty) {
       setShowValidationErrors(true);
       return;
     }
-    // cloudflare requires no extra credentials — hostname is sufficient
     onAddServer({
       id: crypto.randomUUID(),
       name: form.name.trim(),
@@ -87,7 +87,11 @@ export function NoServerView({
         ? { privateKeyPath: form.privateKeyPath.trim() }
         : connectionType === 'password'
           ? { password: form.password }
-          : {}),
+          : connectionType === 'cloudflare'
+            ? (cfAuthType === 'key'
+              ? { privateKeyPath: form.privateKeyPath.trim() }
+              : { password: form.password })
+            : {}),
       projectPath: form.projectPath.trim() || undefined,
       cwd: form.projectPath.trim() || undefined,
       useProxy: form.useProxy,
@@ -223,11 +227,9 @@ export function NoServerView({
                         className={getInputClass(form.privateKeyPath)}
                       />
                     </div>
-                  ) : connectionType !== 'local' ? (
+                  ) : connectionType === 'password' ? (
                     <div>
-                      <label className="block text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-1.5">
-                        {connectionType === 'cloudflare' ? 'SSH Password' : 'Password'}
-                      </label>
+                      <label className="block text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-1.5">Password</label>
                       <div className="relative flex items-center">
                         <input
                           type={showFormPassword ? 'text' : 'password'}
@@ -244,6 +246,47 @@ export function NoServerView({
                           {showFormPassword ? <EyeOffIcon size={14} /> : <EyeIcon size={14} />}
                         </button>
                       </div>
+                    </div>
+                  ) : connectionType === 'cloudflare' ? (
+                    <div>
+                      <div className="flex justify-between items-center mb-1.5">
+                        <label className="block text-[9px] font-extrabold uppercase tracking-wider text-text-muted">
+                          {cfAuthType === 'key' ? 'SSH key path' : 'SSH Password'}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setCfAuthType(cfAuthType === 'key' ? 'password' : 'key')}
+                          className="text-[9px] font-bold text-accent hover:underline cursor-pointer select-none"
+                        >
+                          Use {cfAuthType === 'key' ? 'Password' : 'Key'}
+                        </button>
+                      </div>
+                      {cfAuthType === 'key' ? (
+                        <input
+                          type="text"
+                          value={form.privateKeyPath}
+                          onChange={(e) => setForm((f) => ({ ...f, privateKeyPath: e.target.value }))}
+                          placeholder="~/.ssh/id_rsa"
+                          className={getInputClass(form.privateKeyPath)}
+                        />
+                      ) : (
+                        <div className="relative flex items-center">
+                          <input
+                            type={showFormPassword ? 'text' : 'password'}
+                            value={form.password}
+                            onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                            placeholder="••••••••"
+                            className={`${getInputClass(form.password)} pr-10`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowFormPassword(!showFormPassword)}
+                            className="absolute right-3 text-text-secondary hover:text-text-primary focus:outline-none cursor-pointer"
+                          >
+                            {showFormPassword ? <EyeOffIcon size={14} /> : <EyeIcon size={14} />}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ) : <div className="hidden lg:block" />}
                   <div>
@@ -384,6 +427,51 @@ export function NoServerView({
                                   />
                                 ) : type === 'local' ? (
                                   <span className="text-xs italic text-text-muted">local folder mode</span>
+                                ) : type === 'cloudflare' ? (
+                                  <div className="flex flex-col gap-1.5 w-full">
+                                    <div className="flex justify-between items-center text-[9px] font-bold text-text-muted select-none">
+                                      <span>{s.privateKeyPath !== undefined ? 'Key path' : 'Password'}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (s.privateKeyPath !== undefined) {
+                                            onUpdateServer(s.id, { privateKeyPath: undefined, password: '' });
+                                          } else {
+                                            onUpdateServer(s.id, { password: undefined, privateKeyPath: '' });
+                                          }
+                                        }}
+                                        className="text-accent hover:underline cursor-pointer"
+                                      >
+                                        Use {s.privateKeyPath !== undefined ? 'Password' : 'Key'}
+                                      </button>
+                                    </div>
+                                    {s.privateKeyPath !== undefined ? (
+                                      <input
+                                        type="text"
+                                        value={s.privateKeyPath}
+                                        onChange={(e) => onUpdateServer(s.id, { privateKeyPath: e.target.value })}
+                                        placeholder="~/.ssh/id_rsa"
+                                        className={inputClass}
+                                      />
+                                    ) : (
+                                      <div className="relative flex items-center">
+                                        <input
+                                          type={showEditPassword ? 'text' : 'password'}
+                                          value={s.password ?? ''}
+                                          onChange={(e) => onUpdateServer(s.id, { password: e.target.value })}
+                                          placeholder="••••••••"
+                                          className={`${inputClass} pr-10`}
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => setShowEditPassword(!showEditPassword)}
+                                          className="absolute right-3 text-text-secondary hover:text-text-primary focus:outline-none cursor-pointer"
+                                        >
+                                          {showEditPassword ? <EyeOffIcon size={14} /> : <EyeIcon size={14} />}
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
                                 ) : (
                                   <div className="relative flex items-center">
                                     <input
@@ -467,7 +555,25 @@ export function NoServerView({
                                     {s.privateKeyPath ?? '—'}
                                   </div>
                                 ) : type === 'cloudflare' ? (
-                                  <span className="italic text-xs text-text-muted select-none">cloudflared</span>
+                                  s.privateKeyPath !== undefined ? (
+                                    <div className="truncate max-w-[120px] text-text-secondary" title={`Tunnel via Key: ${s.privateKeyPath}`}>
+                                      CF Key: {s.privateKeyPath || '—'}
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-between gap-2 max-w-[120px] group/pwd">
+                                      <span className="truncate" title={revealedPasswords[s.id] ? s.password : 'Password hidden'}>
+                                        CF: {revealedPasswords[s.id] ? s.password : '••••••••'}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => setRevealedPasswords((prev) => ({ ...prev, [s.id]: !prev[s.id] }))}
+                                        className="shrink-0 p-0.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-tertiary/60 transition-colors opacity-0 group-hover/pwd:opacity-100 focus:opacity-100 focus:outline-none cursor-pointer"
+                                        title={revealedPasswords[s.id] ? 'Hide password' : 'Show password'}
+                                      >
+                                        {revealedPasswords[s.id] ? <EyeOffIcon size={12} /> : <EyeIcon size={12} />}
+                                      </button>
+                                    </div>
+                                  )
                                 ) : type === 'local' ? (
                                   <span className="italic text-xs text-text-muted select-none">local shell + docker</span>
                                 ) : (

@@ -1431,13 +1431,14 @@ export default function App() {
       setConnectionError('Local workspace folder is required. Edit the profile and set a local folder.');
       return;
     }
-    const isCloudflare = server.connectionType === 'cloudflare';
     const isLocal = server.connectionType === 'local';
-    const usePassword = !isCloudflare && !isLocal && (server.connectionType === 'password' || (server.password && server.password.length > 0));
-    const useKey = !isCloudflare && !isLocal && !usePassword && server.privateKeyPath?.trim();
-    if (!isCloudflare && !isLocal && !usePassword && !useKey) {
-      setConnectionError('Set either SSH key path (EC2) or password for this server.');
-      return;
+    if (!isLocal) {
+      const hasPassword = typeof server.password === 'string' && server.password.length > 0;
+      const hasKey = typeof server.privateKeyPath === 'string' && server.privateKeyPath.trim().length > 0;
+      if (!hasPassword && !hasKey) {
+        setConnectionError('Set either SSH key path or password for this server.');
+        return;
+      }
     }
     connectCancelRef.current = false;
     setConnectingTo(server.id);
