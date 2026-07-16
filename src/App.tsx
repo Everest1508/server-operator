@@ -40,11 +40,11 @@ function applyAppTheme(theme: 'default' | 'glassy') {
 function loadAppOpacity(): number {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_OPACITY);
-    if (raw === null) return 0.92;
+    if (raw === null) return 1.0;
     const v = parseFloat(raw);
-    return isFinite(v) ? Math.max(0.6, Math.min(1, v)) : 0.92;
+    return isFinite(v) ? Math.max(0.6, Math.min(1, v)) : 1.0;
   } catch {
-    return 0.92;
+    return 1.0;
   }
 }
 
@@ -226,6 +226,19 @@ export default function App() {
     if (!window.serverOperator) return;
     setServerStatusLoading(true);
     setServerSysInfo(null);
+
+    const isLocal = server.connectionType === 'local' || server.id === 'dummy' || server.id?.startsWith('local:');
+    if (isLocal) {
+      setServerSysInfo({
+        uptime: 'Local Machine',
+        memory: 'N/A',
+        disk: 'N/A',
+        error: null,
+      });
+      setServerStatusLoading(false);
+      return;
+    }
+
     const cwd = server.projectPath || server.cwd || undefined;
     const p = proxyRef.current;
     Promise.all([

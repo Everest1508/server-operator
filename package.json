@@ -22,7 +22,7 @@
     "electron:build:mac": "vite build && electron-builder --mac dmg zip",
     "electron:build:win": "vite build && electron-builder --win",
     "website:serve": "npx --yes serve website -l 8788",
-    "postinstall": "mkdir -p public && cp -r node_modules/monaco-editor/min/vs public/ 2>/dev/null || true",
+    "postinstall": "node scripts/copy-monaco.js",
     "ssh-connect": "node scripts/ssh-connect.js",
     "serop:init": "node scripts/server-operator-init.js",
     "serop:init:interactive": "node scripts/server-operator-init.js --interactive"

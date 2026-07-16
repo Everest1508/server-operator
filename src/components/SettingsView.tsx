@@ -58,11 +58,11 @@ function applyThemeChoice(theme: 'default' | 'glassy') {
 function loadOpacity(): number {
   try {
     const raw = localStorage.getItem(OPACITY_STORAGE_KEY);
-    if (raw === null) return 0.92;
+    if (raw === null) return 1.0;
     const v = parseFloat(raw);
-    return isFinite(v) ? Math.max(0.6, Math.min(1, v)) : 0.92;
+    return isFinite(v) ? Math.max(0.6, Math.min(1, v)) : 1.0;
   } catch {
-    return 0.92;
+    return 1.0;
   }
 }
 
