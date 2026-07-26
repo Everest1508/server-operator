@@ -1,14 +1,29 @@
 import { useState, useEffect, useRef } from 'react';
 import { Minus, Square, X, ExternalLink, RefreshCw, Terminal, Info, ChevronDown } from 'lucide-react';
 import type { ServerConnection } from '../types';
+import { MultiServerBar, type ServerTabSession } from './MultiServerBar';
 
 interface TitleBarProps {
   currentServer: ServerConnection | null;
+  serverTabs?: ServerTabSession[];
+  activeTabId?: string | null;
+  onSelectTab?: (tab: ServerTabSession) => void;
+  onCloseTab?: (tabId: string) => void;
+  onOpenAddServer?: () => void;
   sidebarOpen?: boolean;
   onSidebarToggle?: () => void;
 }
 
-export function TitleBar({ currentServer, sidebarOpen, onSidebarToggle }: TitleBarProps) {
+export function TitleBar({
+  currentServer,
+  serverTabs = [],
+  activeTabId = null,
+  onSelectTab,
+  onCloseTab,
+  onOpenAddServer,
+  sidebarOpen,
+  onSidebarToggle,
+}: TitleBarProps) {
   const [activeMenu, setActiveMenu] = useState<'file' | 'edit' | 'view' | 'help' | null>(null);
   const [isMaximized, setIsMaximized] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -300,9 +315,17 @@ export function TitleBar({ currentServer, sidebarOpen, onSidebarToggle }: TitleB
         </div>
       </div>
 
-      {/* Center Area: App Title & Connected Server Status */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 max-w-[40%] truncate pointer-events-none">
-        {currentServer ? (
+      {/* Center Area: App Title & Connected Servers Multi-Tab Bar */}
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center max-w-[55%] truncate z-10">
+        {serverTabs.length > 0 && onSelectTab && onCloseTab && onOpenAddServer ? (
+          <MultiServerBar
+            tabs={serverTabs}
+            activeTabId={activeTabId}
+            onSelectTab={onSelectTab}
+            onCloseTab={onCloseTab}
+            onOpenAddServer={onOpenAddServer}
+          />
+        ) : currentServer ? (
           <div className="flex items-center gap-2 px-3.5 py-1 rounded-full bg-bg-tertiary/60 border border-border/40 text-[11px] font-mono font-medium max-w-full truncate shadow-inner backdrop-blur-md">
             <span className="w-1.5 h-1.5 rounded-full bg-success/80 shadow-[0_0_8px_rgba(78,201,176,0.6)] animate-pulse shrink-0" />
             <span className="text-text-primary truncate">{currentServer.name}</span>

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell, clipboard } = require('electron');
 const { startUpdateChecker, runUpdateCheck } = require('./updateChecker');
 const path = require('path');
 const fs = require('fs');
@@ -317,6 +317,72 @@ function installApplicationMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+/**
+ * Registers a global right-click context menu listener for all webContents/windows created.
+ * Provides standard OS edit actions (Cut, Copy, Paste, Select All, Undo, Redo),
+ * link actions (Open Link, Copy Link), and Developer Inspect Element.
+ */
+function setupGlobalContextMenu() {
+  app.on('web-contents-created', (_event, contents) => {
+    contents.on('context-menu', (_event, params) => {
+      const { editFlags, isEditable, selectionText, linkURL, x, y } = params;
+      const menuTemplate = [];
+
+      if (isEditable) {
+        menuTemplate.push(
+          { role: 'undo', enabled: editFlags.canUndo },
+          { role: 'redo', enabled: editFlags.canRedo },
+          { type: 'separator' },
+          { role: 'cut', enabled: editFlags.canCut },
+          { role: 'copy', enabled: editFlags.canCopy },
+          { role: 'paste', enabled: editFlags.canPaste },
+          { role: 'selectAll', enabled: editFlags.canSelectAll }
+        );
+      } else {
+        const hasSelection = Boolean(selectionText && selectionText.trim().length > 0);
+        if (hasSelection || editFlags.canCopy) {
+          menuTemplate.push({ role: 'copy', enabled: editFlags.canCopy || hasSelection });
+        }
+        menuTemplate.push({ role: 'selectAll', enabled: editFlags.canSelectAll });
+      }
+
+      if (linkURL && linkURL.trim().length > 0) {
+        if (menuTemplate.length > 0) menuTemplate.push({ type: 'separator' });
+        menuTemplate.push(
+          {
+            label: 'Open Link in Browser',
+            click: () => {
+              shell.openExternal(linkURL);
+            },
+          },
+          {
+            label: 'Copy Link Address',
+            click: () => {
+              clipboard.writeText(linkURL);
+            },
+          }
+        );
+      }
+
+      if (menuTemplate.length > 0) menuTemplate.push({ type: 'separator' });
+      menuTemplate.push({
+        label: 'Inspect Element',
+        click: () => {
+          contents.inspectElement(x, y);
+        },
+      });
+
+      const menu = Menu.buildFromTemplate(menuTemplate);
+      const targetWindow = BrowserWindow.fromWebContents(contents);
+      if (targetWindow) {
+        menu.popup({ window: targetWindow });
+      } else {
+        menu.popup();
+      }
+    });
+  });
+}
+
 ipcMain.handle('app:get-launch-context', async () => ({
   localFolder: launchLocalFolder,
 }));
@@ -382,6 +448,7 @@ app.whenReady().then(() => {
   }
 
   installApplicationMenu();
+  setupGlobalContextMenu();
   createWindow();
   registerShellHandlers();
   startUpdateChecker(() => mainWindow);
@@ -424,22 +491,28 @@ function getLocalWorkspaceRoot(connection) {
 
 function resolveDummyPath(connection, fileOrDirPath) {
   const base = getLocalWorkspaceRoot(connection);
-  let p = (fileOrDirPath || '.').trim().replace(/^\.\/?/, '') || '.';
-  // Remove any leading prefix that equals dummy-root (full path or segment) so we never double the path
   const realBase = path.resolve(base);
-  const normalizedInput = path.normalize(p);
-  if (normalizedInput === realBase || normalizedInput.startsWith(realBase + path.sep)) {
-    p = normalizedInput === realBase ? '.' : normalizedInput.slice(realBase.length + 1);
-  } else if (p.startsWith(realBase)) {
-    p = p.slice(realBase.length).replace(/^\/+/, '') || '.';
-  } else {
-    const dummyRootName = path.sep + 'dummy-root' + path.sep;
-    const idx = p.indexOf(dummyRootName);
-    if (idx !== -1) p = p.slice(idx + dummyRootName.length) || '.';
+  const rawPath = (fileOrDirPath || '.').trim();
+  
+  if (!rawPath || rawPath === '.') return realBase;
+  
+  // If input is already absolute and inside realBase
+  if (path.isAbsolute(rawPath)) {
+    const norm = path.resolve(rawPath);
+    if (norm.toLowerCase().startsWith(realBase.toLowerCase())) {
+      return norm;
+    }
   }
-  const resolved = path.join(base, p);
-  if (path.resolve(resolved).indexOf(realBase) !== 0) return realBase; // prevent escape
-  return resolved;
+
+  // Strip leading dot-slashes or slashes
+  const cleanPath = rawPath.replace(/^[.\/\\]+/, '');
+  const resolved = path.resolve(realBase, cleanPath);
+  
+  // Prevent directory traversal escape
+  if (resolved.toLowerCase().startsWith(realBase.toLowerCase())) {
+    return resolved;
+  }
+  return realBase;
 }
 
 function ensureDummyRoot() {
@@ -1439,30 +1512,68 @@ ipcMain.handle('server:read-file', async (_, { connection, filePath, proxy, useS
   try {
     if (isLocalWorkspace(connection)) {
       const resolved = resolveDummyPath(connection, filePath);
-      return { ok: true, content: fs.readFileSync(resolved, 'utf8'), error: undefined };
+      const buf = fs.readFileSync(resolved);
+      const isBinary = isBinaryBuffer(buf, filePath);
+      const stat = fs.statSync(resolved);
+      return {
+        ok: true,
+        isBinary,
+        content: isBinary ? buf.toString('base64') : buf.toString('utf8'),
+        encoding: isBinary ? 'base64' : 'utf8',
+        mtime: stat.mtimeMs,
+        size: stat.size,
+      };
     }
-    const conn = await getOrCreateConnection(connection, proxy);
-    const pathEsc = filePath.replace(/"/g, '\\"');
-    const cwd = connection.cwd || connection.projectPath;
-    log('read-file', { filePath, cwd });
-    let sudoCmd;
+
     if (useSudo) {
-      sudoCmd = sudoPassword
+      const conn = await getOrCreateConnection(connection, proxy);
+      const pathEsc = filePath.replace(/"/g, '\\"');
+      const cwd = connection.cwd || connection.projectPath;
+      const sudoCmd = sudoPassword
         ? `echo ${JSON.stringify(sudoPassword)} | sudo -S cat "${pathEsc}"`
         : `sudo -n cat "${pathEsc}"`;
-    }
-    const result = await execCommand(conn, useSudo ? sudoCmd : `cat "${pathEsc}"`, cwd);
-    if (result.code !== 0) {
-      const out = `${result.stderr || ''}\n${result.stdout || ''}`;
-      if (useSudo && sudoNeedsPassword(out)) {
-        return { ok: false, error: sudoFilePermissionMessage('read') };
+      const result = await execCommand(conn, sudoCmd, cwd);
+      if (result.code !== 0) {
+        const out = `${result.stderr || ''}\n${result.stdout || ''}`;
+        if (sudoNeedsPassword(out)) {
+          return { ok: false, error: sudoFilePermissionMessage('read') };
+        }
+        return { ok: false, error: result.stderr || result.stdout || 'Failed to read file' };
       }
-      log('read-file failed', { filePath, code: result.code, stderr: result.stderr });
-      return { ok: false, error: result.stderr || result.stdout || 'Failed to read file' };
+      const buf = Buffer.from(result.stdout || '', 'utf8');
+      const isBinary = isBinaryBuffer(buf, filePath);
+      return {
+        ok: true,
+        isBinary,
+        content: isBinary ? buf.toString('base64') : buf.toString('utf8'),
+        encoding: isBinary ? 'base64' : 'utf8',
+        mtime: Date.now(),
+        size: buf.length,
+      };
     }
-    const content = result.stdout || '';
-    log('read-file ok', { filePath, contentLength: content.length, contentPreview: content.slice(0, 120) + (content.length > 120 ? '...' : '') });
-    return { ok: true, content, error: undefined };
+
+    const sftp = await getOrCreateSftp(connection, proxy);
+    const cwd = connection.cwd || connection.projectPath;
+    const remoteTarget = filePath.startsWith('/') ? filePath : path.posix.join(cwd || '.', filePath);
+    const stats = await sftpStat(sftp, remoteTarget).catch(() => ({ mtime: Math.floor(Date.now() / 1000), size: 0 }));
+
+    let buf;
+    if (stats.size > 5 * 1024 * 1024) {
+      buf = await sftpReadStreamBuffer(sftp, remoteTarget);
+    } else {
+      buf = await sftpReadFileBuffer(sftp, remoteTarget);
+    }
+
+    const isBinary = isBinaryBuffer(buf, filePath);
+    const mtimeMs = stats.mtime ? stats.mtime * 1000 : Date.now();
+    return {
+      ok: true,
+      isBinary,
+      content: isBinary ? buf.toString('base64') : buf.toString('utf8'),
+      encoding: isBinary ? 'base64' : 'utf8',
+      mtime: mtimeMs,
+      size: stats.size || buf.length,
+    };
   } catch (e) {
     return { ok: false, error: errMsg(e) };
   }
@@ -1517,9 +1628,42 @@ ipcMain.handle('server:list-dir', async (_, { connection, dirPath, proxy }) => {
     if (isLocalWorkspace(connection)) {
       return listDirDummy(connection, dirPath);
     }
-    const conn = await getOrCreateConnection(connection, proxy);
-    const result = await execCommand(conn, `ls -la "${(dirPath || '.').replace(/"/g, '\\"')}"`, connection.cwd);
-    return { ok: true, stdout: result.stdout, stderr: result.stderr };
+    const sftp = await getOrCreateSftp(connection, proxy);
+    const cwd = connection.cwd || connection.projectPath;
+    const remoteTarget = (dirPath || '.').startsWith('/')
+      ? (dirPath || '.')
+      : path.posix.join(cwd || '.', dirPath || '.');
+
+    const list = await sftpReaddir(sftp, remoteTarget);
+    const items = list
+      .filter((entry) => entry.filename !== '.' && entry.filename !== '..')
+      .map((entry) => ({
+        name: entry.filename,
+        isDir: entry.attrs ? entry.attrs.isDirectory() : false,
+        isSymlink: entry.attrs ? entry.attrs.isSymbolicLink() : false,
+        size: entry.attrs ? entry.attrs.size : 0,
+        mtime: entry.attrs ? entry.attrs.mtime * 1000 : Date.now(),
+      }));
+
+    return { ok: true, items, stdout: '' }; // stdout: '' kept only for legacy compatibility
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
+});
+
+ipcMain.handle('server:stat-file', async (_, { connection, filePath, proxy }) => {
+  try {
+    if (isLocalWorkspace(connection)) {
+      const resolved = resolveDummyPath(connection, filePath);
+      if (!fs.existsSync(resolved)) return { ok: false, error: 'File not found' };
+      const stat = fs.statSync(resolved);
+      return { ok: true, mtime: stat.mtimeMs, size: stat.size };
+    }
+    const sftp = await getOrCreateSftp(connection, proxy);
+    const cwd = connection.cwd || connection.projectPath;
+    const remoteTarget = filePath.startsWith('/') ? filePath : path.posix.join(cwd || '.', filePath);
+    const stats = await sftpStat(sftp, remoteTarget);
+    return { ok: true, mtime: (stats.mtime || 0) * 1000, size: stats.size || 0 };
   } catch (e) {
     return { ok: false, error: errMsg(e) };
   }
@@ -1575,6 +1719,91 @@ function openSftp(conn) {
       }
       resolve(sftp);
     });
+  });
+}
+
+async function getOrCreateSftp(connection, proxy) {
+  const key = poolKey(connection, proxy);
+  const conn = await getOrCreateConnection(connection, proxy);
+
+  if (!key) {
+    return openSftp(conn);
+  }
+
+  const entry = connectionPool.get(key);
+  if (entry && entry.sftp) {
+    return entry.sftp;
+  }
+
+  const sftp = await openSftp(conn);
+
+  const cleanup = () => {
+    if (entry && entry.sftp === sftp) {
+      entry.sftp = null;
+    }
+  };
+
+  sftp.on('close', cleanup);
+  sftp.on('error', cleanup);
+
+  if (entry) {
+    entry.sftp = sftp;
+  }
+
+  return sftp;
+}
+
+const BINARY_EXTENSIONS = new Set([
+  'png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'pdf', 'zip', 'gz', 'tar', '7z', 'rar',
+  'mp3', 'mp4', 'mov', 'avi', 'exe', 'dll', 'so', 'dylib', 'bin', 'dat', 'db', 'sqlite'
+]);
+
+function isBinaryBuffer(buf, filePath = '') {
+  if (!buf || buf.length === 0) return false;
+  const ext = path.extname(filePath).slice(1).toLowerCase();
+  if (BINARY_EXTENSIONS.has(ext)) return true;
+
+  const limit = Math.min(buf.length, 8192);
+  for (let i = 0; i < limit; i++) {
+    if (buf[i] === 0) return true;
+  }
+  return false;
+}
+
+function sftpReaddir(sftp, remotePath) {
+  return new Promise((resolve, reject) => {
+    sftp.readdir(remotePath, (err, list) => {
+      if (err) return reject(err);
+      resolve(list || []);
+    });
+  });
+}
+
+function sftpStat(sftp, remotePath) {
+  return new Promise((resolve, reject) => {
+    sftp.stat(remotePath, (err, stats) => {
+      if (err) return reject(err);
+      resolve(stats);
+    });
+  });
+}
+
+function sftpReadFileBuffer(sftp, remotePath) {
+  return new Promise((resolve, reject) => {
+    sftp.readFile(remotePath, (err, buffer) => {
+      if (err) return reject(err);
+      resolve(buffer);
+    });
+  });
+}
+
+function sftpReadStreamBuffer(sftp, remotePath) {
+  return new Promise((resolve, reject) => {
+    const stream = sftp.createReadStream(remotePath);
+    const chunks = [];
+    stream.on('data', (chunk) => chunks.push(chunk));
+    stream.on('end', () => resolve(Buffer.concat(chunks)));
+    stream.on('error', (err) => reject(err));
   });
 }
 
@@ -2078,6 +2307,19 @@ ipcMain.handle('app:open-devtools', async () => {
       return { ok: true };
     }
     return { ok: false, error: 'Main window is not available' };
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
+});
+
+ipcMain.handle('app:inspect-element', async (_event, opts) => {
+  try {
+    const win = BrowserWindow.getFocusedWindow() || mainWindow;
+    if (win && !win.isDestroyed()) {
+      win.webContents.inspectElement(opts?.x || 0, opts?.y || 0);
+      return { ok: true };
+    }
+    return { ok: false, error: 'Window is not available' };
   } catch (e) {
     return { ok: false, error: errMsg(e) };
   }

@@ -285,16 +285,15 @@ export function EditorArea({
         </div>
       )}
 
-      {activeView === 'database' && (
-        <div className="flex-1 flex flex-col min-h-0">
-          <DatabaseView
-            currentServer={currentServer}
-            proxy={proxy}
-            connectedSqlitePath={connectedSqlitePath}
-            onSqliteDisconnect={onSqliteDisconnect}
-          />
-        </div>
-      )}
+      <div className={activeView === 'database' ? 'flex-1 flex flex-col min-h-0' : 'hidden'}>
+        <DatabaseView
+          currentServer={currentServer}
+          proxy={proxy}
+          activeView={activeView}
+          connectedSqlitePath={connectedSqlitePath}
+          onSqliteDisconnect={onSqliteDisconnect}
+        />
+      </div>
 
       {activeView === 'firewall' && currentServer && (
         <div className="flex-1 flex flex-col min-h-0">
@@ -536,6 +535,7 @@ export function EditorArea({
                       scrollBeyondLastLine: false,
                       padding: { top: 16 },
                       automaticLayout: true,
+                      contextmenu: false,
                     }}
                     loading={null}
                   />

@@ -862,6 +862,7 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
                       scrollBeyondLastLine: false,
                       padding: { top: 16 },
                       automaticLayout: true,
+                      contextmenu: false,
                     }}
                     loading={null}
                   />

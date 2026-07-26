@@ -8,6 +8,9 @@ import { RepoSidebar } from './components/RepoSidebar';
 import { SettingsView } from './components/SettingsView';
 import { UpdateBanner } from './components/UpdateBanner';
 import { TitleBar } from './components/TitleBar';
+import { CustomContextMenu } from './components/CustomContextMenu';
+import { ServerAlreadyConnectedToast } from './components/ServerAlreadyConnectedToast';
+import type { ServerTabSession } from './components/MultiServerBar';
 import type { ServerConnection, ViewId, ProxySettings, DockerContainer, FileTreeClipboard } from './types';
 import { escapeShellSingleQuotes } from './utils/shellQuote';
 import type { ServerSysInfo } from './components/ServerOverview';
@@ -202,6 +205,50 @@ export default function App() {
   const [pendingTerminalCommand, setPendingTerminalCommand] = useState<string | null>(null);
   const [pendingTerminalLabel, setPendingTerminalLabel] = useState<string | null>(null);
   const [currentServer, setCurrentServer] = useState<ServerConnection | null>(null);
+  const [serverTabs, setServerTabs] = useState<ServerTabSession[]>([]);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const [alreadyConnectedServerToast, setAlreadyConnectedServerToast] = useState<string | null>(null);
+
+  const selectOrAddServerTab = (server: ServerConnection | null) => {
+    if (!server) {
+      setCurrentServer(null);
+      return;
+    }
+    const existing = serverTabs.find((t) => t.server.id === server.id);
+    if (existing) {
+      setActiveTabId(existing.tabId);
+      setCurrentServer(existing.server);
+      setAlreadyConnectedServerToast(existing.server.name);
+      return;
+    }
+
+    const tabId = `tab-${server.id}`;
+    const newTabSession: ServerTabSession = {
+      tabId,
+      server,
+    };
+
+    setServerTabs((prev) => [...prev, newTabSession]);
+    setActiveTabId(tabId);
+    setCurrentServer(server);
+  };
+
+  const handleSelectTab = (tab: ServerTabSession) => {
+    setActiveTabId(tab.tabId);
+    setCurrentServer(tab.server);
+  };
+
+  const handleCloseTab = (tabId: string) => {
+    setServerTabs((prev) => {
+      const next = prev.filter((t) => t.tabId !== tabId);
+      if (activeTabId === tabId) {
+        const lastTab = next.length > 0 ? next[next.length - 1] : null;
+        setActiveTabId(lastTab?.tabId || null);
+        setCurrentServer(lastTab?.server || null);
+      }
+      return next;
+    });
+  };
 
   const openLocalWorkspace = (folderPath: string) => {
     const normalized = folderPath.trim();
@@ -851,7 +898,16 @@ export default function App() {
     window.serverOperator
       .listDir({ connection: currentServer, dirPath: pathKey, proxy })
       .then((res) => {
-        const fileList = res.ok ? res.stdout || '' : res.error || '';
+        let fileList = '';
+        if (res.ok) {
+          if (res.items && Array.isArray(res.items)) {
+            fileList = res.items.map((item) => `${item.isDir ? 'd' : '-'} ${item.name}`).join('\n');
+          } else {
+            fileList = res.stdout || '';
+          }
+        } else {
+          fileList = res.error || '';
+        }
         const error = res.ok ? null : (res.error || '');
         dirCacheRef.current[cacheKey] = { fileList, error };
         setTreeListings((prev) => ({ ...prev, [pathKey]: fileList }));
@@ -947,6 +1003,8 @@ export default function App() {
     setOpenFolders(new Set(['.']));
   };
 
+  const tabContentCacheRef = useRef<Map<string, { content: string; isBinary: boolean; mtime: number }>>(new Map());
+
   // Load file when a new tab is opened (loadingPath set)
   useEffect(() => {
     if (!loadingPath) return;
@@ -969,12 +1027,49 @@ export default function App() {
     }
 
     if (!currentServer || !window.serverOperator) return;
+
+    const cacheKey = `${currentServer.id}:${loadingPath}:${!!tabSudoByPath[loadingPath]}`;
+    const cached = tabContentCacheRef.current.get(cacheKey);
+
+    if (cached) {
+      setContentByPath((prev) => ({ ...prev, [loadingPath]: cached.content }));
+      setSavedContentByPath((prev) => ({ ...prev, [loadingPath]: cached.content }));
+      setFileLoadError(null);
+      setLoadingPath(null);
+
+      // Background mtime check for stale content update
+      window.serverOperator
+        .statFile({ connection: currentServer, filePath: loadingPath, proxy })
+        .then((statRes) => {
+          if (statRes.ok && statRes.mtime && statRes.mtime !== cached.mtime) {
+            window.serverOperator
+              .readFile({ connection: currentServer, filePath: loadingPath, proxy, useSudo: !!tabSudoByPath[loadingPath] })
+              .then((readRes) => {
+                if (readRes.ok) {
+                  const updatedContent = readRes.content ?? '';
+                  const updatedMtime = readRes.mtime || statRes.mtime || Date.now();
+                  tabContentCacheRef.current.set(cacheKey, { content: updatedContent, isBinary: !!readRes.isBinary, mtime: updatedMtime });
+                  setContentByPath((prev) => ({ ...prev, [loadingPath]: updatedContent }));
+                  setSavedContentByPath((prev) => ({ ...prev, [loadingPath]: updatedContent }));
+                }
+              });
+          }
+        })
+        .catch(() => {});
+      return;
+    }
+
     setFileLoadError(null);
     window.serverOperator
       .readFile({ connection: currentServer, filePath: loadingPath, proxy, useSudo: !!tabSudoByPath[loadingPath] })
       .then((res) => {
         const content = res.content ?? '';
         if (res.ok) {
+          tabContentCacheRef.current.set(cacheKey, {
+            content,
+            isBinary: !!res.isBinary,
+            mtime: res.mtime || Date.now(),
+          });
           setContentByPath((prev) => ({ ...prev, [loadingPath]: content }));
           setSavedContentByPath((prev) => ({ ...prev, [loadingPath]: content }));
           setFileLoadError(null);
@@ -1422,8 +1517,16 @@ export default function App() {
 
   const handleSelectServer = (server: ServerConnection | null) => {
     setConnectionError(null);
-    if (server === null || server.id === currentServer?.id) {
+    if (server === null) {
       setCurrentServer(null);
+      return;
+    }
+    const existingTab = serverTabs.find((t) => t.server.id === server.id);
+    if (existingTab) {
+      setActiveTabId(existingTab.tabId);
+      setCurrentServer(existingTab.server);
+      setAlreadyConnectedServerToast(existingTab.server.name);
+      setActiveViewAndRoute('files');
       return;
     }
     const api = typeof window !== 'undefined' ? window.serverOperator : null;
@@ -1474,7 +1577,7 @@ export default function App() {
         setConnectingTo(null);
         setConnectingToServer(null);
         if (res.ok) {
-          setCurrentServer(server);
+          selectOrAddServerTab(server);
           setActiveViewAndRoute('files');
         } else {
           setConnectionError(res.error || 'SSH connection failed');
@@ -1499,6 +1602,11 @@ export default function App() {
     <div className={`flex flex-col h-full bg-bg-primary text-text-primary ${resizeDrag ? 'select-none' : ''}`}>
       <TitleBar
         currentServer={currentServer}
+        serverTabs={serverTabs}
+        activeTabId={activeTabId}
+        onSelectTab={handleSelectTab}
+        onCloseTab={handleCloseTab}
+        onOpenAddServer={() => setActiveViewAndRoute('servers')}
         sidebarOpen={sidebarOpen}
         onSidebarToggle={() => setSidebarOpen((o) => !o)}
       />
@@ -1636,6 +1744,20 @@ export default function App() {
           <div className="flex-1 flex flex-col min-h-0 min-w-0">
             {activeView === 'settings' ? (
               <SettingsView />
+            ) : activeView === 'servers' ? (
+              <NoServerView
+                servers={servers}
+                proxy={proxy}
+                connectingTo={connectingTo}
+                connectionError={connectionError}
+                onAddServer={addServer}
+                onUpdateServer={updateServer}
+                onRemoveServer={removeServer}
+                onSelectServer={handleSelectServer}
+                onProxyChange={setProxyAndRef}
+                onDismissError={() => setConnectionError(null)}
+                onViewGuide={handleSelectGuideId}
+              />
             ) : (activeView === 'guide' || currentServer) ? (
               <EditorArea
                 currentServer={currentServer}
@@ -1798,6 +1920,11 @@ export default function App() {
         )}
       </div>
     </div>
+    <CustomContextMenu />
+    <ServerAlreadyConnectedToast
+      serverName={alreadyConnectedServerToast}
+      onDismiss={() => setAlreadyConnectedServerToast(null)}
+    />
   </div>
   );
 }

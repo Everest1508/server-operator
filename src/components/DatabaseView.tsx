@@ -55,11 +55,12 @@ interface DockerDatabaseTarget {
 interface DatabaseViewProps {
   currentServer: ServerConnection | null;
   proxy: ProxySettings;
+  activeView?: string;
   connectedSqlitePath?: string | null;
   onSqliteDisconnect?: () => void;
 }
 
-export function DatabaseView({ currentServer, proxy, connectedSqlitePath, onSqliteDisconnect }: DatabaseViewProps) {
+export function DatabaseView({ currentServer, proxy, activeView, connectedSqlitePath, onSqliteDisconnect }: DatabaseViewProps) {
   // Connection Form State
   const [dbType, setDbType] = useState<DbType>('mysql');
   const [host, setHost] = useState('127.0.0.1');
@@ -184,9 +185,13 @@ export function DatabaseView({ currentServer, proxy, connectedSqlitePath, onSqli
     refreshDockerDatabases();
   }, [currentServer?.id]);
 
-  // Handle server switch cleanup
+  // Handle server switch cleanup (only when server ID actually changes)
+  const prevServerIdRef = useRef<string | null>(currentServer?.id || null);
   useEffect(() => {
-    handleDisconnect();
+    if (prevServerIdRef.current && prevServerIdRef.current !== currentServer?.id) {
+      handleDisconnect();
+    }
+    prevServerIdRef.current = currentServer?.id || null;
   }, [currentServer?.id]);
 
   // Monaco Autocomplete Provider
@@ -410,12 +415,19 @@ export function DatabaseView({ currentServer, proxy, connectedSqlitePath, onSqli
       const config: Record<string, string> = dbType === 'sqlite'
         ? { filePath: sqliteFilePath }
         : { host, port, username, password, database };
-      const res = await window.serverOperator.connectDatabase({
+      
+      const connectPromise = window.serverOperator.connectDatabase({
         connection: currentServer,
         proxy,
         dbType,
         config,
       });
+
+      const timeoutPromise = new Promise<{ ok: boolean; error?: string; localPort?: number }>((resolve) =>
+        setTimeout(() => resolve({ ok: false, error: 'Database connection timed out (15 seconds)' }), 15000)
+      );
+
+      const res = await Promise.race([connectPromise, timeoutPromise]);
 
       if (res.ok) {
         if (dbType === 'sqlite') {
@@ -887,7 +899,7 @@ export function DatabaseView({ currentServer, proxy, connectedSqlitePath, onSqli
         </div>
       </div>
 
-      {createPortal(
+      {activeView === 'database' && typeof document !== 'undefined' && document.getElementById('database-sidebar-panel') && createPortal(
         <div className="flex flex-col min-h-0 h-full">
           {/* Connection settings form */}
           {status !== 'connected' && status !== 'connecting' ? (
@@ -1401,6 +1413,7 @@ export function DatabaseView({ currentServer, proxy, connectedSqlitePath, onSqli
                           onChange={(val) => setQueryText(val || '')}
                           options={{
                             minimap: { enabled: false },
+                            contextmenu: false,
                             scrollBeyondLastLine: false,
                             fontSize: 12,
                             fontFamily: "var(--font-mono), Menlo, Monaco, Consolas, monospace",

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown, Copy, FolderTree, Loader2, Play, Wand2 } from 'lucide-react';
 import type { ProxySettings, ServerConnection } from '../types';
-import { parseLsLine } from '../utils/parseLs';
 import { joinRemotePath } from '../utils/remotePath';
 import { Select } from './Select';
 
@@ -192,19 +191,28 @@ export function DeploySidebar({
           proxy: proxy.enabled ? proxy : undefined,
         });
         if (cancelled) return;
-        if (!listRes.ok || !listRes.stdout) {
+        if (!listRes.ok || (!listRes.items?.length && !listRes.stdout)) {
           setShortcutFiles([]);
           setSelectedShortcutFile('');
           setShortcutsWarning(`No shortcut folder found at ${seropFolderPath}. Create it and add .serop files.`);
           return;
         }
 
-        const files = listRes.stdout
-          .trim()
-          .split('\n')
-          .filter(Boolean)
-          .map((line) => parseLsLine(line))
-          .filter((entry): entry is { isDir: boolean; name: string } => !!entry && !entry.isDir)
+        const entries: Array<{ name: string; isDir: boolean }> = listRes.items
+          ? listRes.items.map((i) => ({ name: i.name, isDir: !!i.isDir }))
+          : listRes.stdout
+              .trim()
+              .split('\n')
+              .filter(Boolean)
+              .map((line) => {
+                const parts = line.trim().split(/\s+/);
+                if (parts.length < 8) return null;
+                return { isDir: parts[0].startsWith('d'), name: parts.slice(8).join(' ') };
+              })
+              .filter((x): x is { isDir: boolean; name: string } => !!x);
+
+        const files = entries
+          .filter((entry) => !entry.isDir)
           .map((entry) => entry.name)
           .filter((name) => name.toLowerCase().endsWith('.serop'))
           .sort((a, b) => a.localeCompare(b));

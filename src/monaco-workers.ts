@@ -1,21 +1,14 @@
 /**
- * Configure Monaco editor to load from app (not CDN) and provide workers.
+ * Configure Monaco editor to load bundled JS (not external CDN/relative scripts) and provide Web Workers.
  * Must run before any Monaco code loads.
  */
+import * as monaco from 'monaco-editor';
 import { loader } from '@monaco-editor/react';
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker.js?worker';
 import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker.js?worker';
 import CssWorker from 'monaco-editor/esm/vs/language/css/css.worker.js?worker';
 import HtmlWorker from 'monaco-editor/esm/vs/language/html/html.worker.js?worker';
 import TsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker.js?worker';
-
-// Load Monaco from `public/vs` (copied in postinstall). Must be relative to the HTML
-// document so it works under file:// in packaged Electron; `/vs` would hit the OS root.
-const viteBase = (import.meta.env.BASE_URL ?? './').replace(/\/+$/, '') || '.';
-const vsPath = viteBase === '/' ? '/vs' : `${viteBase}/vs`;
-loader.config({
-  paths: { vs: vsPath },
-});
 
 declare global {
   interface Window {
@@ -34,3 +27,7 @@ declare global {
     return new EditorWorker();
   },
 };
+
+// Configure @monaco-editor/react to use bundled monaco instance directly,
+// preventing external CDN calls or relative file:// path errors on Windows.
+loader.config({ monaco });

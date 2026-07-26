@@ -56,6 +56,10 @@ export interface ServerOperatorAPI {
   readFile: (opts: { connection: ServerConnection; filePath: string; proxy?: ProxySettings; useSudo?: boolean; sudoPassword?: string }) => Promise<{
     ok: boolean;
     content?: string;
+    isBinary?: boolean;
+    encoding?: 'utf8' | 'base64';
+    mtime?: number;
+    size?: number;
     error?: string;
   }>;
   writeFile: (opts: { connection: ServerConnection; filePath: string; content: string; proxy?: ProxySettings; useSudo?: boolean }) => Promise<{
@@ -65,6 +69,13 @@ export interface ServerOperatorAPI {
   listDir: (opts: { connection: ServerConnection; dirPath?: string; proxy?: ProxySettings }) => Promise<{
     ok: boolean;
     stdout?: string;
+    items?: Array<{ name: string; isDir: boolean; isSymlink?: boolean; size?: number; mtime?: number }>;
+    error?: string;
+  }>;
+  statFile: (opts: { connection: ServerConnection; filePath: string; proxy?: ProxySettings }) => Promise<{
+    ok: boolean;
+    mtime?: number;
+    size?: number;
     error?: string;
   }>;
   mkdir: (opts: { connection: ServerConnection; dirPath: string; proxy?: ProxySettings }) => Promise<{
@@ -97,6 +108,7 @@ export interface ServerOperatorAPI {
   closeShell: (opts: { shellId: string }) => Promise<void>;
   shellWrite: (opts: { shellId: string; data: string }) => Promise<void>;
   openDevTools?: () => Promise<{ ok: boolean; error?: string }>;
+  inspectElement?: (opts: { x: number; y: number }) => Promise<{ ok: boolean; error?: string }>;
   getLogFilePath?: () => Promise<string>;
   readLogFile?: () => Promise<{ ok: boolean; content?: string; error?: string }>;
   clearLogFile?: () => Promise<{ ok: boolean; error?: string }>;

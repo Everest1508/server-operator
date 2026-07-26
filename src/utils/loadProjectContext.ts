@@ -1,5 +1,4 @@
 import type { ServerConnection, ProxySettings } from '../types';
-import { parseLsLine } from './parseLs';
 
 const DEPLOYMENT_FILES = [
   'docker-compose.yml',
@@ -17,15 +16,6 @@ function isDeploymentFile(name: string): boolean {
   const lower = name.toLowerCase();
   if (DEPLOYMENT_FILES.some((f) => lower === f.toLowerCase())) return true;
   return DEPLOYMENT_PATTERNS.some((re) => re.test(name));
-}
-
-function parseListing(stdout: string): Array<{ isDir: boolean; name: string }> {
-  return stdout
-    .trim()
-    .split('\n')
-    .filter(Boolean)
-    .map((line) => parseLsLine(line))
-    .filter((e): e is { isDir: boolean; name: string } => e != null);
 }
 
 /**
@@ -49,8 +39,20 @@ export async function loadProjectContext(
     if (level > 3) return;
     const pathForList = dirPath(relativePath);
     const res = await listDir({ connection, dirPath: pathForList, proxy });
-    if (!res.ok || !res.stdout) return;
-    const entries = parseListing(res.stdout);
+    if (!res.ok) return;
+
+    const entries: Array<{ name: string; isDir: boolean }> = res.items
+      ? res.items.map((i) => ({ name: i.name, isDir: !!i.isDir }))
+      : (res.stdout || '')
+          .trim()
+          .split('\n')
+          .filter(Boolean)
+          .map((line) => {
+            const parts = line.trim().split(/\s+/);
+            if (parts.length < 8) return null;
+            return { isDir: parts[0].startsWith('d'), name: parts.slice(8).join(' ') };
+          })
+          .filter((x): x is { isDir: boolean; name: string } => !!x);
     for (const e of entries) {
       const nextRelative = relativePath === '.' ? e.name : `${relativePath}/${e.name}`;
       lines.push(`${indent}${e.isDir ? '[dir]  ' : '       '}${e.name}`);
