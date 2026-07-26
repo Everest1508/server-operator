@@ -200,7 +200,7 @@ export function DeploySidebar({
 
         const entries: Array<{ name: string; isDir: boolean }> = listRes.items
           ? listRes.items.map((i) => ({ name: i.name, isDir: !!i.isDir }))
-          : listRes.stdout
+          : (listRes.stdout || '')
               .trim()
               .split('\n')
               .filter(Boolean)

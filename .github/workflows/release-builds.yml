@@ -49,6 +49,7 @@ jobs:
       - name: Build desktop artifacts
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          NODE_OPTIONS: "--max-old-space-size=8192"
         run: ${{ matrix.build_command }}
 
       - name: Upload build artifacts
