@@ -167,7 +167,7 @@ To resolve this on your system:
 1. Copy `Server Operator.app` to your `/Applications` folder.
 2. Open your terminal and run:
    ```bash
-   xattr -cr /Applications/Server\ Operator.app
+    xattr -cr /Applications/Serop.app  
    ```
 This strips the quarantine attribute and allows the application to launch successfully.
 
