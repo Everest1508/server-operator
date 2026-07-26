@@ -725,7 +725,7 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
   const isEditableTableView =
     dbType !== 'redis' &&
     !!activeTableName &&
-    lastExecutedQuery.trim() === buildTableBrowseQuery(activeTableName).trim();
+    !!queryResult;
 
   const filteredResults = queryResult 
     ? queryResult.filter(row => {
