@@ -10,6 +10,8 @@ interface TitleBarProps {
   onSelectTab?: (tab: ServerTabSession) => void;
   onCloseTab?: (tabId: string) => void;
   onOpenAddServer?: () => void;
+  servers?: ServerConnection[];
+  onSelectServer?: (server: ServerConnection) => void;
   sidebarOpen?: boolean;
   onSidebarToggle?: () => void;
 }
@@ -21,6 +23,8 @@ export function TitleBar({
   onSelectTab,
   onCloseTab,
   onOpenAddServer,
+  servers = [],
+  onSelectServer,
   sidebarOpen,
   onSidebarToggle,
 }: TitleBarProps) {
@@ -316,21 +320,17 @@ export function TitleBar({
       </div>
 
       {/* Center Area: App Title & Connected Servers Multi-Tab Bar */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center max-w-[55%] truncate z-10">
-        {serverTabs.length > 0 && onSelectTab && onCloseTab && onOpenAddServer ? (
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center z-30">
+        {onOpenAddServer ? (
           <MultiServerBar
             tabs={serverTabs}
             activeTabId={activeTabId}
-            onSelectTab={onSelectTab}
-            onCloseTab={onCloseTab}
+            onSelectTab={onSelectTab || (() => {})}
+            onCloseTab={onCloseTab || (() => {})}
             onOpenAddServer={onOpenAddServer}
+            servers={servers}
+            onSelectServer={onSelectServer}
           />
-        ) : currentServer ? (
-          <div className="flex items-center gap-2 px-3.5 py-1 rounded-full bg-bg-tertiary/60 border border-border/40 text-[11px] font-mono font-medium max-w-full truncate shadow-inner backdrop-blur-md">
-            <span className="w-1.5 h-1.5 rounded-full bg-success/80 shadow-[0_0_8px_rgba(78,201,176,0.6)] animate-pulse shrink-0" />
-            <span className="text-text-primary truncate">{currentServer.name}</span>
-            <span className="text-text-muted text-[9px] hidden md:inline truncate opacity-90">({currentServer.host})</span>
-          </div>
         ) : (
           <span className="text-[10px] font-sans font-bold text-text-muted tracking-widest opacity-85">
             SERVER OPERATOR

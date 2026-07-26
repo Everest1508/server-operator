@@ -165,6 +165,17 @@ const RIGHT_PANEL_MIN = 180;
 const RIGHT_PANEL_MAX = 480;
 const RIGHT_PANEL_DEFAULT = 240;
 
+export interface ServerFileState {
+  currentPath: string;
+  treeListings: Record<string, string>;
+  openFolders: Set<string>;
+  openTabs: string[];
+  activeTabPath: string | null;
+  contentByPath: Record<string, string>;
+  savedContentByPath: Record<string, string>;
+  tabSudoByPath: Record<string, boolean>;
+}
+
 export default function App() {
   useEffect(() => {
     applyAppTheme(loadAppTheme());
@@ -209,6 +220,9 @@ export default function App() {
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [alreadyConnectedServerToast, setAlreadyConnectedServerToast] = useState<string | null>(null);
 
+  const fileStateByServerRef = useRef<Record<string, ServerFileState>>({});
+  const prevServerIdRef = useRef<string | null>(null);
+
   const selectOrAddServerTab = (server: ServerConnection | null) => {
     if (!server) {
       setCurrentServer(null);
@@ -248,6 +262,8 @@ export default function App() {
       }
       return next;
     });
+    const closedServerId = tabId.replace(/^tab-/, '');
+    delete fileStateByServerRef.current[closedServerId];
   };
 
   const openLocalWorkspace = (folderPath: string) => {
@@ -394,16 +410,47 @@ export default function App() {
   const dirCacheRef = useRef<Record<string, { fileList: string; error: string | null }>>({});
 
   useEffect(() => {
-    if (currentServer?.id) {
-      setCurrentPath('.');
-      setTreeListings({});
-      setOpenFolders(new Set(['.']));
+    const prevServerId = prevServerIdRef.current;
+    const newServerId = currentServer?.id || null;
+
+    if (prevServerId && prevServerId !== newServerId) {
+      fileStateByServerRef.current[prevServerId] = {
+        currentPath,
+        treeListings,
+        openFolders,
+        openTabs,
+        activeTabPath,
+        contentByPath,
+        savedContentByPath,
+        tabSudoByPath,
+      };
+    }
+
+    prevServerIdRef.current = newServerId;
+
+    if (newServerId) {
+      const saved = fileStateByServerRef.current[newServerId];
+      if (saved) {
+        setCurrentPath(saved.currentPath);
+        setTreeListings(saved.treeListings);
+        setOpenFolders(saved.openFolders);
+        setOpenTabs(saved.openTabs);
+        setActiveTabPath(saved.activeTabPath);
+        setContentByPath(saved.contentByPath);
+        setSavedContentByPath(saved.savedContentByPath);
+        setTabSudoByPath(saved.tabSudoByPath);
+      } else {
+        setCurrentPath('.');
+        setTreeListings({});
+        setOpenFolders(new Set(['.']));
+        setOpenTabs([]);
+        setActiveTabPath(null);
+        setContentByPath({});
+        setSavedContentByPath({});
+        setTabSudoByPath({});
+      }
+
       setLoadingPaths(new Set());
-      setOpenTabs([]);
-      setActiveTabPath(null);
-      setContentByPath({});
-      setSavedContentByPath({});
-      setTabSudoByPath({});
       setLoadingPath(null);
       setFileLoadError(null);
       setSelectedRepoPath(null);
@@ -414,6 +461,31 @@ export default function App() {
       setRepoOpenFolders({});
     }
   }, [currentServer?.id]);
+
+  useEffect(() => {
+    if (currentServer?.id) {
+      fileStateByServerRef.current[currentServer.id] = {
+        currentPath,
+        treeListings,
+        openFolders,
+        openTabs,
+        activeTabPath,
+        contentByPath,
+        savedContentByPath,
+        tabSudoByPath,
+      };
+    }
+  }, [
+    currentServer?.id,
+    currentPath,
+    treeListings,
+    openFolders,
+    openTabs,
+    activeTabPath,
+    contentByPath,
+    savedContentByPath,
+    tabSudoByPath,
+  ]);
 
   useEffect(() => {
     setFileTreeClipboard(null);
@@ -1607,6 +1679,8 @@ export default function App() {
         onSelectTab={handleSelectTab}
         onCloseTab={handleCloseTab}
         onOpenAddServer={() => setActiveViewAndRoute('servers')}
+        servers={servers}
+        onSelectServer={selectOrAddServerTab}
         sidebarOpen={sidebarOpen}
         onSidebarToggle={() => setSidebarOpen((o) => !o)}
       />
