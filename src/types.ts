@@ -1,5 +1,7 @@
 export type ViewId = 'servers' | 'files' | 'docker' | 'deploy' | 'notes' | 'database' | 'guide' | 'settings' | 'firewall';
 
+export type AppTheme = 'default' | 'glassy' | 'light' | 'tokyo-night';
+
 export interface FeatureFlags {
   deployModule: boolean;
   servers: boolean;

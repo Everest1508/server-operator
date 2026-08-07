@@ -1,4 +1,4 @@
-import { Database, GitBranch, History, TerminalSquare, Sliders, Shield, Sparkles } from 'lucide-react';
+import { Database, GitBranch, History, TerminalSquare, Sliders, Shield, Sparkles, Keyboard } from 'lucide-react';
 import React from 'react';
 
 export interface ChangeEntry {
@@ -22,6 +22,49 @@ export interface ChangelogVersion {
 }
 
 export const CHANGELOG: ChangelogVersion[] = [
+  {
+    version: '2.1.0',
+    codename: 'Prism Break',
+    date: '2026-08-07',
+    summary:
+      'Adds Light and Tokyo Night themes with a visual theme picker, keeps terminals and the built-in editor in sync with the active theme, removes the native macOS menu in favor of title-bar shortcuts, surfaces terminal connection status, and makes file and folder creation inline in the file trees.',
+    groups: [
+      {
+        label: 'Theming & Appearance',
+        icon: Sliders,
+        color: '#93c5fd',
+        items: [
+          { type: 'feat', text: 'Added Light and Tokyo Night themes alongside Default and Glassy Terminal, with a visual swatch-based theme picker in Settings.' },
+          { type: 'improve', text: 'Terminals and the built-in editor now follow the active theme background and accent colors.' },
+        ],
+      },
+      {
+        label: 'Title Bar & Shortcuts',
+        icon: Keyboard,
+        color: '#f0abfc',
+        items: [
+          { type: 'feat', text: 'Removed the native macOS application menu and moved core actions into the app\'s custom title bar.' },
+          { type: 'feat', text: 'Added keyboard shortcuts (Cmd/Ctrl+Q/R/B/O for quit, reload, browser refresh, and open, plus Cmd/Ctrl+C/V/X/A/Z/Y for editing actions) with input-aware handling.' },
+        ],
+      },
+      {
+        label: 'Terminal Reliability',
+        icon: TerminalSquare,
+        color: '#6ee7b7',
+        items: [
+          { type: 'improve', text: 'Terminal tabs and project terminals now show live connection status with status dots and a "Session ended - Reconnect" banner when a shell drops.' },
+        ],
+      },
+      {
+        label: 'File Trees',
+        icon: GitBranch,
+        color: '#fbbf24',
+        items: [
+          { type: 'feat', text: 'New File / New Folder inputs now appear inline inside the target folder in both the file and project trees, and the target folder auto-expands so the input is visible.' },
+        ],
+      },
+    ],
+  },
   {
     version: '2.0.1',
     codename: 'Glass Harbor',

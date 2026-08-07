@@ -3,6 +3,7 @@ import Editor from '@monaco-editor/react';
 import { FileCode, Save, Loader2, X, Download, ChevronDown, Plus, FolderOpen, Shield, Play, Check, Copy, Keyboard, Terminal, Database, Workflow, History, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
 import type { ServerConnection, ViewId, ProxySettings } from '../types';
+import { useAppTheme, isLightTheme } from '../hooks/useAppTheme';
 import { DockerView } from './DockerView';
 import { DeployView } from './DeployView';
 import { ServerOverview } from './ServerOverview';
@@ -136,6 +137,8 @@ export function EditorArea({
   const [pathDialogSudo, setPathDialogSudo] = useState(false);
   const [pathInput, setPathInput] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
+  const appTheme = useAppTheme();
+  const monacoTheme = isLightTheme(appTheme) ? 'vs-light' : 'vs-dark';
 
   const activeContent = activeTabPath ? (contentByPath[activeTabPath] ?? '') : '';
   const activeSaved = activeTabPath ? (savedContentByPath[activeTabPath] ?? '') : '';
@@ -524,7 +527,7 @@ export function EditorArea({
                     key={activeTabPath}
                     height="100%"
                     language={language}
-                    theme="vs-dark"
+                    theme={monacoTheme}
                     value={activeContent}
                     onChange={(v) => onContentChange?.(activeTabPath, v ?? '')}
                     options={{

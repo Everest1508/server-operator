@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { Loader2, RefreshCw, Shield, Server, Calendar, ChevronDown, RotateCw, FileEdit, X, Save, Play, Square, CircleCheck, CircleX, Plus } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 import type { ServerConnection, ProxySettings } from '../types';
+import { useAppTheme, isLightTheme } from '../hooks/useAppTheme';
 import { Select } from './Select';
 
 const NGINX_MAIN_CONFIG = '/etc/nginx/nginx.conf';
@@ -58,6 +59,8 @@ function parseCertbotCertificates(stdout: string): CertInfo[] {
 }
 
 export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: ServerToolsViewProps) {
+  const appTheme = useAppTheme();
+  const monacoTheme = isLightTheme(appTheme) ? 'vs-light' : 'vs-dark';
   const [cronOutput, setCronOutput] = useState<string | null>(null);
   const [cronLoading, setCronLoading] = useState(false);
   const [cronError, setCronError] = useState<string | null>(null);
@@ -851,7 +854,7 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
                   <Editor
                     height={`${nginxEditorHeight}px`}
                     language="plaintext"
-                    theme="vs-dark"
+                    theme={monacoTheme}
                     value={nginxConfigContent}
                     onChange={(v) => setNginxConfigContent(v ?? '')}
                     options={{

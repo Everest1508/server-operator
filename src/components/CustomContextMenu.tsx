@@ -39,7 +39,7 @@ export function CustomContextMenu() {
       const target = e.target as HTMLElement | null;
 
       // Skip custom context menu for elements that provide their own specific UI menus (e.g. sidebar file tree rows)
-      if (target?.closest('[data-tree-row]')) {
+      if (target?.closest('[data-tree-row], [data-repo-tree-row]')) {
         return;
       }
 

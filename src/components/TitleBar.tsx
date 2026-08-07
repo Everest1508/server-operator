@@ -36,6 +36,71 @@ export function TitleBar({
   const platform = window.serverOperator?.platform || 'web';
   const isMac = platform === 'darwin';
 
+  const triggerMenuActionRef = useRef<(action: string) => void>(() => {});
+
+  useEffect(() => {
+    if (!isMac) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (!event.metaKey) return;
+      const key = event.key.toLowerCase();
+      const target = event.target as HTMLElement | null;
+      const inInput =
+        !!target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable ||
+          target.closest('.xterm-helper-textarea') !== null);
+      switch (key) {
+        case 'q':
+          event.preventDefault();
+          window.serverOperator?.quitApp?.();
+          return;
+        case 'r':
+          event.preventDefault();
+          triggerMenuActionRef.current('reload-window');
+          return;
+        case 'b':
+          event.preventDefault();
+          triggerMenuActionRef.current('toggle-sidebar');
+          return;
+        case 'o':
+          event.preventDefault();
+          triggerMenuActionRef.current('open-local-folder');
+          return;
+      }
+      if (inInput) {
+        switch (key) {
+          case 'c':
+            event.preventDefault();
+            document.execCommand('copy');
+            return;
+          case 'x':
+            event.preventDefault();
+            document.execCommand('cut');
+            return;
+          case 'v':
+            event.preventDefault();
+            document.execCommand('paste');
+            return;
+          case 'a':
+            event.preventDefault();
+            document.execCommand('selectAll');
+            return;
+          case 'z':
+            event.preventDefault();
+            document.execCommand(event.shiftKey ? 'redo' : 'undo');
+            return;
+          case 'y':
+            event.preventDefault();
+            document.execCommand('redo');
+            return;
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMac]);
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -141,6 +206,8 @@ export function TitleBar({
         break;
     }
   };
+
+  triggerMenuActionRef.current = triggerMenuAction;
 
   return (
     <div

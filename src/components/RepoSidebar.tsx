@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Fragment } from 'react';
 import {
   ChevronRight,
   Folder,
@@ -49,6 +49,10 @@ interface RepoSidebarProps {
   onOpenFile?: (filePath: string) => void;
   onCreateFile?: (repoPath: string, name: string) => Promise<{ ok: boolean; error?: string }>;
   onCreateFolder?: (repoPath: string, name: string) => Promise<{ ok: boolean; error?: string }>;
+  /** Create a file inside a specific server-relative folder (from the right-click menu). */
+  onCreateFileAt?: (dirPath: string, name: string) => Promise<{ ok: boolean; error?: string }>;
+  /** Create a folder inside a specific server-relative folder (from the right-click menu). */
+  onCreateFolderAt?: (dirPath: string, name: string) => Promise<{ ok: boolean; error?: string }>;
   onDeleteEntry?: (fullPath: string) => Promise<{ ok: boolean; error?: string }>;
   onCollapseRepo?: (repoPath: string) => void;
   onRemoveRepo?: (path: string) => void;
@@ -77,6 +81,8 @@ export function RepoSidebar({
   onOpenFile,
   onCreateFile,
   onCreateFolder,
+  onCreateFileAt,
+  onCreateFolderAt,
   onDeleteEntry,
   onCollapseRepo,
   onRemoveRepo,
@@ -91,6 +97,7 @@ export function RepoSidebar({
 }: RepoSidebarProps) {
   const [creatingType, setCreatingType] = useState<'file' | 'folder' | null>(null);
   const [creatingName, setCreatingName] = useState('');
+  const [creatingTargetDir, setCreatingTargetDir] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [fileTreeMenu, setFileTreeMenu] = useState<RepoFileTreeMenuState | null>(null);
@@ -120,14 +127,16 @@ export function RepoSidebar({
     if (creatingType) {
       setCreatingName('');
       setCreateError(null);
-      createInputRef.current?.focus();
+      requestAnimationFrame(() => createInputRef.current?.focus());
     }
-  }, [creatingType]);
+  }, [creatingType, creatingTargetDir]);
 
   const handleCreateSubmit = async () => {
     const name = creatingName.trim();
+    const targetDir = creatingTargetDir;
     if (!name || !selectedRepoPath) {
       setCreatingType(null);
+      setCreatingTargetDir(null);
       return;
     }
     if (name.includes('/')) {
@@ -135,17 +144,29 @@ export function RepoSidebar({
       return;
     }
     const type = creatingType;
-    setCreateError(null);
-    setCreatingType(null);
     setCreating(true);
     try {
-      if (type === 'file' && onCreateFile) {
-        const res = await onCreateFile(selectedRepoPath, name);
-        if (!res.ok) setCreateError(res.error || 'Failed to create file');
-      } else if (type === 'folder' && onCreateFolder) {
-        const res = await onCreateFolder(selectedRepoPath, name);
-        if (!res.ok) setCreateError(res.error || 'Failed to create folder');
+      let res: { ok: boolean; error?: string } | undefined;
+      if (type === 'file') {
+        if (targetDir != null && onCreateFileAt) {
+          res = await onCreateFileAt(targetDir, name);
+        } else if (onCreateFile) {
+          res = await onCreateFile(selectedRepoPath, name);
+        }
+      } else if (type === 'folder') {
+        if (targetDir != null && onCreateFolderAt) {
+          res = await onCreateFolderAt(targetDir, name);
+        } else if (onCreateFolder) {
+          res = await onCreateFolder(selectedRepoPath, name);
+        }
       }
+      if (res && !res.ok) {
+        setCreateError(res.error || 'Failed to create');
+        return;
+      }
+      setCreatingType(null);
+      setCreatingTargetDir(null);
+      setCreateError(null);
     } finally {
       setCreating(false);
     }
@@ -157,14 +178,30 @@ export function RepoSidebar({
       handleCreateSubmit();
     } else if (e.key === 'Escape') {
       setCreatingType(null);
+      setCreatingTargetDir(null);
       setCreateError(null);
     }
   };
 
-  const repoListingKey = (repoPath: string, relativePath: string) => `${repoPath}:${relativePath}`;
-  const canCreate = selectedRepoPath && (onCreateFile || onCreateFolder);
+  /** Start creating a file/folder inside `dirPath`. Opens the folder so the inline input is visible. */
+  const startCreate = (dirPath: string, type: 'file' | 'folder') => {
+    if (!selectedRepoPath) return;
+    const key = (dirPath || '.').trim() || '.';
+    setCreatingTargetDir(key);
+    setCreatingType(type);
+    const relative =
+      selectedRepoPath !== '.' && key.startsWith(`${selectedRepoPath}/`)
+        ? key.slice(selectedRepoPath.length + 1)
+        : key;
+    if (relative !== '.' && !(repoOpenFolders[selectedRepoPath]?.has(relative)) && onToggleRepoFolder) {
+      onToggleRepoFolder(selectedRepoPath, relative);
+    }
+  };
 
-  function RepoTreeFolder({ repoPath, pathKey, depth }: { repoPath: string; pathKey: string; depth: number }) {
+  const repoListingKey = (repoPath: string, relativePath: string) => `${repoPath}:${relativePath}`;
+  const canCreate = selectedRepoPath && (onCreateFile || onCreateFolder || onCreateFileAt || onCreateFolderAt);
+
+  const renderRepoTree = (repoPath: string, pathKey: string, depth: number): React.ReactNode => {
     const listKey = repoListingKey(repoPath, pathKey);
     const listing = repoTreeListings[listKey];
     const loading = repoLoadingPaths.has(listKey);
@@ -230,6 +267,33 @@ export function RepoSidebar({
             )}
           </div>
         )}
+        {creatingTargetDir === (repoPath === '.' ? pathKey : `${repoPath}/${pathKey}`) && creatingType && (
+          <>
+            <div className="flex items-center gap-2 rounded-lg min-w-0 w-full py-1" style={{ paddingLeft: (depth + 1) * 12 + 8 }}>
+              <span className="w-[13px] shrink-0" />
+              {creatingType === 'folder' ? (
+                <Folder size={13} className="shrink-0 text-accent" />
+              ) : (
+                <FileCode size={13} className="shrink-0 text-text-secondary" />
+              )}
+              <input
+                ref={createInputRef}
+                type="text"
+                value={creatingName}
+                onChange={(e) => setCreatingName(e.target.value)}
+                onKeyDown={handleCreateKeyDown}
+                placeholder={creatingType === 'folder' ? 'Folder name' : 'File name'}
+                className="flex-1 min-w-0 bg-bg-primary/50 border border-border/40 rounded px-2 py-0.5 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+                aria-label={creatingType === 'folder' ? 'Folder name' : 'File name'}
+              />
+            </div>
+            {createError && (
+              <p className="text-error text-xs" style={{ paddingLeft: (depth + 1) * 12 + 40 }}>
+                {createError}
+              </p>
+            )}
+          </>
+        )}
         {isOpen &&
           (loading && !listing ? (
             <div className="flex items-center gap-2 py-1.5 rounded-lg" style={{ paddingLeft: (pathKey === '.' ? 0 : depth + 1) * 12 + 8 }}>
@@ -244,12 +308,7 @@ export function RepoSidebar({
               const fullFilePath = repoPath === '.' ? fullPath : `${repoPath}/${fullPath}`;
               if (isDir) {
                 return (
-                  <RepoTreeFolder
-                    key={`${repoPath}-${fullPath}`}
-                    repoPath={repoPath}
-                    pathKey={fullPath}
-                    depth={pathKey === '.' ? depth + 1 : depth + 1}
-                  />
+                  <Fragment key={`${repoPath}-${fullPath}`}>{renderRepoTree(repoPath, fullPath, depth + 1)}</Fragment>
                 );
               }
               return (
@@ -362,7 +421,7 @@ export function RepoSidebar({
             <Tooltip content="New File" position="top">
               <button
                 type="button"
-                onClick={() => setCreatingType('file')}
+                onClick={() => startCreate(selectedRepoPath === '.' ? '.' : selectedRepoPath!, 'file')}
                 disabled={creating}
                 className="p-1.5 rounded-md text-text-secondary hover:bg-bg-tertiary hover:text-accent disabled:opacity-50 transition-colors"
               >
@@ -374,7 +433,7 @@ export function RepoSidebar({
             <Tooltip content="New Folder" position="top">
               <button
                 type="button"
-                onClick={() => setCreatingType('folder')}
+                onClick={() => startCreate(selectedRepoPath === '.' ? '.' : selectedRepoPath!, 'folder')}
                 disabled={creating}
                 className="p-1.5 rounded-md text-text-secondary hover:bg-bg-tertiary hover:text-accent disabled:opacity-50 transition-colors"
               >
@@ -403,7 +462,7 @@ export function RepoSidebar({
               if ((e.target as HTMLElement).closest('[data-repo-tree-row]')) return;
               if ((e.target as HTMLElement).closest('button')) return;
               if ((e.target as HTMLElement).closest('input')) return;
-              if (!canPasteFiles) return;
+              if (!canPasteFiles && !(onCreateFileAt || onCreateFolderAt)) return;
               e.preventDefault();
               setFileTreeMenu({
                 kind: 'background',
@@ -413,29 +472,7 @@ export function RepoSidebar({
               });
             }}
           >
-            {creatingType && (
-              <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-bg-tertiary border border-border/40 mb-1.5">
-                {creatingType === 'folder' ? (
-                  <Folder size={12} className="shrink-0 text-accent" />
-                ) : (
-                  <FileCode size={12} className="shrink-0 text-text-secondary" />
-                )}
-                <input
-                  ref={createInputRef}
-                  type="text"
-                  value={creatingName}
-                  onChange={(e) => setCreatingName(e.target.value)}
-                  onKeyDown={handleCreateKeyDown}
-                  placeholder={creatingType === 'folder' ? 'Folder name' : 'File name'}
-                  className="flex-1 min-w-0 bg-bg-primary/50 border border-border/40 rounded px-2 py-0.5 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                  aria-label={creatingType === 'folder' ? 'Folder name' : 'File name'}
-                />
-              </div>
-            )}
-            {createError && (
-              <p className="text-error text-xs px-2 py-1 mb-1">{createError}</p>
-            )}
-            <RepoTreeFolder repoPath={selectedRepoPath} pathKey="." depth={0} />
+            {renderRepoTree(selectedRepoPath, '.', 0)}
           </div>
         ) : (
           <div className="py-8 px-2 text-text-muted text-xs text-center italic">Select a project tab above to browse folders.</div>
@@ -448,31 +485,110 @@ export function RepoSidebar({
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.preventDefault()}
         >
-          {fileTreeMenu.kind === 'background' && canPasteFiles && fileTreeMenu.targetDir != null && (
-            <button
-              type="button"
-              disabled={!!contextMenuAction}
-              className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
-              onClick={async () => {
-                setContextMenuAction('paste');
-                onFileTreeActionMessage?.(null);
-                try {
-                  const res = await onFileTreePasteInto!(fileTreeMenu.targetDir!);
-                  if (!res.ok && res.error && res.error !== 'Cancelled') {
-                    onFileTreeActionMessage?.(res.error);
-                  }
-                } finally {
-                  setContextMenuAction(null);
-                  setFileTreeMenu(null);
-                }
-              }}
-            >
-              <ClipboardPaste size={13} className="shrink-0" />
-              {contextMenuAction === 'paste' ? 'Pasting…' : 'Paste here'}
-            </button>
+          {fileTreeMenu.kind === 'background' && fileTreeMenu.targetDir != null && (
+            <>
+              {onCreateFileAt && (
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg transition-colors cursor-pointer"
+                  onClick={() => {
+                    startCreate(fileTreeMenu.targetDir!, 'file');
+                    setFileTreeMenu(null);
+                  }}
+                >
+                  <FilePlus size={13} className="shrink-0" />
+                  New File
+                </button>
+              )}
+              {onCreateFolderAt && (
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg transition-colors cursor-pointer"
+                  onClick={() => {
+                    startCreate(fileTreeMenu.targetDir!, 'folder');
+                    setFileTreeMenu(null);
+                  }}
+                >
+                  <FolderPlus size={13} className="shrink-0" />
+                  New Folder
+                </button>
+              )}
+              {canPasteFiles && (onCreateFileAt || onCreateFolderAt) && (
+                <div className="h-[1px] bg-border/40 my-1 mx-1" />
+              )}
+              {canPasteFiles && (
+                <button
+                  type="button"
+                  disabled={!!contextMenuAction}
+                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
+                  onClick={async () => {
+                    setContextMenuAction('paste');
+                    onFileTreeActionMessage?.(null);
+                    try {
+                      const res = await onFileTreePasteInto!(fileTreeMenu.targetDir!);
+                      if (!res.ok && res.error && res.error !== 'Cancelled') {
+                        onFileTreeActionMessage?.(res.error);
+                      }
+                    } finally {
+                      setContextMenuAction(null);
+                      setFileTreeMenu(null);
+                    }
+                  }}
+                >
+                  <ClipboardPaste size={13} className="shrink-0 animate-pulse" />
+                  {contextMenuAction === 'paste' ? 'Pasting…' : 'Paste here'}
+                </button>
+              )}
+            </>
           )}
           {fileTreeMenu.kind === 'entry' && fileTreeMenu.path != null && (
             <>
+              {fileTreeMenu.isDir && (onCreateFileAt || onCreateFolderAt) && (
+                <>
+                  {onCreateFileAt && (
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg transition-colors cursor-pointer"
+                      onClick={() => {
+                        startCreate(fileTreeMenu.path!, 'file');
+                        setFileTreeMenu(null);
+                      }}
+                    >
+                      <FilePlus size={13} className="shrink-0" />
+                      New File
+                    </button>
+                  )}
+                  {onCreateFolderAt && (
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg transition-colors cursor-pointer"
+                      onClick={() => {
+                        startCreate(fileTreeMenu.path!, 'folder');
+                        setFileTreeMenu(null);
+                      }}
+                    >
+                      <FolderPlus size={13} className="shrink-0" />
+                      New Folder
+                    </button>
+                  )}
+                  <div className="h-[1px] bg-border/40 my-1 mx-1" />
+                </>
+              )}
+              {!fileTreeMenu.isDir && onCreateFileAt && (
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg transition-colors cursor-pointer"
+                  onClick={() => {
+                    const p = fileTreeMenu.path!;
+                    const parent = p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '.';
+                    startCreate(parent, 'file');
+                    setFileTreeMenu(null);
+                  }}
+                >
+                  <FilePlus size={13} className="shrink-0" />
+                  New File here
+                </button>
+              )}
               {!fileTreeMenu.isDir && onOpenFile && (
                 <button
                   type="button"

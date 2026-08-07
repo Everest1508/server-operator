@@ -239,6 +239,15 @@ function getAppIconPath() {
 }
 
 function installApplicationMenu() {
+  // The renderer already renders its own File/Edit/View/Help menus inside the
+  // app window (src/components/TitleBar.tsx). On macOS remove the native
+  // application menu entirely so those options don't also appear in the system
+  // menu bar at the top of the screen. Keyboard shortcuts are handled by the
+  // renderer instead (see TitleBar keydown handler).
+  if (process.platform === 'darwin') {
+    Menu.setApplicationMenu(null);
+    return;
+  }
   const isMac = process.platform === 'darwin';
   const template = [
     ...(isMac
@@ -974,6 +983,12 @@ function sendShellOutput(shellId, data) {
   }
 }
 
+function sendShellStatus(shellId, status) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('shell-status', { shellId, status });
+  }
+}
+
 function registerShellHandlers() {
   ipcMain.handle('server:open-shell', async (_, { connection, proxy }) => {
     try {
@@ -990,10 +1005,12 @@ function registerShellHandlers() {
           proc.on('close', () => {
             shells.delete(shellId);
             sendShellOutput(shellId, '\r\n[Shell closed]\r\n');
+            sendShellStatus(shellId, 'closed');
           });
           proc.on('error', (err) => {
             shells.delete(shellId);
             sendShellOutput(shellId, `\r\n[Shell error] ${err.message}\r\n`);
+            sendShellStatus(shellId, 'closed');
           });
           resolve({ ok: true, shellId });
         });
@@ -1025,6 +1042,23 @@ function registerShellHandlers() {
             shells.delete(shellId);
             conn.end();
             sendShellOutput(shellId, '\r\n[Shell closed]\r\n');
+            sendShellStatus(shellId, 'closed');
+          });
+          stream.on('error', () => {
+            shells.delete(shellId);
+            conn.end();
+            sendShellOutput(shellId, '\r\n[Shell closed]\r\n');
+            sendShellStatus(shellId, 'closed');
+          });
+          conn.on('close', () => {
+            shells.delete(shellId);
+            if (stream && !stream.writableEnded) stream.end();
+            sendShellStatus(shellId, 'closed');
+          });
+          conn.on('error', () => {
+            shells.delete(shellId);
+            if (stream && !stream.writableEnded) stream.end();
+            sendShellStatus(shellId, 'closed');
           });
           stream.stderr.on('data', (data) => sendShellOutput(shellId, data.toString()));
           const cwd = connection.cwd || connection.projectPath;
@@ -3631,6 +3665,9 @@ ipcMain.handle('window:set-opacity', async (_, opacity) => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.setOpacity(Math.max(0.6, Math.min(1, opacity)));
   }
+});
+ipcMain.handle('app:quit', async () => {
+  app.quit();
 });
 
 // ── Cloudinary Backup/Restore IPC Handlers ──────────────────────────

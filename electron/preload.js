@@ -3,6 +3,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 ipcRenderer.on('shell-output', (_event, payload) => {
   window.dispatchEvent(new CustomEvent('shell-output', { detail: payload }));
 });
+ipcRenderer.on('shell-status', (_event, payload) => {
+  window.dispatchEvent(new CustomEvent('shell-status', { detail: payload }));
+});
 ipcRenderer.on('compose-logs-data', (_event, payload) => {
   window.dispatchEvent(new CustomEvent('compose-logs-data', { detail: payload }));
 });
@@ -85,4 +88,5 @@ contextBridge.exposeInMainWorld('serverOperator', {
   closeWindow: () => ipcRenderer.invoke('window:close'),
   isWindowMaximized: () => ipcRenderer.invoke('window:isMaximized'),
   setWindowOpacity: (opacity) => ipcRenderer.invoke('window:set-opacity', opacity),
+  quitApp: () => ipcRenderer.invoke('app:quit'),
 });

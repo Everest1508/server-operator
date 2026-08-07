@@ -24,6 +24,7 @@ import {
 import EyeIcon from './icons/EyeIcon';
 import EyeOffIcon from './icons/EyeOffIcon';
 import type { ServerConnection, ProxySettings } from '../types';
+import { useAppTheme, isLightTheme } from '../hooks/useAppTheme';
 import Editor, { useMonaco } from '@monaco-editor/react';
 import { Select } from './Select';
 
@@ -61,6 +62,8 @@ interface DatabaseViewProps {
 }
 
 export function DatabaseView({ currentServer, proxy, activeView, connectedSqlitePath, onSqliteDisconnect }: DatabaseViewProps) {
+  const appTheme = useAppTheme();
+  const monacoTheme = isLightTheme(appTheme) ? 'vs-light' : 'vs-dark';
   // Connection Form State
   const [dbType, setDbType] = useState<DbType>('mysql');
   const [host, setHost] = useState('127.0.0.1');
@@ -1408,7 +1411,7 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
                         <Editor
                           height="100%"
                           language="sql"
-                          theme="vs-dark"
+                          theme={monacoTheme}
                           value={queryText}
                           onChange={(val) => setQueryText(val || '')}
                           options={{

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useFeatureFlags } from '../contexts/FeatureFlagContext';
-import { FeatureFlags, CloudinaryConfig } from '../types';
+import { FeatureFlags, CloudinaryConfig, AppTheme } from '../types';
 import {
   Sliders,
   Search,
@@ -37,16 +37,17 @@ const THEME_STORAGE_KEY = 'server-operator:theme';
 const OPACITY_STORAGE_KEY = 'server-operator:opacity';
 const BLUR_STORAGE_KEY = 'server-operator:blur';
 
-function loadThemeChoice(): 'default' | 'glassy' {
+function loadThemeChoice(): AppTheme {
   try {
     const raw = localStorage.getItem(THEME_STORAGE_KEY);
-    return raw === 'glassy' ? 'glassy' : 'default';
+    if (raw === 'glassy' || raw === 'light' || raw === 'tokyo-night') return raw;
+    return 'default';
   } catch {
     return 'default';
   }
 }
 
-function applyThemeChoice(theme: 'default' | 'glassy') {
+function applyThemeChoice(theme: AppTheme) {
   document.documentElement.dataset.appTheme = theme;
   try {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
@@ -54,6 +55,33 @@ function applyThemeChoice(theme: 'default' | 'glassy') {
     // ignore
   }
 }
+
+const THEMES: { id: AppTheme; label: string; desc: string; swatch: string[] }[] = [
+  {
+    id: 'default',
+    label: 'Default',
+    desc: 'Standard dark operator theme with solid panels.',
+    swatch: ['#1e1e1e', '#0078d4', '#4ec9b0', '#cccccc'],
+  },
+  {
+    id: 'glassy',
+    label: 'Glassy',
+    desc: 'Transparent layered panels with a Linux-terminal-style glass look.',
+    swatch: ['#0b1426', '#5cc8ff', '#7ff0c2', '#dbe5f5'],
+  },
+  {
+    id: 'light',
+    label: 'Light',
+    desc: 'Bright, clean light mode with soft panels.',
+    swatch: ['#f7f8fc', '#0a66d4', '#1a7f37', '#1f2328'],
+  },
+  {
+    id: 'tokyo-night',
+    label: 'Tokyo Night',
+    desc: 'Deep indigo-navy dark with cyan and violet accents.',
+    swatch: ['#1a1b26', '#7aa2f7', '#9ece6a', '#c0caf5'],
+  },
+];
 
 function loadOpacity(): number {
   try {
@@ -325,7 +353,7 @@ function ModulesView() {
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsContent, setLogsContent] = useState('');
   const [logPath, setLogPath] = useState('');
-  const [themeChoice, setThemeChoice] = useState<'default' | 'glassy'>(loadThemeChoice);
+  const [themeChoice, setThemeChoice] = useState<AppTheme>(loadThemeChoice);
   const [opacity, setOpacity] = useState<number>(loadOpacity);
   const [blur, setBlur] = useState<number>(loadBlur);
 
@@ -441,17 +469,33 @@ function ModulesView() {
           />
         </div>
         <div className="flex items-center gap-2.5 bg-bg-secondary/40 px-3 py-1.5 rounded-xl border border-border/30 self-start md:self-auto">
-          <span className="text-[11px] text-text-secondary font-semibold whitespace-nowrap">Appearance:</span>
-          <Select
-            value={themeChoice}
-            onChange={(val) => setThemeChoice(val as 'default' | 'glassy')}
-            size="sm"
-            containerClassName="w-36"
-            options={[
-              { value: 'default', label: 'Default' },
-              { value: 'glassy', label: 'Glassy Terminal' },
-            ]}
-          />
+          <span className="text-[11px] text-text-secondary font-semibold whitespace-nowrap">Theme:</span>
+          <div className="flex items-center gap-1.5">
+            {THEMES.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setThemeChoice(t.id)}
+                title={t.desc}
+                className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border transition-all duration-150 cursor-pointer ${
+                  themeChoice === t.id
+                    ? 'border-accent/70 bg-accent/10'
+                    : 'border-border/30 hover:border-border/60 hover:bg-bg-tertiary/60'
+                }`}
+              >
+                <span className="flex -space-x-1">
+                  {t.swatch.map((c, i) => (
+                    <span
+                      key={i}
+                      className="w-3 h-3 rounded-full border border-black/20"
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </span>
+                <span className="text-[11px] font-semibold text-text-primary">{t.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
         <button
           onClick={resetToDefaults}
@@ -469,12 +513,14 @@ function ModulesView() {
             <div>
               <p className="text-xs font-semibold text-text-primary">Theme Preview</p>
               <p className="text-[11px] text-text-secondary mt-0.5">
-                {themeChoice === 'glassy'
-                  ? 'Transparent layered panels with a Linux-terminal-style glass look.'
-                  : 'Standard dark operator theme with solid panels.'}
+                {THEMES.find((t) => t.id === themeChoice)?.desc}
               </p>
             </div>
-            <div className={`h-12 w-24 rounded-xl border border-border/20 shadow-sm ${themeChoice === 'glassy' ? 'bg-white/8 backdrop-blur-md' : 'bg-bg-primary/80'}`}>
+            <div
+              className={`h-12 w-24 rounded-xl border border-border/20 shadow-sm ${
+                themeChoice === 'glassy' ? 'bg-white/8 backdrop-blur-md' : 'bg-bg-primary/80'
+              }`}
+            >
               <div className="h-full w-full rounded-xl bg-[radial-gradient(circle_at_top_left,rgba(0,120,212,0.28),transparent_55%)]" />
             </div>
           </div>

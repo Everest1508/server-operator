@@ -26,16 +26,17 @@ const STORAGE_KEY_THEME = 'server-operator:theme';
 const STORAGE_KEY_OPACITY = 'server-operator:opacity';
 const STORAGE_KEY_BLUR = 'server-operator:blur';
 
-function loadAppTheme(): 'default' | 'glassy' {
+function loadAppTheme(): 'default' | 'glassy' | 'light' | 'tokyo-night' {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_THEME);
-    return raw === 'glassy' ? 'glassy' : 'default';
+    if (raw === 'glassy' || raw === 'light' || raw === 'tokyo-night') return raw;
+    return 'default';
   } catch {
     return 'default';
   }
 }
 
-function applyAppTheme(theme: 'default' | 'glassy') {
+function applyAppTheme(theme: 'default' | 'glassy' | 'light' | 'tokyo-night') {
   if (typeof document === 'undefined') return;
   document.documentElement.dataset.appTheme = theme;
 }
@@ -927,6 +928,56 @@ export default function App() {
     return res;
   };
 
+  const repoRelativeParent = (repo: string, dirPath: string): string | null => {
+    if (!dirPath || dirPath === repo) return '.';
+    if (dirPath.startsWith(repo + '/')) return dirPath.slice(repo.length + 1);
+    return null;
+  };
+
+  const createFileInRepoAt = async (dirPath: string, name: string): Promise<{ ok: boolean; error?: string }> => {
+    if (!currentServer || !window.serverOperator) return { ok: false, error: 'Not connected' };
+    const trimmed = name.trim();
+    if (!trimmed) return { ok: false, error: 'Invalid name' };
+    const dir = (dirPath === '.' || dirPath === '' ? '' : dirPath).replace(/\/+$/, '');
+    const filePath = dir ? `${dir}/${trimmed}` : trimmed;
+    const res = await window.serverOperator.writeFile({ connection: currentServer, filePath, content: '', proxy });
+    if (res.ok) {
+      const repo = selectedRepoPath;
+      if (repo) {
+        const relParent = repoRelativeParent(repo, dirPath);
+        if (relParent !== null) {
+          appendToRepoDirListing(repo, relParent, trimmed, false);
+          loadRepoDir(repo, relParent, true);
+        }
+      }
+      setOpenTabs((prev) => (prev.includes(filePath) ? prev : [...prev, filePath]));
+      setActiveTabPath(filePath);
+      setContentByPath((prev) => ({ ...prev, [filePath]: '' }));
+      setSavedContentByPath((prev) => ({ ...prev, [filePath]: '' }));
+    }
+    return res;
+  };
+
+  const createFolderInRepoAt = async (dirPath: string, name: string): Promise<{ ok: boolean; error?: string }> => {
+    if (!currentServer || !window.serverOperator) return { ok: false, error: 'Not connected' };
+    const trimmed = name.trim();
+    if (!trimmed) return { ok: false, error: 'Invalid name' };
+    const dir = (dirPath === '.' || dirPath === '' ? '' : dirPath).replace(/\/+$/, '');
+    const dirPath2 = dir ? `${dir}/${trimmed}` : trimmed;
+    const res = await window.serverOperator.mkdir({ connection: currentServer, dirPath: dirPath2, proxy });
+    if (res.ok) {
+      const repo = selectedRepoPath;
+      if (repo) {
+        const relParent = repoRelativeParent(repo, dirPath);
+        if (relParent !== null) {
+          appendToRepoDirListing(repo, relParent, trimmed, true);
+          loadRepoDir(repo, relParent, true);
+        }
+      }
+    }
+    return res;
+  };
+
   const deleteEntryInRepo = async (fullPath: string): Promise<{ ok: boolean; error?: string }> => {
     if (!currentServer || !window.serverOperator) return { ok: false, error: 'Not connected' };
     const pathEsc = fullPath.replace(/'/g, "'\\''");
@@ -1273,6 +1324,27 @@ export default function App() {
       proxy,
     });
     if (res.ok) appendToCurrentDirListing(trimmed, true);
+    return res;
+  };
+
+  const createFileInFolder = async (dirPath: string, name: string): Promise<{ ok: boolean; error?: string }> => {
+    const trimmed = name.trim();
+    if (!trimmed) return { ok: false, error: 'Invalid name' };
+    const dir = (dirPath === '.' || dirPath === '' ? '' : dirPath).replace(/\/+$/, '');
+    const filePath = dir ? `${dir}/${trimmed}` : trimmed;
+    const res = await createFileAtPath(filePath, { useSudo: false });
+    if (res.ok && dir) loadDir(dir, true);
+    return res;
+  };
+
+  const createFolderInFolder = async (dirPath: string, name: string): Promise<{ ok: boolean; error?: string }> => {
+    if (!currentServer || !window.serverOperator) return { ok: false, error: 'Not connected' };
+    const trimmed = name.trim();
+    if (!trimmed) return { ok: false, error: 'Invalid name' };
+    const dir = (dirPath === '.' || dirPath === '' ? '' : dirPath).replace(/\/+$/, '');
+    const dirPath2 = dir ? `${dir}/${trimmed}` : trimmed;
+    const res = await window.serverOperator.mkdir({ connection: currentServer, dirPath: dirPath2, proxy });
+    if (res.ok) loadDir(dir || '.', true);
     return res;
   };
 
@@ -1729,6 +1801,8 @@ export default function App() {
           onLoadDir={loadDir}
           onCreateFile={createFile}
           onCreateFolder={createFolder}
+          onCreateFileAt={createFileInFolder}
+          onCreateFolderAt={createFolderInFolder}
           onDeleteEntry={deleteEntry}
           onCollapseAll={collapseAll}
           onMakeGitRepo={onMakeGitRepo}
@@ -1936,6 +2010,8 @@ export default function App() {
                   onOpenFile={openFile}
                   onCreateFile={createFileInRepo}
                   onCreateFolder={createFolderInRepo}
+                  onCreateFileAt={createFileInRepoAt}
+                  onCreateFolderAt={createFolderInRepoAt}
                   onDeleteEntry={deleteEntryInRepo}
                   onCollapseRepo={collapseRepo}
                   basePath={basePath}

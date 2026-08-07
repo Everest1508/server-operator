@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Terminal as TerminalIcon, FileText, Loader2, RefreshCw, Plus, Trash2, X } from 'lucide-react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { attachXtermClipboardKeys } from '../utils/xtermClipboardKeys';
+import { useAppTheme, cssVar } from '../hooks/useAppTheme';
 import type { ServerConnection, ProxySettings } from '../types';
 
 interface PanelProps {
@@ -26,10 +27,23 @@ interface TerminalTab {
   label: string;
   connecting: boolean;
   error: string | null;
+  status: 'connecting' | 'connected' | 'closed';
   pendingCommand?: string;
 }
 
 export function Panel({ currentServer, proxy, panelTab, onTabChange, composePaths = [], onAddComposePath, onRemoveComposePath, pendingTerminalCommand = null, pendingTerminalLabel = null, onClearPendingTerminalCommand }: PanelProps) {
+  const appTheme = useAppTheme();
+  const xtermTheme = useMemo(() => {
+    const bg = cssVar('--color-bg-primary', '#1e1e1e');
+    const accent = cssVar('--color-accent', '#0078d4');
+    return {
+      background: bg,
+      foreground: cssVar('--color-text-primary', '#cccccc'),
+      cursor: accent,
+      cursorAccent: bg,
+      selectionBackground: 'rgba(0, 120, 212, 0.3)',
+    };
+  }, [appTheme]);
   const [newComposePath, setNewComposePath] = useState('');
   const [servicesByPath, setServicesByPath] = useState<Record<string, string[]>>({});
   const [loadingServicesForPath, setLoadingServicesForPath] = useState<string | null>(null);
@@ -46,9 +60,22 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
   const terminalStripResizeStart = useRef({ x: 0, w: 0 });
   const terminalContainerRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
   const xtermByTabIdRef = useRef<Map<string, { term: Terminal; fitAddon: FitAddon; ro: ResizeObserver }>>(new Map());
+  const shellIdByTabRef = useRef<Map<string, string>>(new Map());
 
   const TERMINAL_STRIP_MIN = 100;
   const TERMINAL_STRIP_MAX = 420;
+
+  useEffect(() => {
+    xtermByTabIdRef.current.forEach(({ term }) => {
+      term.options.theme = xtermTheme;
+    });
+  }, [xtermTheme]);
+
+  useEffect(() => {
+    terminalTabs.forEach((t) => {
+      if (t.shellId) shellIdByTabRef.current.set(t.id, t.shellId);
+    });
+  }, [terminalTabs]);
 
   useEffect(() => {
     if (!resizingTerminalStrip) return;
@@ -80,6 +107,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
       label,
       connecting: true,
       error: null,
+      status: 'connecting',
       pendingCommand: pendingTerminalCommand.trim(),
     };
     onClearPendingTerminalCommand?.();
@@ -91,7 +119,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
         if (res.ok && res.shellId) {
           setTerminalTabs((prev) =>
             prev.map((t) =>
-              t.id === id ? { ...t, shellId: res.shellId!, connecting: false } : t
+              t.id === id ? { ...t, shellId: res.shellId!, connecting: false, status: 'connected' } : t
             )
           );
           const cmd = (tab.pendingCommand || '').trim() + '\n';
@@ -102,14 +130,14 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
           }
         } else {
           setTerminalTabs((prev) =>
-            prev.map((t) => (t.id === id ? { ...t, connecting: false, error: res.error || 'Failed to open shell' } : t))
+            prev.map((t) => (t.id === id ? { ...t, connecting: false, status: 'closed', error: res.error || 'Failed to open shell' } : t))
           );
         }
       })
       .catch((e) => {
         const msg = e && typeof e === 'object' && 'message' in e ? String((e as Error).message) : String(e);
         setTerminalTabs((prev) =>
-          prev.map((t) => (t.id === id ? { ...t, connecting: false, error: msg } : t))
+          prev.map((t) => (t.id === id ? { ...t, connecting: false, status: 'closed', error: msg } : t))
         );
       });
   }, [pendingTerminalCommand, panelTab, currentServer?.id]);
@@ -125,13 +153,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
       if (!container) return;
       if (xtermMap.has(tab.id)) return;
       const term = new Terminal({
-        theme: {
-          background: '#1e1e1e',
-          foreground: '#cccccc',
-          cursor: '#0078d4',
-          cursorAccent: '#1e1e1e',
-          selectionBackground: 'rgba(0, 120, 212, 0.3)',
-        },
+        theme: xtermTheme,
         fontSize: 13,
         fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
       });
@@ -142,8 +164,9 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
       fitAddon.fit();
       const currentShellId = tab.shellId;
       term.onData((data) => {
-        if (window.serverOperator && currentShellId) {
-          window.serverOperator.shellWrite({ shellId: currentShellId, data });
+        const sid = shellIdByTabRef.current.get(tab.id) || currentShellId;
+        if (window.serverOperator && sid) {
+          window.serverOperator.shellWrite({ shellId: sid, data });
         }
       });
       let rafId: number | null = null;
@@ -189,6 +212,58 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
     return () => window.removeEventListener('shell-output', handler as EventListener);
   }, [terminalTabs]);
 
+  // Track shell connection status (closed when the shell disconnects/crashes)
+  useEffect(() => {
+    const handler = (e: CustomEvent<{ shellId: string; status: string }>) => {
+      const { shellId, status } = e.detail;
+      setTerminalTabs((prev) =>
+        prev.map((t) =>
+          t.shellId === shellId && status === 'closed'
+            ? { ...t, status: 'closed', connecting: false }
+            : t
+        )
+      );
+    };
+    window.addEventListener('shell-status', handler as EventListener);
+    return () => window.removeEventListener('shell-status', handler as EventListener);
+  }, []);
+
+  const reconnectTerminalTab = useCallback(
+    (tabId: string) => {
+      const tab = terminalTabs.find((t) => t.id === tabId);
+      if (!tab || !currentServer || !window.serverOperator) return;
+      setTerminalTabs((prev) =>
+        prev.map((t) => (t.id === tabId ? { ...t, connecting: true, status: 'connecting', error: null } : t))
+      );
+      window.serverOperator
+        .openShell({ connection: currentServer, proxy })
+        .then((res) => {
+          if (res.ok && res.shellId) {
+            shellIdByTabRef.current.set(tabId, res.shellId);
+            setTerminalTabs((prev) =>
+              prev.map((t) =>
+                t.id === tabId ? { ...t, shellId: res.shellId!, connecting: false, status: 'connected', error: null } : t
+              )
+            );
+          } else {
+            setTerminalTabs((prev) =>
+              prev.map((t) => (t.id === tabId ? { ...t, connecting: false, status: 'closed', error: res.error || 'Failed to reconnect' } : t))
+            );
+          }
+        })
+        .catch((e) => {
+          const msg = e && typeof e === 'object' && 'message' in e ? String((e as Error).message) : String(e);
+          setTerminalTabs((prev) =>
+            prev.map((t) => (t.id === tabId ? { ...t, connecting: false, status: 'closed', error: msg } : t))
+          );
+        });
+    },
+    [terminalTabs, currentServer, proxy]
+  );
+
+  const activeTerminalTab = terminalTabs.find((t) => t.id === activeTerminalTabId);
+  const activeTerminalStatus: 'connecting' | 'connected' | 'closed' | null = activeTerminalTab?.status ?? null;
+
   // Listen for paste snippet requests
   useEffect(() => {
     const handlePaste = (e: Event) => {
@@ -211,6 +286,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
           label: 'Shell',
           connecting: true,
           error: null,
+          status: 'connecting',
           pendingCommand: cmdText,
         };
         setTerminalTabs((prev) => [...prev, tab]);
@@ -220,7 +296,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
           .then((res) => {
             if (res.ok && res.shellId) {
               setTerminalTabs((prev) =>
-                prev.map((t) => (t.id === id ? { ...t, shellId: res.shellId!, connecting: false } : t))
+                prev.map((t) => (t.id === id ? { ...t, shellId: res.shellId!, connecting: false, status: 'connected' } : t))
               );
               // Wait slightly for connection to stabilize before writing command
               setTimeout(() => {
@@ -228,14 +304,14 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
               }, 400);
             } else {
               setTerminalTabs((prev) =>
-                prev.map((t) => (t.id === id ? { ...t, connecting: false, error: res.error || 'Failed to open shell' } : t))
+                prev.map((t) => (t.id === id ? { ...t, connecting: false, status: 'closed', error: res.error || 'Failed to open shell' } : t))
               );
             }
           })
           .catch((err) => {
             const msg = err && typeof err === 'object' && 'message' in err ? String(err.message) : String(err);
             setTerminalTabs((prev) =>
-              prev.map((t) => (t.id === id ? { ...t, connecting: false, error: msg } : t))
+              prev.map((t) => (t.id === id ? { ...t, connecting: false, status: 'closed', error: msg } : t))
             );
           });
       }
@@ -274,6 +350,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
       label: 'Shell',
       connecting: true,
       error: null,
+      status: 'connecting',
     };
     setTerminalTabs((prev) => [...prev, tab]);
     setActiveTerminalTabId(id);
@@ -282,18 +359,18 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
       .then((res) => {
         if (res.ok && res.shellId) {
           setTerminalTabs((prev) =>
-            prev.map((t) => (t.id === id ? { ...t, shellId: res.shellId!, connecting: false } : t))
+            prev.map((t) => (t.id === id ? { ...t, shellId: res.shellId!, connecting: false, status: 'connected' } : t))
           );
         } else {
           setTerminalTabs((prev) =>
-            prev.map((t) => (t.id === id ? { ...t, connecting: false, error: res.error || 'Failed to open shell' } : t))
+            prev.map((t) => (t.id === id ? { ...t, connecting: false, status: 'closed', error: res.error || 'Failed to open shell' } : t))
           );
         }
       })
       .catch((e) => {
         const msg = e && typeof e === 'object' && 'message' in e ? String((e as Error).message) : String(e);
         setTerminalTabs((prev) =>
-          prev.map((t) => (t.id === id ? { ...t, connecting: false, error: msg } : t))
+          prev.map((t) => (t.id === id ? { ...t, connecting: false, status: 'closed', error: msg } : t))
         );
       });
   }, [currentServer, proxy, panelTab]);
@@ -501,7 +578,19 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
           </div>
         )}
         {panelTab === 'terminal' && currentServer && (
-          <div className="text-[10px] font-bold text-text-muted font-mono tracking-wide uppercase">
+          <div className="flex items-center gap-1.5 text-[10px] font-bold text-text-muted font-mono tracking-wide uppercase">
+            <span
+              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                activeTerminalStatus === 'connected'
+                  ? 'bg-success'
+                  : activeTerminalStatus === 'connecting'
+                    ? 'bg-warning animate-pulse'
+                    : activeTerminalStatus === 'closed'
+                      ? 'bg-error'
+                      : 'bg-text-muted'
+              }`}
+              title={activeTerminalStatus ? `Session ${activeTerminalStatus}` : 'No active session'}
+            />
             {currentServer.username || 'erp'}@{currentServer.host || 'hrms'}
           </div>
         )}
@@ -699,6 +788,18 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                                 <span className="text-text-secondary">Establishing secure SSH stream…</span>
                               </div>
                             ) : null}
+                            {t.status === 'closed' && !t.connecting && !t.error && (
+                              <div className="flex items-center gap-2 px-3 py-1.5 mb-1 rounded-lg bg-error/10 border border-error/25 text-[11px] font-mono shrink-0">
+                                <span className="text-error font-semibold">Session ended — connection is closed</span>
+                                <button
+                                  type="button"
+                                  onClick={() => reconnectTerminalTab(t.id)}
+                                  className="ml-auto px-2.5 py-0.5 rounded-lg bg-bg-tertiary border border-error/30 text-text-primary hover:border-error hover:text-error font-semibold transition-colors cursor-pointer"
+                                >
+                                  Reconnect
+                                </button>
+                              </div>
+                            )}
                             <div
                               ref={(el) => {
                                   if (el) terminalContainerRefs.current.set(t.id, el);
@@ -752,6 +853,15 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                           title={t.label}
                         >
                           <TerminalIcon size={13} className="shrink-0" />
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                              t.status === 'connected'
+                                ? 'bg-success'
+                                : t.status === 'connecting'
+                                  ? 'bg-warning animate-pulse'
+                                  : 'bg-error'
+                            }`}
+                          />
                           <span className="text-xs truncate min-w-0 flex-1 font-sans">{t.label}</span>
                           <button
                             type="button"
