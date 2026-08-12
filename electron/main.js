@@ -1317,25 +1317,45 @@ function dockerDatabasePreset(container) {
   };
 }
 
+// List local Docker containers in a shell-agnostic way (works on cmd.exe on
+// Windows AND bash/sh on macOS/Linux). Uses plain `docker` subcommands with no
+// bash-isms like `$(...)` or `[ -z ]` which break under cmd.exe.
+function execLocalDockerListContainers(cwd, context) {
+  const base = context ? `docker --context "${context}"` : 'docker';
+  const idsRes = execLocalCommand(`${base} ps -a -q`, cwd);
+  if (!idsRes.ok) return { ok: false, error: idsRes.stderr || idsRes.stdout || 'docker ps failed' };
+  const ids = (idsRes.stdout || '').trim();
+  if (!ids) return { ok: true, containers: [] };
+  const idsList = ids.split(/\r?\n/).map((s) => s.trim()).filter(Boolean).join(' ');
+  const inspectRes = execLocalCommand(`${base} inspect ${idsList}`, cwd);
+  if (!inspectRes.ok) return { ok: false, error: inspectRes.stderr || inspectRes.stdout || 'docker inspect failed' };
+  try {
+    const parsed = JSON.parse(inspectRes.stdout || '[]');
+    return { ok: true, containers: Array.isArray(parsed) ? parsed : [] };
+  } catch (e) {
+    return { ok: false, error: 'Failed to parse docker inspect output' };
+  }
+}
+
 ipcMain.handle('server:get-docker-databases', async (_, { connection, proxy }) => {
   try {
     if (isLocalWorkspace(connection)) {
       const cwd = ensureLocalWorkspace(connection);
-      const currentCtx = String(execSync('docker context show', { encoding: 'utf8', shell: true }) || 'default').trim();
+      let currentCtx = 'default';
+      try {
+        currentCtx = String(execSync('docker context show', { encoding: 'utf8', shell: true }) || 'default').trim();
+      } catch (_) {}
       const fallbackContexts = ['default', 'desktop-linux'].filter((ctx) => ctx !== currentCtx);
       const allContexts = [currentCtx, ...fallbackContexts];
       let containers = [];
+      let lastError = null;
       for (const ctx of allContexts) {
-        const cmd = `ids=$(docker --context "${ctx}" ps -a -q 2>/dev/null); if [ -z "$ids" ]; then echo "[]"; else docker --context "${ctx}" inspect $ids 2>/dev/null; fi`;
-        const result = execLocalCommand(cmd, cwd);
-        if (!result.ok) continue;
-        try {
-          const parsed = JSON.parse(result.stdout || '[]');
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            containers = parsed;
-            break;
-          }
-        } catch {}
+        const res = execLocalDockerListContainers(cwd, ctx);
+        if (res.ok && res.containers.length > 0) {
+          containers = res.containers;
+          break;
+        }
+        if (!res.ok) lastError = res.error;
       }
       const databases = containers.map(dockerDatabasePreset).filter(Boolean);
       return { ok: true, databases };
@@ -1364,15 +1384,29 @@ function isComposeFilePath(p) {
   return lower.endsWith('.yml') || lower.endsWith('.yaml');
 }
 
+// Quote a compose file/dir path for the local shell. Windows cmd.exe does NOT
+// understand single-quote escaping (''\''' etc.), so use double quotes there.
+function composePathFlag(composePath, type) {
+  const p = String(composePath || '').trim();
+  if (!p) return '';
+  const flag = type === 'project' ? '--project-directory' : '-f';
+  if (process.platform === 'win32') {
+    return `${flag} "${p.replace(/"/g, '\\"')}"`;
+  }
+  return `${flag} '${p.replace(/'/g, "'\\''")}'`;
+}
+
 ipcMain.handle('server:get-docker-compose-services', async (_, { connection, composePath, proxy }) => {
   try {
     if (isLocalWorkspace(connection)) {
       const cwd = ensureLocalWorkspace(connection);
-      const pathEsc = (composePath || '').replace(/'/g, "'\\''");
-      const cmd = pathEsc
+      const composeFlag = composePath
         ? isComposeFilePath(composePath)
-          ? `docker compose -f '${pathEsc}' config --services`
-          : `docker compose --project-directory '${pathEsc}' config --services`
+          ? composePathFlag(composePath, 'file')
+          : composePathFlag(composePath, 'project')
+        : '';
+      const cmd = composeFlag
+        ? `docker compose ${composeFlag} config --services`
         : 'docker compose config --services';
       try {
         const out = execSync(cmd, { cwd, encoding: 'utf8', shell: true });
@@ -1409,11 +1443,10 @@ ipcMain.handle('server:get-docker-compose-logs', async (_, { connection, service
   try {
     if (isLocalWorkspace(connection)) {
       const cwd = ensureLocalWorkspace(connection);
-      const pathEsc = (composePath || '').replace(/'/g, "'\\''");
-      const composeFlag = pathEsc
+      const composeFlag = composePath
         ? isComposeFilePath(composePath)
-          ? `-f '${pathEsc}' `
-          : `--project-directory '${pathEsc}' `
+          ? composePathFlag(composePath, 'file') + ' '
+          : composePathFlag(composePath, 'project') + ' '
         : '';
       const cmd = service
         ? `docker compose ${composeFlag}logs --tail=${tail || 500} ${service}`
@@ -1465,11 +1498,10 @@ ipcMain.handle('server:start-compose-logs-stream', async (event, { streamId, con
   try {
     if (isLocalWorkspace(connection)) {
       const cwd = ensureLocalWorkspace(connection);
-      const pathEsc = (composePath || '').replace(/'/g, "'\\''");
-      const composeFlag = pathEsc
+      const composeFlag = composePath
         ? isComposeFilePath(composePath)
-          ? `-f '${pathEsc}' `
-          : `--project-directory '${pathEsc}' `
+          ? composePathFlag(composePath, 'file') + ' '
+          : composePathFlag(composePath, 'project') + ' '
         : '';
       const servicePart = service ? ` ${service}` : '';
       const fullCmd = `docker compose ${composeFlag}logs -f --tail=${tail || 500}${servicePart}`;
