@@ -253,14 +253,36 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
 
   const buildTableBrowseQuery = (tableName: string) => `SELECT * FROM ${quoteIdentifier(tableName)} LIMIT 100;`;
 
+  const formatDateForColumn = (value: Date, columnType = '') => {
+    const t = (columnType || '').toLowerCase();
+    if (t.includes('with time zone')) return value.toISOString();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const datePart = `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+    const hasTime = /timestamp|datetime|time/.test(t);
+    if (!hasTime) return datePart;
+    const timePart = `${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}`;
+    if (/^time\b/.test(t) && !/timestamp/.test(t)) return timePart;
+    return `${datePart} ${timePart}`;
+  };
+
+  const formatCellValueForEdit = (value: unknown, columnType = '') => {
+    if (value instanceof Date) return formatDateForColumn(value, columnType);
+    return String(value);
+  };
+
   const parseCellInputValue = (value: string) => {
     const trimmed = value.trim();
     if (trimmed === 'NULL') return null;
+    if (/GMT[+-]\d{4}/.test(trimmed) && /\(.+\)$/.test(trimmed)) {
+      const parsed = new Date(trimmed);
+      if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+    }
     return value;
   };
 
-  const sqlValueLiteral = (value: unknown) => {
+  const sqlValueLiteral = (value: unknown, columnType?: string) => {
     if (value === null || value === undefined) return 'NULL';
+    if (value instanceof Date) return `'${formatDateForColumn(value, columnType ?? '').replace(/'/g, "''")}'`;
     if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'NULL';
     if (typeof value === 'bigint') return String(value);
     if (typeof value === 'boolean') return dbType === 'postgres' ? (value ? 'TRUE' : 'FALSE') : (value ? '1' : '0');
@@ -280,9 +302,10 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
     return columnsForPredicate.map((column) => {
       const value = row[column];
       const ident = quoteIdentifier(column);
+      const columnType = tableColumns.find((c) => c.name === column)?.type;
       return value === null || value === undefined
         ? `${ident} IS NULL`
-        : `${ident} = ${sqlValueLiteral(value)}`;
+        : `${ident} = ${sqlValueLiteral(value, columnType)}`;
     }).join(' AND ');
   };
 
@@ -751,7 +774,10 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
     : paginatedResults;
 
   const beginEditRow = (row: Record<string, any>) => {
-    const values = Object.fromEntries(Object.keys(row).map((key) => [key, row[key] === null || row[key] === undefined ? 'NULL' : String(row[key]) ]));
+    const values = Object.fromEntries(Object.keys(row).map((key) => {
+      const column = tableColumns.find((c) => c.name === key);
+      return [key, row[key] === null || row[key] === undefined ? 'NULL' : formatCellValueForEdit(row[key], column?.type)];
+    }));
     setEditingRowKey(rowIdentityKey(row));
     setEditingRowValues(values);
     setAddingRow(false);
