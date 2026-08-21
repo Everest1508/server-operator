@@ -39,10 +39,26 @@ export function TitleBar({
   const triggerMenuActionRef = useRef<(action: string) => void>(() => {});
 
   useEffect(() => {
-    if (!isMac) return;
     function handleKeyDown(event: KeyboardEvent) {
-      if (!event.metaKey) return;
       const key = event.key.toLowerCase();
+      // Reload Window and Toggle Sidebar are custom app actions with no native
+      // menu accelerator on Windows/Linux, so they need CmdOrCtrl handling here.
+      // Quit and Open Local Folder already have a native accelerator on those
+      // platforms (electron/main.js), so only macOS's Cmd chord triggers them below.
+      if (!isMac && event.ctrlKey) {
+        if (key === 'r') {
+          event.preventDefault();
+          triggerMenuActionRef.current('reload-window');
+          return;
+        }
+        if (key === 'b') {
+          event.preventDefault();
+          triggerMenuActionRef.current('toggle-sidebar');
+          return;
+        }
+      }
+      if (!isMac) return;
+      if (!event.metaKey) return;
       const target = event.target as HTMLElement | null;
       const inInput =
         !!target &&
