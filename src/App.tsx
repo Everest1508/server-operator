@@ -177,6 +177,13 @@ export interface ServerFileState {
   tabSudoByPath: Record<string, boolean>;
 }
 
+export interface RepoSidebarState {
+  selectedRepoPath: string | null;
+  repoTreeListings: Record<string, string>;
+  repoOpenFolders: Record<string, Set<string>>;
+  repoCurrentPathByRepo: Record<string, string>;
+}
+
 export default function App() {
   useEffect(() => {
     applyAppTheme(loadAppTheme());
@@ -222,6 +229,7 @@ export default function App() {
   const [alreadyConnectedServerToast, setAlreadyConnectedServerToast] = useState<string | null>(null);
 
   const fileStateByServerRef = useRef<Record<string, ServerFileState>>({});
+  const repoStateByServerRef = useRef<Record<string, RepoSidebarState>>({});
   const prevServerIdRef = useRef<string | null>(null);
 
   const selectOrAddServerTab = (server: ServerConnection | null) => {
@@ -265,6 +273,7 @@ export default function App() {
     });
     const closedServerId = tabId.replace(/^tab-/, '');
     delete fileStateByServerRef.current[closedServerId];
+    delete repoStateByServerRef.current[closedServerId];
   };
 
   const openLocalWorkspace = (folderPath: string) => {
@@ -425,6 +434,12 @@ export default function App() {
         savedContentByPath,
         tabSudoByPath,
       };
+      repoStateByServerRef.current[prevServerId] = {
+        selectedRepoPath,
+        repoTreeListings,
+        repoOpenFolders,
+        repoCurrentPathByRepo,
+      };
     }
 
     prevServerIdRef.current = newServerId;
@@ -451,15 +466,26 @@ export default function App() {
         setTabSudoByPath({});
       }
 
+      const savedRepo = repoStateByServerRef.current[newServerId];
+      if (savedRepo) {
+        setSelectedRepoPath(savedRepo.selectedRepoPath);
+        setRepoTreeListings(savedRepo.repoTreeListings);
+        setRepoOpenFolders(savedRepo.repoOpenFolders);
+        setRepoCurrentPathByRepo(savedRepo.repoCurrentPathByRepo);
+      } else {
+        setSelectedRepoPath(null);
+        setRepoTreeListings({});
+        setRepoOpenFolders({});
+        setRepoCurrentPathByRepo({});
+      }
+
       setLoadingPaths(new Set());
       setLoadingPath(null);
       setFileLoadError(null);
-      setSelectedRepoPath(null);
       setDeploySelectedProjectPath('');
       setDeployContextText('');
       setDeployContextError(null);
-      setRepoTreeListings({});
-      setRepoOpenFolders({});
+      setRepoLoadingPaths(new Set());
     }
   }, [currentServer?.id]);
 
@@ -486,6 +512,23 @@ export default function App() {
     contentByPath,
     savedContentByPath,
     tabSudoByPath,
+  ]);
+
+  useEffect(() => {
+    if (currentServer?.id) {
+      repoStateByServerRef.current[currentServer.id] = {
+        selectedRepoPath,
+        repoTreeListings,
+        repoOpenFolders,
+        repoCurrentPathByRepo,
+      };
+    }
+  }, [
+    currentServer?.id,
+    selectedRepoPath,
+    repoTreeListings,
+    repoOpenFolders,
+    repoCurrentPathByRepo,
   ]);
 
   useEffect(() => {
@@ -980,14 +1023,12 @@ export default function App() {
 
   const deleteEntryInRepo = async (fullPath: string): Promise<{ ok: boolean; error?: string }> => {
     if (!currentServer || !window.serverOperator) return { ok: false, error: 'Not connected' };
-    const pathEsc = fullPath.replace(/'/g, "'\\''");
-    const res = await window.serverOperator.runCommand({
+    const res = await window.serverOperator.deletePath({
       connection: currentServer,
-      command: `rm -rf '${pathEsc}'`,
-      cwd: currentServer.cwd,
+      filePath: fullPath,
       proxy,
     });
-    const ok = res.ok && res.code === 0;
+    const ok = res.ok;
     if (ok) {
       if (selectedRepoPath && fullPath.startsWith(selectedRepoPath + '/')) {
         const parentPath = fullPath.split('/').slice(0, -1).join('/');
@@ -997,7 +1038,7 @@ export default function App() {
       }
       refreshAllTreeDirs();
     }
-    return { ok, error: ok ? undefined : (res.error || res.stderr || 'Delete failed') };
+    return { ok, error: ok ? undefined : (res.error || 'Delete failed') };
   };
 
   const collapseRepo = (repoPath: string) => {
@@ -1391,14 +1432,12 @@ export default function App() {
 
   const deleteEntry = async (path: string): Promise<{ ok: boolean; error?: string }> => {
     if (!currentServer || !window.serverOperator) return { ok: false, error: 'Not connected' };
-    const pathEsc = path.replace(/'/g, "'\\''");
-    const res = await window.serverOperator.runCommand({
+    const res = await window.serverOperator.deletePath({
       connection: currentServer,
-      command: `rm -rf '${pathEsc}'`,
-      cwd: currentServer.cwd,
+      filePath: path,
       proxy,
     });
-    const ok = res.ok && res.code === 0;
+    const ok = res.ok;
     if (ok) {
       removeFromCurrentDirListing(path);
       if (openTabs.includes(path)) closeTab(path);
@@ -1406,7 +1445,7 @@ export default function App() {
     }
     return {
       ok,
-      error: ok ? undefined : (res.error || res.stderr || 'Delete failed'),
+      error: ok ? undefined : (res.error || 'Delete failed'),
     };
   };
 

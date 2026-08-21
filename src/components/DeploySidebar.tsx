@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, Copy, FolderTree, Loader2, Play, Wand2 } from 'lucide-react';
 import type { ProxySettings, ServerConnection } from '../types';
 import { joinRemotePath } from '../utils/remotePath';
@@ -113,6 +113,41 @@ function pathChipLabel(path: string): string {
   return normalized.split('/').pop() || normalized;
 }
 
+const FILE_ORDER_PREFIX = 'serop-file-order';
+
+function loadStoredFileOrder(projectPath: string): string[] | null {
+  try {
+    const raw = window.localStorage.getItem(`${FILE_ORDER_PREFIX}:${projectPath}`);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((name): name is string => typeof name === 'string') : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredFileOrder(projectPath: string, names: string[]): void {
+  try {
+    window.localStorage.setItem(`${FILE_ORDER_PREFIX}:${projectPath}`, JSON.stringify(names));
+  } catch {
+    return;
+  }
+}
+
+function applyStringOrder(names: string[], order: string[] | null): string[] {
+  if (!order || !order.length) return names;
+  const rank = new Map(order.map((name, index) => [name, index]));
+  const fallbackRank = order.length;
+  return names
+    .map((name, index) => ({ name, index }))
+    .sort((a, b) => {
+      const ra = rank.get(a.name) ?? fallbackRank;
+      const rb = rank.get(b.name) ?? fallbackRank;
+      return ra === rb ? a.index - b.index : ra - rb;
+    })
+    .map((entry) => entry.name);
+}
+
 async function copyToClipboard(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
@@ -159,9 +194,14 @@ export function DeploySidebar({
   const [shortcutBootstrapMessage, setShortcutBootstrapMessage] = useState<string | null>(null);
   const [shortcutBootstrapError, setShortcutBootstrapError] = useState<string | null>(null);
   const [shortcutsRefreshToken, setShortcutsRefreshToken] = useState(0);
+  const [fileOrder, setFileOrder] = useState<string[] | null>(null);
 
   const activeProjectPath = selectedProjectPath.trim();
   const seropFolderPath = joinRemotePath(activeProjectPath || '.', '.server-operator');
+  const orderedShortcutFiles = useMemo(
+    () => applyStringOrder(shortcutFiles, fileOrder),
+    [shortcutFiles, fileOrder]
+  );
 
   useEffect(() => {
     setEditedShortcutCommands(Object.fromEntries(seropShortcuts.map((shortcut) => [shortcut.id, shortcut.command])));
@@ -173,6 +213,7 @@ export function DeploySidebar({
       setShortcutFiles([]);
       setSelectedShortcutFile('');
       setSeropShortcuts([]);
+      setFileOrder(null);
       setShortcutsError(null);
       setShortcutsWarning(null);
       return;
@@ -184,6 +225,7 @@ export function DeploySidebar({
       setShortcutsError(null);
       setShortcutsWarning(null);
       setSeropShortcuts([]);
+      setFileOrder(null);
       try {
         const listRes = await window.serverOperator.listDir({
           connection: currentServer,
@@ -218,6 +260,7 @@ export function DeploySidebar({
           .sort((a, b) => a.localeCompare(b));
 
         setShortcutFiles(files);
+        setFileOrder(loadStoredFileOrder(activeProjectPath));
         if (!files.length) {
           setSelectedShortcutFile('');
           setShortcutsWarning('No .serop files found in .server-operator folder.');
@@ -302,6 +345,17 @@ export function DeploySidebar({
     window.dispatchEvent(new CustomEvent('deploy-run-command', { detail: { command } }));
   };
 
+  const handleRecipeFileReorder = (fromIndex: number, toIndex: number) => {
+    const from = fromIndex - 1;
+    const to = toIndex - 1;
+    if (from < 0 || to < 0 || from >= orderedShortcutFiles.length || to >= orderedShortcutFiles.length) return;
+    const names = [...orderedShortcutFiles];
+    const [moved] = names.splice(from, 1);
+    names.splice(to, 0, moved);
+    setFileOrder(names);
+    saveStoredFileOrder(activeProjectPath, names);
+  };
+
   return (
     <div className="px-3 pt-2 space-y-3">
       <div className="rounded-lg border border-border bg-bg-primary p-3 text-sm space-y-3">
@@ -348,9 +402,12 @@ export function DeploySidebar({
               value={selectedShortcutFile}
               onChange={setSelectedShortcutFile}
               disabled={shortcutsLoading || !shortcutFiles.length}
+              reorderable={orderedShortcutFiles.length > 1}
+              onReorder={handleRecipeFileReorder}
+              reorderIgnoreValues={['']}
               options={[
                 { value: '', label: 'Select recipe file…' },
-                ...shortcutFiles.map((name) => ({ value: name, label: name })),
+                ...orderedShortcutFiles.map((name) => ({ value: name, label: name })),
               ]}
             />
             <div className="max-h-56 overflow-auto space-y-2 pr-1">

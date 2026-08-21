@@ -22,8 +22,24 @@ function isComposeFilePath(p: string): boolean {
   return lower.endsWith('.yml') || lower.endsWith('.yaml');
 }
 
-function shellEsc(s: string): string {
-  return (s || '').replace(/'/g, "'\\''");
+function isLocalWorkspaceConnection(server: ServerConnection | null | undefined): boolean {
+  if (!server) return false;
+  if (server.connectionType === 'local') return true;
+  if (server.id === 'dummy') return true;
+  if (server.host && String(server.host).trim() === 'dummy') return true;
+  return false;
+}
+
+// Local commands on Windows run through cmd.exe, which does not understand
+// POSIX single-quote escaping ('...\'...'). Remote SSH targets are always a
+// POSIX shell regardless of host OS, so only switch quoting for local+Windows.
+function usesWindowsShell(server: ServerConnection | null | undefined): boolean {
+  return isLocalWorkspaceConnection(server) && window.serverOperator?.platform === 'win32';
+}
+
+function quoteShellArg(s: string, windowsShell: boolean): string {
+  const str = s || '';
+  return windowsShell ? `"${str.replace(/"/g, '\\"')}"` : `'${str.replace(/'/g, "'\\''")}'`;
 }
 
 interface DockerViewProps {
@@ -110,12 +126,13 @@ export function DockerView({
     if (!window.serverOperator || !currentServer) return;
     const key = `${logKey(composePath, service)}-${action}`;
     setComposeServiceAction(key);
-    const pathEsc = shellEsc(composePath);
-    const serviceEsc = shellEsc(service);
+    const win = usesWindowsShell(currentServer);
+    const pathQ = quoteShellArg(composePath, win);
+    const serviceQ = quoteShellArg(service, win);
     const flag = isComposeFilePath(composePath)
-      ? `-f '${pathEsc}'`
-      : `--project-directory '${pathEsc}'`;
-    const cmd = `docker compose ${flag} ${action} '${serviceEsc}'`;
+      ? `-f ${pathQ}`
+      : `--project-directory ${pathQ}`;
+    const cmd = `docker compose ${flag} ${action} ${serviceQ}`;
     try {
       const res = await window.serverOperator.runCommand({
         connection: currentServer,
@@ -136,17 +153,33 @@ export function DockerView({
     if (!window.serverOperator || !currentServer) return;
     setRestartAllInProgress(true);
     try {
+      const win = usesWindowsShell(currentServer);
       if (activeTab === TAB_ALL) {
+        const idsRes = await window.serverOperator.runCommand({
+          connection: currentServer,
+          command: 'docker ps -q',
+          proxy,
+        });
+        if (!idsRes.ok) {
+          setError(idsRes.error || idsRes.stderr || 'Restart all failed');
+          return;
+        }
+        const ids = (idsRes.stdout || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+        if (!ids.length) {
+          onRefresh?.();
+          return;
+        }
+        const cmd = `docker restart ${ids.map((id) => quoteShellArg(id, win)).join(' ')}`;
         const res = await window.serverOperator.runCommand({
           connection: currentServer,
-          command: 'for id in $(docker ps -q); do docker restart "$id"; done',
+          command: cmd,
           proxy,
         });
         if (!res.ok) setError(res.error || res.stderr || 'Restart all failed');
         else onRefresh?.();
       } else if (activeTab) {
-        const pathEsc = shellEsc(activeTab);
-        const flag = isComposeFilePath(activeTab) ? `-f '${pathEsc}'` : `--project-directory '${pathEsc}'`;
+        const pathQ = quoteShellArg(activeTab, win);
+        const flag = isComposeFilePath(activeTab) ? `-f ${pathQ}` : `--project-directory ${pathQ}`;
         const res = await window.serverOperator.runCommand({
           connection: currentServer,
           command: `docker compose ${flag} restart`,
@@ -164,12 +197,13 @@ export function DockerView({
     if (!window.serverOperator || !currentServer) return;
     const logK = logKey(composePath, service);
     setComposeServiceAction(`${logK}-remove`);
-    const pathEsc = shellEsc(composePath);
-    const serviceEsc = shellEsc(service);
+    const win = usesWindowsShell(currentServer);
+    const pathQ = quoteShellArg(composePath, win);
+    const serviceQ = quoteShellArg(service, win);
     const flag = isComposeFilePath(composePath)
-      ? `-f '${pathEsc}'`
-      : `--project-directory '${pathEsc}'`;
-    const cmd = `docker compose ${flag} stop '${serviceEsc}' && docker compose ${flag} rm -f '${serviceEsc}'`;
+      ? `-f ${pathQ}`
+      : `--project-directory ${pathQ}`;
+    const cmd = `docker compose ${flag} stop ${serviceQ} && docker compose ${flag} rm -f ${serviceQ}`;
     try {
       const res = await window.serverOperator.runCommand({
         connection: currentServer,
@@ -191,12 +225,12 @@ export function DockerView({
   ) => {
     if (!window.serverOperator || !currentServer) return;
     setContainerAction(`${containerKey}-${action}`);
-    const idEsc = shellEsc(containerId);
+    const idQ = quoteShellArg(containerId, usesWindowsShell(currentServer));
     let cmd: string;
-    if (action === 'restart') cmd = `docker restart '${idEsc}'`;
-    else if (action === 'remove') cmd = `docker rm -f '${idEsc}'`;
-    else if (action === 'unpause') cmd = `docker unpause '${idEsc}'`;
-    else cmd = `docker ${action} '${idEsc}'`;
+    if (action === 'restart') cmd = `docker restart ${idQ}`;
+    else if (action === 'remove') cmd = `docker rm -f ${idQ}`;
+    else if (action === 'unpause') cmd = `docker unpause ${idQ}`;
+    else cmd = `docker ${action} ${idQ}`;
     try {
       const res = await window.serverOperator.runCommand({
         connection: currentServer,
@@ -222,11 +256,11 @@ export function DockerView({
     setExpandedLogsKey(key);
     setLogContent('Loading…');
     setLoadingContainerLogs(containerId);
-    const idEsc = shellEsc(containerId);
+    const idQ = quoteShellArg(containerId, usesWindowsShell(currentServer));
     window.serverOperator
       ?.runCommand({
         connection: currentServer,
-        command: `docker logs --tail ${LOG_TAIL} '${idEsc}' 2>&1`,
+        command: `docker logs --tail ${LOG_TAIL} ${idQ} 2>&1`,
         proxy,
       })
       .then((res) => {
@@ -556,27 +590,28 @@ export function DockerView({
                                 </button>
                                 {onOpenTerminalAndRun && (() => {
                                     const containerLabel = c.Names || c.ID || 'container';
+                                    const idQ = quoteShellArg(containerId, usesWindowsShell(currentServer));
                                     return (
                                   <>
                                     <div className="border-t border-border/30 my-1" />
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`docker exec -it '${shellEsc(containerId)}' sh`, containerLabel); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`docker exec -it ${idQ} sh`, containerLabel); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
                                       <Terminal size={12} className="text-text-secondary" />
                                       Shell
                                     </button>
                                     {imageLooksLike(c.Image || '', 'redis') && (
-                                      <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`docker exec -it '${shellEsc(containerId)}' redis-cli`, `${containerLabel} · redis`); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
+                                      <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`docker exec -it ${idQ} redis-cli`, `${containerLabel} · redis`); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
                                         <Database size={12} className="text-text-secondary" />
                                         Connect Redis
                                       </button>
                                     )}
                                     {imageLooksLike(c.Image || '', 'mysql', 'mariadb') && (
-                                      <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`docker exec -it '${shellEsc(containerId)}' mysql -u root -p`, `${containerLabel} · mysql`); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
+                                      <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`docker exec -it ${idQ} mysql -u root -p`, `${containerLabel} · mysql`); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
                                         <Database size={12} className="text-text-secondary" />
                                         Connect MySQL
                                       </button>
                                     )}
                                     {imageLooksLike(c.Image || '', 'postgres') && (
-                                      <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`docker exec -it '${shellEsc(containerId)}' psql -U postgres`, `${containerLabel} · postgres`); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
+                                      <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`docker exec -it ${idQ} psql -U postgres`, `${containerLabel} · postgres`); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
                                         <Database size={12} className="text-text-secondary" />
                                         Connect Postgres
                                       </button>
@@ -708,10 +743,11 @@ export function DockerView({
                                       Remove
                                     </button>
                                     {onOpenTerminalAndRun && (() => {
-                                      const pathEsc = shellEsc(activeTab);
-                                      const serviceEsc = shellEsc(s);
-                                      const composeFlag = isComposeFilePath(activeTab) ? `-f '${pathEsc}'` : `--project-directory '${pathEsc}'`;
-                                      const execBase = `docker compose ${composeFlag} exec '${serviceEsc}'`;
+                                      const win = usesWindowsShell(currentServer);
+                                      const pathQ = quoteShellArg(activeTab, win);
+                                      const serviceQ = quoteShellArg(s, win);
+                                      const composeFlag = isComposeFilePath(activeTab) ? `-f ${pathQ}` : `--project-directory ${pathQ}`;
+                                      const execBase = `docker compose ${composeFlag} exec ${serviceQ}`;
                                       const sLower = (s || '').toLowerCase();
                                       return (
                                         <>

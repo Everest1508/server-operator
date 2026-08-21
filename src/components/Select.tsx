@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, Check } from 'lucide-react';
+import { ChevronDown, Check, GripVertical } from 'lucide-react';
 
 export interface SelectOption {
   value: string;
@@ -16,6 +16,9 @@ interface SelectProps {
   containerClassName?: string;
   title?: string;
   size?: 'sm' | 'md';
+  reorderable?: boolean;
+  onReorder?: (fromIndex: number, toIndex: number) => void;
+  reorderIgnoreValues?: string[];
 }
 
 export function Select({
@@ -27,11 +30,17 @@ export function Select({
   containerClassName = '',
   title,
   size = 'md',
+  reorderable = false,
+  onReorder,
+  reorderIgnoreValues = [],
 }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null);
   const [dropdownEl, setDropdownEl] = useState<HTMLDivElement | null>(null);
+  const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
+  const [armedDragIdx, setArmedDragIdx] = useState<number | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const ignoredReorderValues = new Set(reorderIgnoreValues);
 
   const selectedOption = options.find((opt) => opt.value === value) || options[0];
 
@@ -143,11 +152,38 @@ export function Select({
           }}
         >
           <div className="max-h-60 overflow-y-auto py-0.5 flex flex-col gap-0.5 scrollbar-vs">
-            {options.map((opt) => {
+            {options.map((opt, idx) => {
               const isSelected = opt.value === value;
+              const canReorder = reorderable && !ignoredReorderValues.has(opt.value);
+              const isDragSource = draggingIdx === idx;
               return (
                 <div
                   key={opt.value}
+                  draggable={canReorder && armedDragIdx === idx}
+                  onDragStart={(e) => {
+                    if (!canReorder) return;
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', opt.value);
+                    setDraggingIdx(idx);
+                  }}
+                  onDragOver={(e) => {
+                    if (draggingIdx === null || !canReorder) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                  }}
+                  onDrop={(e) => {
+                    if (draggingIdx === null) return;
+                    e.preventDefault();
+                    if (canReorder && onReorder && draggingIdx !== idx) {
+                      onReorder(draggingIdx, idx);
+                    }
+                    setDraggingIdx(null);
+                    setArmedDragIdx(null);
+                  }}
+                  onDragEnd={() => {
+                    setDraggingIdx(null);
+                    setArmedDragIdx(null);
+                  }}
                   onClick={() => {
                     onChange(opt.value);
                     setIsOpen(false);
@@ -156,8 +192,21 @@ export function Select({
                     isSelected
                       ? 'bg-accent/10 text-accent font-semibold'
                       : 'text-text-primary hover:bg-bg-primary/60'
-                  }`}
+                  } ${isDragSource ? 'opacity-40' : draggingIdx !== null ? 'opacity-70' : ''}`}
                 >
+                  {canReorder && (
+                    <span
+                      onMouseDown={() => {
+                        setArmedDragIdx(idx);
+                      }}
+                      onMouseUp={() => setArmedDragIdx(null)}
+                      onClick={(e) => e.stopPropagation()}
+                      title="Drag to rearrange"
+                      className="shrink-0 cursor-grab text-text-muted hover:text-text-primary active:cursor-grabbing transition-colors"
+                    >
+                      <GripVertical size={12} />
+                    </span>
+                  )}
                   <span className="truncate flex-1">{opt.label}</span>
                   {isSelected && <Check size={13} className="shrink-0 text-accent" />}
                 </div>
