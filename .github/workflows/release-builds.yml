@@ -50,7 +50,7 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
           NODE_OPTIONS: "--max-old-space-size=8192"
-          VITE_CRM_BASE_URL: ${{ vars.VITE_CRM_BASE_URL }}
+          VITE_CRM_BASE_URL: "https://crm.beforth.in"
         run: ${{ matrix.build_command }}
 
       - name: Upload build artifacts
