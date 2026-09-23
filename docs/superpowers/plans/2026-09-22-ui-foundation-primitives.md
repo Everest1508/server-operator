@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Create the five shared UI primitives (`Button`, `Input`, `Textarea`, `SectionLabel`, `Card`, `EmptyState`) called for in the UI/UX modernization spec, each proven with one real pilot integration in the existing app — no dead/unused components.
+**Goal:** Create the six shared UI primitives (`Button`, `Input`, `Textarea`, `SectionLabel`, `Card`, `EmptyState`) called for in the UI/UX modernization spec, each proven with one real pilot integration in the existing app — no dead/unused components.
 
 **Architecture:** New folder `src/components/ui/` holds one presentational component per file (thin wrappers around the Tailwind class strings already dominant in the codebase — consolidation, not a new visual language). Each task creates one primitive and immediately swaps it into one existing, low-risk call site so the change is visually verifiable in the running app, not just compiled.
 
@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - This repo has **no test framework and no lint config** (confirmed in `CLAUDE.md`). There is no red/green test cycle available. Every task's verification is: (a) `tsc --noEmit -p tsconfig.json` reports zero errors, and (b) a manual visual check by running `npm run electron:dev` and looking at the specific touched screen in **two themes**: default (no `data-app-theme` attribute) and `light` (Settings → Appearance, or `document.documentElement.setAttribute('data-app-theme', 'light')` in devtools console for a quick check).
-- Radius scale (from the spec): `rounded-lg` for controls (buttons, inputs, chips). `rounded-xl` for containers (cards, panels, dropdown surfaces). `rounded-full` for pills only. Do not introduce `rounded-md` or `rounded-2xl` in new code.
+- Radius scale (from the spec, amended after Tasks 1-2's review): `rounded-lg` for small controls (buttons, chips). `rounded-xl` for containers (cards, panels, dropdown surfaces) **and** text inputs/textareas (23-vs-2 survey confirmed `rounded-xl` is the existing, already-consistent input convention). `rounded-full` for pills only. Do not introduce `rounded-md` or `rounded-2xl` in new code.
 - New primitives live under `src/components/ui/`, one component per file, named exports (matches the existing convention in `src/components/Select.tsx`, `src/components/Tooltip.tsx`).
 - Do not touch `src/index.css` or any `--color-*`/`--font-*` token values — the theme system is out of scope.
 - Do not change any behavior (state, handlers, props passed through) at a pilot integration site — only the markup/className should change. If a pilot swap would visibly change more than radius/spacing (e.g. would change copy or remove a feature), stop and flag it instead of proceeding.
@@ -53,7 +53,7 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
   sm: 'px-2.5 py-1 rounded-lg text-[10px] gap-1',
-  md: 'px-3.5 py-2 rounded-xl text-xs gap-1.5',
+  md: 'px-3.5 py-2 rounded-lg text-xs gap-1.5',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
@@ -70,6 +70,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   );
 });
 ```
+
+Note on `variant="solid"`'s `hover:bg-accent-hover`: the pilot "Run edited" button being replaced has no hover class today, so this is a deliberate, intentional deviation from strict pixel-equivalence, not a bug — `bg-accent hover:bg-accent-hover` is the dominant existing pattern for solid accent buttons elsewhere in the app (confirmed in `AddServerModal.tsx:105`, `DatabaseView.tsx:1106`, `DockerView.tsx:488`, `FirewallView.tsx:380`, `EditorArea.tsx:338`, and others) — "Run edited" lacking it was the inconsistency, not the norm. Keep the hover class; do not remove it to chase pixel-parity with the one outlier button.
 
 - [ ] **Step 2: Typecheck**
 
@@ -517,6 +519,8 @@ with:
                         }
                       />
 ```
+
+Note: the original button was `rounded-xl` (12px); `Button`'s `md` size (the default, used here) is `rounded-lg` (8px) per the radius-scale rule for controls — this is a deliberate, intentional visual change (the button's corners will look very slightly less rounded), not a regression. Same category of change as the Card and SectionLabel radius/tracking notes elsewhere in this plan.
 
 - [ ] **Step 4: Typecheck again**
 

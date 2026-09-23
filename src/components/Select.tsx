@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, Check, GripVertical } from 'lucide-react';
+import { ChevronDown, Check, GripVertical, X } from 'lucide-react';
 
 export interface SelectOption {
   value: string;
@@ -19,6 +19,9 @@ interface SelectProps {
   reorderable?: boolean;
   onReorder?: (fromIndex: number, toIndex: number) => void;
   reorderIgnoreValues?: string[];
+  removable?: boolean;
+  onRemove?: (value: string) => void;
+  removeIgnoreValues?: string[];
 }
 
 export function Select({
@@ -33,6 +36,9 @@ export function Select({
   reorderable = false,
   onReorder,
   reorderIgnoreValues = [],
+  removable = false,
+  onRemove,
+  removeIgnoreValues = [],
 }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null);
@@ -41,6 +47,7 @@ export function Select({
   const [armedDragIdx, setArmedDragIdx] = useState<number | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const ignoredReorderValues = new Set(reorderIgnoreValues);
+  const ignoredRemoveValues = new Set(removeIgnoreValues);
 
   const selectedOption = options.find((opt) => opt.value === value) || options[0];
 
@@ -155,6 +162,7 @@ export function Select({
             {options.map((opt, idx) => {
               const isSelected = opt.value === value;
               const canReorder = reorderable && !ignoredReorderValues.has(opt.value);
+              const canRemove = removable && !!onRemove && !ignoredRemoveValues.has(opt.value);
               const isDragSource = draggingIdx === idx;
               return (
                 <div
@@ -209,6 +217,18 @@ export function Select({
                   )}
                   <span className="truncate flex-1">{opt.label}</span>
                   {isSelected && <Check size={13} className="shrink-0 text-accent" />}
+                  {canRemove && (
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemove?.(opt.value);
+                      }}
+                      title="Remove from list"
+                      className="shrink-0 text-text-muted hover:text-error transition-colors cursor-pointer"
+                    >
+                      <X size={12} />
+                    </span>
+                  )}
                 </div>
               );
             })}

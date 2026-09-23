@@ -3,6 +3,10 @@ import { ChevronDown, Copy, FolderTree, Loader2, Play, Wand2 } from 'lucide-reac
 import type { ProxySettings, ServerConnection } from '../types';
 import { joinRemotePath } from '../utils/remotePath';
 import { Select } from './Select';
+import { Button } from './ui/Button';
+import { Textarea } from './ui/Textarea';
+import { SectionLabel } from './ui/SectionLabel';
+import { Card } from './ui/Card';
 
 interface SeropShortcut {
   id: string;
@@ -134,6 +138,27 @@ function saveStoredFileOrder(projectPath: string, names: string[]): void {
   }
 }
 
+const HIDDEN_FILES_PREFIX = 'serop-hidden-files';
+
+function loadStoredHiddenFiles(projectPath: string): string[] {
+  try {
+    const raw = window.localStorage.getItem(`${HIDDEN_FILES_PREFIX}:${projectPath}`);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((name): name is string => typeof name === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveStoredHiddenFiles(projectPath: string, names: string[]): void {
+  try {
+    window.localStorage.setItem(`${HIDDEN_FILES_PREFIX}:${projectPath}`, JSON.stringify(names));
+  } catch {
+    return;
+  }
+}
+
 function applyStringOrder(names: string[], order: string[] | null): string[] {
   if (!order || !order.length) return names;
   const rank = new Map(order.map((name, index) => [name, index]));
@@ -195,12 +220,17 @@ export function DeploySidebar({
   const [shortcutBootstrapError, setShortcutBootstrapError] = useState<string | null>(null);
   const [shortcutsRefreshToken, setShortcutsRefreshToken] = useState(0);
   const [fileOrder, setFileOrder] = useState<string[] | null>(null);
+  const [hiddenFiles, setHiddenFiles] = useState<string[]>([]);
 
   const activeProjectPath = selectedProjectPath.trim();
   const seropFolderPath = joinRemotePath(activeProjectPath || '.', '.server-operator');
   const orderedShortcutFiles = useMemo(
     () => applyStringOrder(shortcutFiles, fileOrder),
     [shortcutFiles, fileOrder]
+  );
+  const visibleShortcutFiles = useMemo(
+    () => orderedShortcutFiles.filter((name) => !hiddenFiles.includes(name)),
+    [orderedShortcutFiles, hiddenFiles]
   );
 
   useEffect(() => {
@@ -214,6 +244,7 @@ export function DeploySidebar({
       setSelectedShortcutFile('');
       setSeropShortcuts([]);
       setFileOrder(null);
+      setHiddenFiles([]);
       setShortcutsError(null);
       setShortcutsWarning(null);
       return;
@@ -260,14 +291,18 @@ export function DeploySidebar({
           .sort((a, b) => a.localeCompare(b));
 
         setShortcutFiles(files);
-        setFileOrder(loadStoredFileOrder(activeProjectPath));
+        const storedOrder = loadStoredFileOrder(activeProjectPath);
+        const storedHidden = loadStoredHiddenFiles(activeProjectPath);
+        setFileOrder(storedOrder);
+        setHiddenFiles(storedHidden);
         if (!files.length) {
           setSelectedShortcutFile('');
           setShortcutsWarning('No .serop files found in .server-operator folder.');
           return;
         }
 
-        const preferred = files.includes(selectedShortcutFile) ? selectedShortcutFile : files[0];
+        const visibleNow = applyStringOrder(files, storedOrder).filter((name) => !storedHidden.includes(name));
+        const preferred = visibleNow.includes(selectedShortcutFile) ? selectedShortcutFile : (visibleNow[0] ?? files[0]);
         setSelectedShortcutFile(preferred);
 
         const readRes = await window.serverOperator.readFile({
@@ -348,19 +383,50 @@ export function DeploySidebar({
   const handleRecipeFileReorder = (fromIndex: number, toIndex: number) => {
     const from = fromIndex - 1;
     const to = toIndex - 1;
-    if (from < 0 || to < 0 || from >= orderedShortcutFiles.length || to >= orderedShortcutFiles.length) return;
-    const names = [...orderedShortcutFiles];
+    if (from < 0 || to < 0 || from >= visibleShortcutFiles.length || to >= visibleShortcutFiles.length) return;
+    const names = [...visibleShortcutFiles];
     const [moved] = names.splice(from, 1);
     names.splice(to, 0, moved);
-    setFileOrder(names);
-    saveStoredFileOrder(activeProjectPath, names);
+    const nextOrder = [...names, ...hiddenFiles];
+    setFileOrder(nextOrder);
+    saveStoredFileOrder(activeProjectPath, nextOrder);
+  };
+
+  // Selecting a recipe file promotes it to the top of the dropdown next time it opens.
+  const handleShortcutFileSelect = (name: string) => {
+    setSelectedShortcutFile(name);
+    if (!name) return;
+    const nextOrder = [name, ...orderedShortcutFiles.filter((n) => n !== name)];
+    setFileOrder(nextOrder);
+    saveStoredFileOrder(activeProjectPath, nextOrder);
+  };
+
+  // Hiding only affects this dropdown (stored locally); the .serop file on the server is untouched.
+  const handleHideShortcutFile = (name: string) => {
+    setHiddenFiles((prev) => {
+      if (prev.includes(name)) return prev;
+      const next = [...prev, name];
+      saveStoredHiddenFiles(activeProjectPath, next);
+      return next;
+    });
+    if (selectedShortcutFile === name) {
+      setSelectedShortcutFile(visibleShortcutFiles.find((f) => f !== name) ?? '');
+    }
+  };
+
+  const handleUnhideShortcutFile = (name: string) => {
+    setHiddenFiles((prev) => {
+      const next = prev.filter((n) => n !== name);
+      saveStoredHiddenFiles(activeProjectPath, next);
+      return next;
+    });
   };
 
   return (
     <div className="px-3 pt-2 space-y-3">
-      <div className="rounded-lg border border-border bg-bg-primary p-3 text-sm space-y-3">
+      <Card className="p-3 text-sm space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Projects</span>
+          <SectionLabel>Projects</SectionLabel>
           {loadingContext && (
             <span className="flex items-center gap-1 text-[10px] text-text-secondary">
               <Loader2 size={11} className="animate-spin text-accent" />
@@ -389,27 +455,46 @@ export function DeploySidebar({
           })}
         </div>
         {currentServer && <p className="text-accent text-xs">Viewing: {currentServer.name}</p>}
-      </div>
+      </Card>
 
       <div className="rounded-lg border border-border bg-bg-primary overflow-hidden">
         <button type="button" onClick={() => setShortcutsOpen((open) => !open)} className="w-full flex items-center justify-between gap-2 px-3 py-3 text-left hover:bg-bg-secondary/60 transition-colors cursor-pointer">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Serop Commands</span>
+          <SectionLabel>Serop Commands</SectionLabel>
           <ChevronDown size={14} className={`text-text-secondary transition-transform ${shortcutsOpen ? 'rotate-0' : '-rotate-90'}`} />
         </button>
         {shortcutsOpen && (
           <div className="border-t border-border/20 p-3 space-y-3">
             <Select
               value={selectedShortcutFile}
-              onChange={setSelectedShortcutFile}
+              onChange={handleShortcutFileSelect}
               disabled={shortcutsLoading || !shortcutFiles.length}
-              reorderable={orderedShortcutFiles.length > 1}
+              reorderable={visibleShortcutFiles.length > 1}
               onReorder={handleRecipeFileReorder}
               reorderIgnoreValues={['']}
+              removable={visibleShortcutFiles.length > 0}
+              onRemove={handleHideShortcutFile}
+              removeIgnoreValues={['']}
               options={[
                 { value: '', label: 'Select recipe file…' },
-                ...orderedShortcutFiles.map((name) => ({ value: name, label: name })),
+                ...visibleShortcutFiles.map((name) => ({ value: name, label: name })),
               ]}
             />
+            {hiddenFiles.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] text-text-muted">Hidden from dropdown:</span>
+                {hiddenFiles.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => handleUnhideShortcutFile(name)}
+                    title="Restore to dropdown"
+                    className="px-2 py-0.5 rounded-full border border-border/25 bg-bg-secondary/40 text-[10px] font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-secondary/70 transition-colors cursor-pointer"
+                  >
+                    {name} ↺
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="max-h-56 overflow-auto space-y-2 pr-1">
               {shortcutsLoading && <p className="text-xs text-text-muted flex items-center gap-1.5"><Loader2 size={12} className="animate-spin text-accent" />Parsing build shortcuts…</p>}
               {!shortcutsLoading && seropShortcuts.map((shortcut) => {
@@ -426,31 +511,22 @@ export function DeploySidebar({
                         <ChevronDown size={14} className={`shrink-0 text-text-secondary transition-transform ${isOpen ? 'rotate-0' : '-rotate-90'}`} />
                         <span className="text-xs font-bold text-text-primary truncate">{shortcut.name}</span>
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => runShortcut(shortcut.command)}
-                        className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-accent/15 text-accent hover:bg-accent/25 transition-colors cursor-pointer"
-                      >
+                      <Button variant="subtle" size="sm" onClick={() => runShortcut(shortcut.command)} className="shrink-0">
                         <Play size={10} />Run
-                      </button>
+                      </Button>
                     </div>
                     {isOpen && (
                       <div className="border-t border-border/20 p-3 pt-2 space-y-2">
-                        <textarea
+                        <Textarea
+                          size="sm"
                           value={editedCommand}
                           onChange={(e) => setEditedShortcutCommands((prev) => ({ ...prev, [shortcut.id]: e.target.value }))}
                           rows={4}
-                          className="w-full px-3 py-2 rounded-xl bg-bg-primary/40 border border-border/20 text-[10px] font-mono text-text-primary placeholder-text-muted resize-y focus:outline-none focus:border-accent"
                         />
                         <div className="flex items-center gap-2 flex-wrap">
-                          <button
-                            type="button"
-                            onClick={() => runShortcut(editedCommand)}
-                            disabled={!editedCommand.trim()}
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-accent text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                          >
+                          <Button variant="solid" size="sm" onClick={() => runShortcut(editedCommand)} disabled={!editedCommand.trim()}>
                             <Play size={10} />Run edited
-                          </button>
+                          </Button>
                           <button
                             type="button"
                             onClick={() => setEditedShortcutCommands((prev) => ({ ...prev, [shortcut.id]: shortcut.command }))}

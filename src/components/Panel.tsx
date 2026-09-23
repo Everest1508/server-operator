@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Terminal as TerminalIcon, FileText, Loader2, RefreshCw, Plus, Trash2, X } from 'lucide-react';
 import { Terminal } from '@xterm/xterm';
+import { EmptyState } from './ui/EmptyState';
+import { Button } from './ui/Button';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { attachXtermClipboardKeys } from '../utils/xtermClipboardKeys';
@@ -758,17 +760,16 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                   {/* Terminal content area - one container per tab, only active visible */}
                   <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-[#1e1e1e]">
                     {terminalTabs.length === 0 ? (
-                      <div className="flex-1 p-6 flex flex-col items-center justify-center gap-4 text-text-secondary text-xs select-none bg-bg-primary">
-                        <p className="text-text-muted text-center max-w-sm">No active terminal session. Spawn a remote SSH command shell or container debug console.</p>
-                        <button
-                          type="button"
-                          onClick={addTerminalTab}
-                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-border/30 bg-bg-secondary text-text-primary font-semibold hover:border-border/60 hover:bg-bg-tertiary transition-all cursor-pointer shadow-sm"
-                        >
-                          <Plus size={14} />
-                          New Shell Session
-                        </button>
-                      </div>
+                      <EmptyState
+                        className="bg-bg-primary"
+                        message="No active terminal session. Spawn a remote SSH command shell or container debug console."
+                        action={
+                          <Button variant="outline" onClick={addTerminalTab} className="shadow-sm">
+                            <Plus size={14} />
+                            New Shell Session
+                          </Button>
+                        }
+                      />
                     ) : (
                       <>
                         {terminalTabs.map((t) => (

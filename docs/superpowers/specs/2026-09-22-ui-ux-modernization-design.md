@@ -74,8 +74,13 @@ codebase — this is consolidation, not invention of a new visual language.
 
 ### Radius scale (rule going forward)
 
-- `rounded-lg` (8px) — controls: buttons, inputs, small chips/badges.
-- `rounded-xl` (12px) — containers: cards, panels, dropdown surfaces.
+- `rounded-lg` (8px) — small controls: buttons, small chips/badges.
+- `rounded-xl` (12px) — containers (cards, panels, dropdown surfaces) **and**
+  text inputs/textareas. Inputs are the one exception to "controls get
+  `rounded-lg`": a survey of existing `<input>` elements found 23 uses of
+  `rounded-xl` versus 2 of `rounded-lg` — `rounded-xl` is already the
+  overwhelmingly consistent convention for text fields, so inputs keep it
+  rather than being forced into the buttons/chips bucket.
 - `rounded-full` — pills/avatars only.
 - `rounded-md` and `rounded-2xl` are retired. Existing uses get folded
   into `lg` or `xl` as the primitive components are adopted — call sites

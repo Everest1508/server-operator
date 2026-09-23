@@ -1,4 +1,4 @@
-import { Database, GitBranch, History, TerminalSquare, Sliders, Shield, Sparkles, Keyboard } from 'lucide-react';
+import { Database, GitBranch, History, TerminalSquare, Sliders, Shield, Sparkles, Keyboard, Layers, ListOrdered } from 'lucide-react';
 import React from 'react';
 
 export interface ChangeEntry {
@@ -22,6 +22,34 @@ export interface ChangelogVersion {
 }
 
 export const CHANGELOG: ChangelogVersion[] = [
+  {
+    version: '2.2.0',
+    codename: 'Steady Slate',
+    date: '2026-09-23',
+    summary:
+      'Improves the Serop Commands dropdown with most-recently-used ordering and a way to hide recipe files without touching your server, and lays the first foundation-primitives phase of a broader UI/UX modernization pass — shared Button, Input, Textarea, SectionLabel, Card, and EmptyState components now back several existing screens with no behavior change.',
+    groups: [
+      {
+        label: 'Serop Commands Dropdown',
+        icon: ListOrdered,
+        color: '#fbbf24',
+        items: [
+          { type: 'feat', text: 'Selecting a .serop recipe file now promotes it to the top of the dropdown, so the one you used most recently is always closest at hand.' },
+          { type: 'feat', text: 'Added a hide/restore control on each recipe file in the dropdown — hiding is stored locally per project and never touches the .serop files on your server.' },
+        ],
+      },
+      {
+        label: 'UI Foundation & Consistency',
+        icon: Layers,
+        color: '#93c5fd',
+        items: [
+          { type: 'core', text: 'Introduced shared Button, Input, Textarea, SectionLabel, Card, and EmptyState components to replace hand-rolled, drifted styling across the app.' },
+          { type: 'improve', text: 'Standardized corner-radius usage app-wide: small controls now use a tighter radius, containers and text fields a slightly larger one, applied consistently everywhere the new components land.' },
+          { type: 'fix', text: 'Fixed a missing hover state on the "Run edited" deploy shortcut button so it matches every other primary action button in the app.' },
+        ],
+      },
+    ],
+  },
   {
     version: '2.1.0',
     codename: 'Prism Break',

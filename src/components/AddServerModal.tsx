@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import type { ServerConnection } from '../types';
+import { Input } from './ui/Input';
 
 interface AddServerModalProps {
   onClose: () => void;
@@ -44,53 +45,23 @@ export function AddServerModal({ onClose, onAdd }: AddServerModalProps) {
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
             <label className="block text-[11px] font-semibold text-text-secondary mb-1.5">Display Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Production API Server"
-              className="w-full px-3.5 py-2.5 rounded-xl bg-bg-primary/50 border border-border/30 text-text-primary placeholder-text-muted/65 focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent/40 transition-all text-xs"
-            />
+            <Input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Production API Server" />
           </div>
           <div>
             <label className="block text-[11px] font-semibold text-text-secondary mb-1.5">Host address</label>
-            <input
-              type="text"
-              value={host}
-              onChange={(e) => setHost(e.target.value)}
-              placeholder="e.g., 192.168.1.100 or ssh.example.com"
-              className="w-full px-3.5 py-2.5 rounded-xl bg-bg-primary/50 border border-border/30 text-text-primary placeholder-text-muted/65 focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent/40 transition-all text-xs"
-            />
+            <Input type="text" value={host} onChange={(e) => setHost(e.target.value)} placeholder="e.g., 192.168.1.100 or ssh.example.com" />
           </div>
           <div>
             <label className="block text-[11px] font-semibold text-text-secondary mb-1.5">Username</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="e.g., root, ubuntu, or deployer"
-              className="w-full px-3.5 py-2.5 rounded-xl bg-bg-primary/50 border border-border/30 text-text-primary placeholder-text-muted/65 focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent/40 transition-all text-xs"
-            />
+            <Input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="e.g., root, ubuntu, or deployer" />
           </div>
           <div>
             <label className="block text-[11px] font-semibold text-text-secondary mb-1.5">SSH Private Key Path</label>
-            <input
-              type="text"
-              value={privateKeyPath}
-              onChange={(e) => setPrivateKeyPath(e.target.value)}
-              placeholder="e.g., ~/.ssh/id_ed25519"
-              className="w-full px-3.5 py-2.5 rounded-xl bg-bg-primary/50 border border-border/30 text-text-primary placeholder-text-muted/65 focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent/40 transition-all text-xs"
-            />
+            <Input type="text" value={privateKeyPath} onChange={(e) => setPrivateKeyPath(e.target.value)} placeholder="e.g., ~/.ssh/id_ed25519" />
           </div>
           <div>
             <label className="block text-[11px] font-semibold text-text-secondary mb-1.5">Remote CWD/Project Path (optional)</label>
-            <input
-              type="text"
-              value={projectPath}
-              onChange={(e) => setProjectPath(e.target.value)}
-              placeholder="e.g., /var/www/my-app"
-              className="w-full px-3.5 py-2.5 rounded-xl bg-bg-primary/50 border border-border/30 text-text-primary placeholder-text-muted/65 focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent/40 transition-all text-xs"
-            />
+            <Input type="text" value={projectPath} onChange={(e) => setProjectPath(e.target.value)} placeholder="e.g., /var/www/my-app" />
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button
