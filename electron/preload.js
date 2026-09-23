@@ -67,6 +67,10 @@ contextBridge.exposeInMainWorld('serverOperator', {
   getSnippets: () => ipcRenderer.invoke('snippets:get'),
   saveSnippet: (opts) => ipcRenderer.invoke('snippets:save', opts),
   deleteSnippet: (opts) => ipcRenderer.invoke('snippets:delete', opts),
+  scheduleList: (opts) => ipcRenderer.invoke('schedule:list', opts),
+  scheduleCreate: (opts) => ipcRenderer.invoke('schedule:create', opts),
+  scheduleUpdateStatus: (opts) => ipcRenderer.invoke('schedule:update-status', opts),
+  scheduleDelete: (opts) => ipcRenderer.invoke('schedule:delete', opts),
   loadFeaturesConfig: () => ipcRenderer.invoke('features:load'),
   saveFeaturesConfig: (config) => ipcRenderer.invoke('features:save', config),
   openTunnel: (opts) => ipcRenderer.invoke('tunnel:open', opts),
@@ -78,6 +82,8 @@ contextBridge.exposeInMainWorld('serverOperator', {
   cloudinaryListBackups: () => ipcRenderer.invoke('cloudinary:list-backups'),
   cloudinaryDownloadBackup: (opts) => ipcRenderer.invoke('cloudinary:download-backup', opts),
   cloudinaryDeleteBackup: (opts) => ipcRenderer.invoke('cloudinary:delete-backup', opts),
+  // ── CRM OAuth Sign-In ────────────────────────────────────────────────────
+  crmLogin: (opts) => ipcRenderer.invoke('auth:crm-login', opts),
   // ── Updates ───────────────────────────────────────────────────────────────
   checkForUpdates: () => ipcRenderer.invoke('updates:check'),
   openReleasePage: (url) => ipcRenderer.invoke('updates:open-release', url),

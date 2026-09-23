@@ -8,6 +8,7 @@ import { RepoSidebar } from './components/RepoSidebar';
 import { SettingsView } from './components/SettingsView';
 import { UpdateBanner } from './components/UpdateBanner';
 import { TitleBar } from './components/TitleBar';
+import { CloudTeamView } from './components/CloudTeamView';
 import { CustomContextMenu } from './components/CustomContextMenu';
 import { ServerAlreadyConnectedToast } from './components/ServerAlreadyConnectedToast';
 import type { ServerTabSession } from './components/MultiServerBar';
@@ -1794,6 +1795,7 @@ export default function App() {
         onSelectServer={selectOrAddServerTab}
         sidebarOpen={sidebarOpen}
         onSidebarToggle={() => setSidebarOpen((o) => !o)}
+        onViewChange={setActiveViewAndRoute}
       />
       <div className="flex flex-1 min-h-0 min-w-0">
         <UpdateBanner />
@@ -1929,7 +1931,9 @@ export default function App() {
         )}
         <div className="flex-1 flex min-h-0 min-w-0">
           <div className="flex-1 flex flex-col min-h-0 min-w-0">
-            {activeView === 'settings' ? (
+            {activeView === 'team' ? (
+              <CloudTeamView onConnectServer={handleSelectServer} />
+            ) : activeView === 'settings' ? (
               <SettingsView />
             ) : activeView === 'servers' ? (
               <NoServerView

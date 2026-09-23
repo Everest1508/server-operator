@@ -1,14 +1,17 @@
 import './monaco-workers';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
+import { AppGate } from './AppGate';
+import { AuthProvider } from './contexts/AuthContext';
 import { FeatureFlagProvider } from './contexts/FeatureFlagContext';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <FeatureFlagProvider>
-      <App />
-    </FeatureFlagProvider>
+    <AuthProvider>
+      <FeatureFlagProvider>
+        <AppGate />
+      </FeatureFlagProvider>
+    </AuthProvider>
   </React.StrictMode>
 );

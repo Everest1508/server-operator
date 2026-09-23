@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, Copy, FolderTree, Loader2, Play, Wand2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CalendarClock, ChevronDown, Copy, FolderTree, Loader2, Play, Trash2, Wand2, X } from 'lucide-react';
 import type { ProxySettings, ServerConnection } from '../types';
 import { joinRemotePath } from '../utils/remotePath';
+import { buildScheduleCancelCommand, buildScheduleCheckCommand, buildScheduleInstallCommand } from '../utils/scheduleCommand';
 import { Select } from './Select';
 import { Button } from './ui/Button';
 import { Textarea } from './ui/Textarea';
@@ -12,6 +13,30 @@ interface SeropShortcut {
   id: string;
   name: string;
   command: string;
+}
+
+type ScheduledCommand = {
+  id: number;
+  serverId: string;
+  serverName: string;
+  command: string;
+  runAt: string;
+  marker: string;
+  status: 'scheduled' | 'ran' | 'cancelled' | 'error';
+  logPath: string | null;
+  createdAt: string;
+};
+
+function isLocalWorkspaceConnection(server: ServerConnection): boolean {
+  return server.connectionType === 'local' || server.id === 'dummy' || server.id?.startsWith('local:');
+}
+
+function formatScheduledTime(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString();
+  } catch {
+    return iso;
+  }
 }
 
 const STARTER_SEROP_FILES: Array<{ name: string; content: string }> = [
@@ -222,6 +247,16 @@ export function DeploySidebar({
   const [fileOrder, setFileOrder] = useState<string[] | null>(null);
   const [hiddenFiles, setHiddenFiles] = useState<string[]>([]);
 
+  const [scheduleOpen, setScheduleOpen] = useState(true);
+  const [scheduledCommands, setScheduledCommands] = useState<ScheduledCommand[]>([]);
+  const [scheduleSource, setScheduleSource] = useState('custom');
+  const [scheduleCustomCommand, setScheduleCustomCommand] = useState('');
+  const [scheduleRunAt, setScheduleRunAt] = useState('');
+  const [scheduleBusy, setScheduleBusy] = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [scheduleMessage, setScheduleMessage] = useState<string | null>(null);
+  const [scheduleActionId, setScheduleActionId] = useState<number | null>(null);
+
   const activeProjectPath = selectedProjectPath.trim();
   const seropFolderPath = joinRemotePath(activeProjectPath || '.', '.server-operator');
   const orderedShortcutFiles = useMemo(
@@ -422,6 +457,128 @@ export function DeploySidebar({
     });
   };
 
+  const loadScheduledCommands = useCallback(async () => {
+    if (!window.serverOperator || !currentServer) {
+      setScheduledCommands([]);
+      return;
+    }
+    const rows = await window.serverOperator.scheduleList({ serverId: currentServer.id });
+
+    // Best-effort: for anything still marked "scheduled" but past its run
+    // time, check whether the marker is still installed on the target — if
+    // it's gone, the one-time job already fired (or was removed elsewhere).
+    const now = Date.now();
+    const isWindows = isLocalWorkspaceConnection(currentServer) && window.serverOperator.platform === 'win32';
+    await Promise.all(
+      rows
+        .filter((row) => row.status === 'scheduled' && new Date(row.runAt).getTime() < now)
+        .map(async (row) => {
+          const check = await window.serverOperator.runCommand({
+            connection: currentServer,
+            command: buildScheduleCheckCommand(row.marker, isWindows),
+            proxy: proxy.enabled ? proxy : undefined,
+          });
+          if (check.ok && (check.stdout || '').includes('NONE')) {
+            await window.serverOperator.scheduleUpdateStatus({ id: row.id, status: 'ran' });
+            row.status = 'ran';
+          }
+        })
+    );
+    setScheduledCommands(rows);
+  }, [currentServer, proxy]);
+
+  useEffect(() => {
+    void loadScheduledCommands();
+  }, [loadScheduledCommands]);
+
+  const handleScheduleCommand = async () => {
+    if (!window.serverOperator || !currentServer) return;
+    const command = scheduleSource === 'custom'
+      ? scheduleCustomCommand.trim()
+      : seropShortcuts.find((s) => s.id === scheduleSource)?.command.trim() || '';
+    if (!command) {
+      setScheduleError('Choose a shortcut or enter a command.');
+      return;
+    }
+    if (!scheduleRunAt) {
+      setScheduleError('Pick a date and time.');
+      return;
+    }
+    const runAtDate = new Date(scheduleRunAt);
+    if (Number.isNaN(runAtDate.getTime()) || runAtDate.getTime() <= Date.now()) {
+      setScheduleError('Pick a date and time in the future.');
+      return;
+    }
+
+    setScheduleBusy(true);
+    setScheduleError(null);
+    setScheduleMessage(null);
+    try {
+      const isWindows = isLocalWorkspaceConnection(currentServer) && window.serverOperator.platform === 'win32';
+      const marker = crypto.randomUUID();
+      const installCmd = buildScheduleInstallCommand(command, runAtDate, marker, isWindows);
+      const installRes = await window.serverOperator.runCommand({
+        connection: currentServer,
+        command: installCmd,
+        proxy: proxy.enabled ? proxy : undefined,
+      });
+      if (!installRes.ok) {
+        setScheduleError(installRes.error || installRes.stderr || 'Failed to install the scheduled job (is crontab available on the target?).');
+        return;
+      }
+      const createRes = await window.serverOperator.scheduleCreate({
+        serverId: currentServer.id,
+        serverName: currentServer.name,
+        command,
+        runAt: runAtDate.toISOString(),
+        marker,
+      });
+      if (!createRes.ok) {
+        setScheduleError(createRes.error || 'Job was installed but could not be saved locally.');
+        return;
+      }
+      setScheduleMessage(`Scheduled for ${formatScheduledTime(runAtDate.toISOString())}.`);
+      setScheduleCustomCommand('');
+      setScheduleRunAt('');
+      await loadScheduledCommands();
+    } finally {
+      setScheduleBusy(false);
+    }
+  };
+
+  const handleCancelScheduledCommand = async (row: ScheduledCommand) => {
+    if (!window.serverOperator || !currentServer) return;
+    setScheduleActionId(row.id);
+    setScheduleError(null);
+    try {
+      const isWindows = isLocalWorkspaceConnection(currentServer) && window.serverOperator.platform === 'win32';
+      const res = await window.serverOperator.runCommand({
+        connection: currentServer,
+        command: buildScheduleCancelCommand(row.marker, isWindows),
+        proxy: proxy.enabled ? proxy : undefined,
+      });
+      if (!res.ok) {
+        setScheduleError(res.error || res.stderr || 'Failed to cancel the scheduled job.');
+        return;
+      }
+      await window.serverOperator.scheduleUpdateStatus({ id: row.id, status: 'cancelled' });
+      await loadScheduledCommands();
+    } finally {
+      setScheduleActionId(null);
+    }
+  };
+
+  const handleDeleteScheduledCommand = async (row: ScheduledCommand) => {
+    if (!window.serverOperator) return;
+    setScheduleActionId(row.id);
+    try {
+      await window.serverOperator.scheduleDelete({ id: row.id });
+      await loadScheduledCommands();
+    } finally {
+      setScheduleActionId(null);
+    }
+  };
+
   return (
     <div className="px-3 pt-2 space-y-3">
       <Card className="p-3 text-sm space-y-3">
@@ -553,6 +710,101 @@ export function DeploySidebar({
             </div>
             {shortcutBootstrapMessage && <p className="text-xs text-text-secondary">{shortcutBootstrapMessage}</p>}
             {shortcutBootstrapError && <p className="text-xs text-error font-mono">{shortcutBootstrapError}</p>}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-border bg-bg-primary overflow-hidden">
+        <button type="button" onClick={() => setScheduleOpen((open) => !open)} className="w-full flex items-center justify-between gap-2 px-3 py-3 text-left hover:bg-bg-secondary/60 transition-colors cursor-pointer">
+          <SectionLabel>Scheduled Commands</SectionLabel>
+          <ChevronDown size={14} className={`text-text-secondary transition-transform ${scheduleOpen ? 'rotate-0' : '-rotate-90'}`} />
+        </button>
+        {scheduleOpen && (
+          <div className="border-t border-border/20 p-3 space-y-3">
+            <p className="text-[10px] text-text-muted leading-relaxed">
+              Runs once, at this time on the target's own clock, via a self-removing job — no need to keep Serop open.
+            </p>
+            <Select
+              value={scheduleSource}
+              onChange={setScheduleSource}
+              disabled={!currentServer}
+              options={[
+                { value: 'custom', label: 'Custom command' },
+                ...seropShortcuts.map((s) => ({ value: s.id, label: s.name })),
+              ]}
+            />
+            {scheduleSource === 'custom' ? (
+              <Textarea
+                size="sm"
+                value={scheduleCustomCommand}
+                onChange={(e) => setScheduleCustomCommand(e.target.value)}
+                placeholder="Command to run"
+                rows={2}
+              />
+            ) : (
+              <p className="text-[11px] font-mono text-text-secondary bg-bg-secondary/40 rounded-lg px-2.5 py-1.5 break-all">
+                {seropShortcuts.find((s) => s.id === scheduleSource)?.command}
+              </p>
+            )}
+            <input
+              type="datetime-local"
+              value={scheduleRunAt}
+              onChange={(e) => setScheduleRunAt(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-primary"
+            />
+            <Button variant="solid" size="sm" onClick={handleScheduleCommand} disabled={scheduleBusy || !currentServer}>
+              {scheduleBusy ? <Loader2 size={11} className="animate-spin" /> : <CalendarClock size={11} />}
+              Schedule
+            </Button>
+            {scheduleError && <p className="text-xs text-error font-mono">{scheduleError}</p>}
+            {scheduleMessage && <p className="text-xs text-text-secondary">{scheduleMessage}</p>}
+
+            {scheduledCommands.length > 0 && (
+              <div className="max-h-56 overflow-auto space-y-2 pr-1 pt-1">
+                {scheduledCommands.map((row) => (
+                  <div key={row.id} className="rounded-xl border border-border/20 bg-bg-secondary/35 px-3 py-2.5 space-y-1">
+                    <p className="text-[11px] font-mono text-text-primary truncate" title={row.command}>{row.command}</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] text-text-muted">{formatScheduledTime(row.runAt)}</span>
+                      <span
+                        className={`text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${
+                          row.status === 'scheduled'
+                            ? 'bg-accent/15 text-accent'
+                            : row.status === 'ran'
+                              ? 'bg-emerald-500/15 text-emerald-400'
+                              : row.status === 'error'
+                                ? 'bg-error/15 text-error'
+                                : 'bg-bg-tertiary text-text-muted'
+                        }`}
+                      >
+                        {row.status}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 pt-0.5">
+                      {row.status === 'scheduled' ? (
+                        <button
+                          type="button"
+                          disabled={scheduleActionId === row.id}
+                          onClick={() => handleCancelScheduledCommand(row)}
+                          className="flex items-center gap-1 px-2 py-1 rounded-md border border-border/30 text-[10px] font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/60 disabled:opacity-50 transition-colors cursor-pointer"
+                        >
+                          <X size={10} />Cancel
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={scheduleActionId === row.id}
+                          onClick={() => handleDeleteScheduledCommand(row)}
+                          className="flex items-center gap-1 px-2 py-1 rounded-md border border-border/30 text-[10px] font-semibold text-text-secondary hover:text-error hover:bg-error/10 disabled:opacity-50 transition-colors cursor-pointer"
+                        >
+                          <Trash2 size={10} />Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

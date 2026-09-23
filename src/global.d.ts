@@ -181,10 +181,36 @@ export interface ServerOperatorAPI {
     command: string;
   }) => Promise<{ ok: boolean; id?: number; error?: string }>;
   deleteSnippet: (opts: { id: number }) => Promise<{ ok: boolean; error?: string }>;
+  scheduleList: (opts?: { serverId?: string }) => Promise<Array<{
+    id: number;
+    serverId: string;
+    serverName: string;
+    command: string;
+    runAt: string;
+    marker: string;
+    status: 'scheduled' | 'ran' | 'cancelled' | 'error';
+    logPath: string | null;
+    createdAt: string;
+  }>>;
+  scheduleCreate: (opts: {
+    serverId: string;
+    serverName: string;
+    command: string;
+    runAt: string;
+    marker: string;
+    logPath?: string;
+  }) => Promise<{ ok: boolean; id?: number; error?: string }>;
+  scheduleUpdateStatus: (opts: { id: number; status: 'scheduled' | 'ran' | 'cancelled' | 'error' }) => Promise<{ ok: boolean; error?: string }>;
+  scheduleDelete: (opts: { id: number }) => Promise<{ ok: boolean; error?: string }>;
   loadFeaturesConfig: () => Promise<any>;
   saveFeaturesConfig: (config: any) => Promise<{ ok: boolean; error?: string }>;
   openTunnel: (opts: { connection: any; proxy?: any; remoteHost: string; remotePort: number }) => Promise<{ ok: boolean; localPort?: number; tunnelId?: string; error?: string }>;
   closeTunnel: (opts: { tunnelId: string }) => Promise<{ ok: boolean }>;
+  // CRM OAuth sign-in
+  crmLogin: (opts: { baseUrl: string }) => Promise<{
+    token: string;
+    user: { id: string; email: string | null; displayName: string; isGuest: boolean };
+  }>;
   // Updates
   checkForUpdates?: () => Promise<{ ok: boolean }>;
   openReleasePage?: (url: string) => Promise<{ ok: boolean; error?: string }>;

@@ -2,6 +2,8 @@ const { app, BrowserWindow, ipcMain, dialog, Menu, shell, clipboard } = require(
 const { startUpdateChecker, runUpdateCheck } = require('./updateChecker');
 const path = require('path');
 const fs = require('fs');
+const http = require('http');
+const crypto = require('crypto');
 const { execSync, spawn } = require('child_process');
 
 // Fix PATH on macOS and Windows when launched as a GUI app (so it can find cloudflared, docker, etc.)
@@ -168,6 +170,26 @@ try {
             log('Seeded terminal snippets table with defaults');
           }
         });
+      }
+    });
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS scheduled_commands (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        serverId TEXT NOT NULL,
+        serverName TEXT NOT NULL,
+        command TEXT NOT NULL,
+        runAt TEXT NOT NULL,
+        marker TEXT NOT NULL,
+        status TEXT NOT NULL,
+        logPath TEXT,
+        createdAt TEXT NOT NULL
+      )
+    `, (err) => {
+      if (err) {
+        log('SQLite scheduled_commands table create error', { error: err.message });
+      } else {
+        log('SQLite scheduled_commands table initialized');
       }
     });
   });
@@ -585,7 +607,15 @@ function listDirDummy(connection, dirPath) {
 }
 
 function errMsg(e) {
-  if (e && typeof e === 'object' && 'message' in e) return String(e.message);
+  if (e && typeof e === 'object') {
+    const msg = 'message' in e ? String(e.message || '').trim() : '';
+    if (msg) return msg;
+    // Some socket/SSH errors carry no .message at all (just a .code/.level/.syscall) —
+    // fall back to those instead of surfacing a blank string to the user.
+    const code = e.code || e.level || e.syscall;
+    if (code) return `Connection failed (${code})`;
+    return 'Connection failed (no further details available)';
+  }
   return String(e != null ? e : 'Unknown error');
 }
 
@@ -2366,6 +2396,90 @@ ipcMain.handle('snippets:delete', async (_, { id }) => {
   });
 });
 
+// ── Scheduled Commands ──────────────────────────────────────────────────
+// Bookkeeping only (SQLite CRUD). The actual one-time OS-level job
+// (self-deleting crontab line / schtasks task) is built and installed by the
+// renderer via the existing `server:run-command` IPC — same as how
+// ServerToolsView.tsx's crontab editor already builds shell command strings
+// client-side. This keeps the "how to build a cron line for this OS" logic
+// in one place (the renderer) instead of duplicated between main and preload.
+ipcMain.handle('schedule:list', async (_, { serverId } = {}) => {
+  return new Promise((resolve) => {
+    if (!db) {
+      resolve([]);
+      return;
+    }
+    const sql = serverId
+      ? 'SELECT * FROM scheduled_commands WHERE serverId = ? ORDER BY runAt ASC'
+      : 'SELECT * FROM scheduled_commands ORDER BY runAt ASC';
+    const params = serverId ? [serverId] : [];
+    db.all(sql, params, (err, rows) => {
+      if (err) {
+        log('SQLite select scheduled_commands error', { error: err.message });
+        resolve([]);
+      } else {
+        resolve(rows || []);
+      }
+    });
+  });
+});
+
+ipcMain.handle('schedule:create', async (_, { serverId, serverName, command, runAt, marker, logPath }) => {
+  const createdAt = new Date().toISOString();
+  return new Promise((resolve) => {
+    if (!db) {
+      resolve({ ok: false, error: 'Database not initialized' });
+      return;
+    }
+    db.run(
+      'INSERT INTO scheduled_commands (serverId, serverName, command, runAt, marker, status, logPath, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [serverId, serverName, command, runAt, marker, 'scheduled', logPath || null, createdAt],
+      function (err) {
+        if (err) {
+          log('SQLite insert scheduled_commands error', { error: err.message });
+          resolve({ ok: false, error: err.message });
+        } else {
+          resolve({ ok: true, id: this.lastID });
+        }
+      }
+    );
+  });
+});
+
+ipcMain.handle('schedule:update-status', async (_, { id, status }) => {
+  return new Promise((resolve) => {
+    if (!db) {
+      resolve({ ok: false, error: 'Database not initialized' });
+      return;
+    }
+    db.run('UPDATE scheduled_commands SET status = ? WHERE id = ?', [status, id], function (err) {
+      if (err) {
+        log('SQLite update scheduled_commands error', { error: err.message });
+        resolve({ ok: false, error: err.message });
+      } else {
+        resolve({ ok: true });
+      }
+    });
+  });
+});
+
+ipcMain.handle('schedule:delete', async (_, { id }) => {
+  return new Promise((resolve) => {
+    if (!db) {
+      resolve({ ok: false, error: 'Database not initialized' });
+      return;
+    }
+    db.run('DELETE FROM scheduled_commands WHERE id = ?', [id], function (err) {
+      if (err) {
+        log('SQLite delete scheduled_commands error', { error: err.message });
+        resolve({ ok: false, error: err.message });
+      } else {
+        resolve({ ok: true });
+      }
+    });
+  });
+});
+
 ipcMain.handle('app:open-devtools', async () => {
   try {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -3700,6 +3814,79 @@ ipcMain.handle('window:set-opacity', async (_, opacity) => {
 });
 ipcMain.handle('app:quit', async () => {
   app.quit();
+});
+
+// ── CRM OAuth Sign-In ────────────────────────────────────────────────────
+// Loopback-redirect flow: open the CRM's login page in the system browser,
+// catch the redirect on a temporary local HTTP server, then exchange the
+// code for a token server-to-server. Same pattern gcloud/AWS CLI/VS Code use —
+// no OS protocol-handler registration needed, identical on all 3 platforms.
+ipcMain.handle('auth:crm-login', async (_event, { baseUrl }) => {
+  return new Promise((resolve, reject) => {
+    const state = crypto.randomBytes(16).toString('hex');
+    let settled = false;
+    let timeoutId;
+
+    const finish = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      server.close();
+      fn(value);
+    };
+
+    const server = http.createServer(async (req, res) => {
+      const url = new URL(req.url, 'http://127.0.0.1');
+      if (url.pathname !== '/callback') {
+        res.writeHead(404).end();
+        return;
+      }
+
+      const code = url.searchParams.get('code');
+      const returnedState = url.searchParams.get('state');
+
+      if (!code || returnedState !== state) {
+        res.writeHead(400, { 'Content-Type': 'text/html' }).end('<p>Sign-in failed: invalid state. You can close this tab.</p>');
+        finish(reject, new Error('CRM sign-in failed: state mismatch.'));
+        return;
+      }
+
+      res.writeHead(200, { 'Content-Type': 'text/html' }).end('<p>Signed in. You can close this tab and return to Serop.</p>');
+
+      try {
+        const tokenRes = await fetch(`${baseUrl}/oauth/token/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, client_id: 'serop' }),
+        });
+        const data = await tokenRes.json();
+        if (!tokenRes.ok || data.ok === false) {
+          finish(reject, new Error(data.error || `CRM token exchange failed (${tokenRes.status})`));
+          return;
+        }
+        finish(resolve, { token: data.token, user: data.user });
+      } catch (e) {
+        finish(reject, new Error(`Could not reach CRM at ${baseUrl}: ${String(e.message || e)}`));
+      }
+    });
+
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address();
+      const redirectUri = `http://127.0.0.1:${port}/callback`;
+      const authorizeUrl = `${baseUrl.replace(/\/$/, '')}/oauth/authorize/?${new URLSearchParams({
+        client_id: 'serop',
+        redirect_uri: redirectUri,
+        state,
+      })}`;
+      shell.openExternal(authorizeUrl);
+    });
+
+    timeoutId = setTimeout(() => {
+      finish(reject, new Error('CRM sign-in timed out.'));
+    }, 5 * 60 * 1000);
+
+    server.on('error', (e) => finish(reject, e));
+  });
 });
 
 // ── Cloudinary Backup/Restore IPC Handlers ──────────────────────────

@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Minus, Square, X, ExternalLink, RefreshCw, Terminal, Info, ChevronDown } from 'lucide-react';
-import type { ServerConnection } from '../types';
+import type { ServerConnection, ViewId } from '../types';
 import { MultiServerBar, type ServerTabSession } from './MultiServerBar';
+import { ProfileMenu } from './ProfileMenu';
 
 interface TitleBarProps {
   currentServer: ServerConnection | null;
@@ -14,6 +15,7 @@ interface TitleBarProps {
   onSelectServer?: (server: ServerConnection) => void;
   sidebarOpen?: boolean;
   onSidebarToggle?: () => void;
+  onViewChange?: (view: ViewId) => void;
 }
 
 export function TitleBar({
@@ -27,6 +29,7 @@ export function TitleBar({
   onSelectServer,
   sidebarOpen,
   onSidebarToggle,
+  onViewChange,
 }: TitleBarProps) {
   const [activeMenu, setActiveMenu] = useState<'file' | 'edit' | 'view' | 'help' | null>(null);
   const [isMaximized, setIsMaximized] = useState(false);
@@ -421,37 +424,42 @@ export function TitleBar({
         )}
       </div>
 
-      {/* Right Area: Window Controls (Windows/Linux only) */}
-      {!isMac && (
-        <div className="flex items-center h-full" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-          {/* Minimize */}
-          <button
-            onClick={handleMinimize}
-            title="Minimize"
-            className="w-11 h-full flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/60 transition-colors"
-          >
-            <Minus className="w-3.5 h-3.5" />
-          </button>
-          
-          {/* Maximize / Restore */}
-          <button
-            onClick={handleMaximize}
-            title={isMaximized ? 'Restore' : 'Maximize'}
-            className="w-11 h-full flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/60 transition-colors"
-          >
-            <Square className="w-2.5 h-2.5" />
-          </button>
-          
-          {/* Close */}
-          <button
-            onClick={handleClose}
-            title="Close"
-            className="w-11 h-full flex items-center justify-center text-text-secondary hover:text-white hover:bg-error transition-colors"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
+      {/* Right Area: Profile Menu + Window Controls (Windows/Linux only) */}
+      <div className="flex items-center h-full" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+        <div className="flex items-center h-full pr-2">
+          <ProfileMenu onViewChange={onViewChange} />
         </div>
-      )}
+        {!isMac && (
+          <>
+            {/* Minimize */}
+            <button
+              onClick={handleMinimize}
+              title="Minimize"
+              className="w-11 h-full flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/60 transition-colors"
+            >
+              <Minus className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Maximize / Restore */}
+            <button
+              onClick={handleMaximize}
+              title={isMaximized ? 'Restore' : 'Maximize'}
+              className="w-11 h-full flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/60 transition-colors"
+            >
+              <Square className="w-2.5 h-2.5" />
+            </button>
+
+            {/* Close */}
+            <button
+              onClick={handleClose}
+              title="Close"
+              className="w-11 h-full flex items-center justify-center text-text-secondary hover:text-white hover:bg-error transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
