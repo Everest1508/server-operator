@@ -96,7 +96,12 @@ jobs:
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "title=Server Operator ${TAG}" >> "$GITHUB_OUTPUT"
+          CODENAME="$(node scripts/release-codename.js "${VERSION}")"
+          TITLE="Server Operator ${TAG}"
+          if [ -n "${CODENAME}" ]; then
+            TITLE="${TITLE} (${CODENAME})"
+          fi
+          echo "title=${TITLE}" >> "$GITHUB_OUTPUT"
 
       - name: Publish release with all artifacts
         env:
