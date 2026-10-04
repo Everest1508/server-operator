@@ -24,7 +24,7 @@ export interface ChangelogVersion {
 export const CHANGELOG: ChangelogVersion[] = [
   {
     version: '2.3.0',
-    codename: 'Locked Down',
+    codename: 'Iron Palette',
     date: '2026-10-04',
     summary:
       'Tightens security and adds custom themes. Serop now checks SSH server fingerprints, encrypts saved passwords with your system keychain, and keeps secrets out of its log file. Themes can be loaded from JSON files, including files shipped by an installer.',
