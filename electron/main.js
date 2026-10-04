@@ -236,6 +236,7 @@ const isDev = process.env.ELECTRON_DEV === '1';
 
 const { createHostVerifier, registerHostKeyHandlers } = require('./hostKeys');
 const secrets = require('./secrets');
+const { registerThemeHandlers } = require('./themes');
 
 let mainWindow;
 let launchLocalFolder = null;
@@ -492,6 +493,7 @@ function createWindow() {
 
 registerHostKeyHandlers();
 secrets.registerSecretHandlers();
+registerThemeHandlers(log);
 
 app.whenReady().then(() => {
   log('started', { logFile: getLogPath() });

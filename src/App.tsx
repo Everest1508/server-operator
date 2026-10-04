@@ -8,7 +8,7 @@ import { RepoSidebar } from './components/RepoSidebar';
 import { SettingsView } from './components/SettingsView';
 import { UpdateBanner } from './components/UpdateBanner';
 import { HostKeyPrompt } from './components/HostKeyPrompt';
-import { applyTheme, loadThemeChoice } from './utils/customThemes';
+import { applyTheme, loadThemeChoice, loadFolderThemes } from './utils/customThemes';
 import { STORAGE_KEY_SERVERS, readStoredServers, revealServerPasswords, protectServerPasswords } from './utils/serverStore';
 import { TitleBar } from './components/TitleBar';
 import { CloudTeamView } from './components/CloudTeamView';
@@ -168,6 +168,11 @@ export interface RepoSidebarState {
 export default function App() {
   useEffect(() => {
     applyTheme(loadThemeChoice());
+    // Themes from the installer/user folders arrive after startup; re-apply if the saved choice is one of them.
+    loadFolderThemes().then(() => {
+      const choice = loadThemeChoice();
+      if (choice.startsWith('custom:')) applyTheme(choice);
+    });
     document.documentElement.style.setProperty('--glass-blur', `${loadAppBlur()}px`);
     window.serverOperator?.setWindowOpacity?.(loadAppOpacity());
   }, []);

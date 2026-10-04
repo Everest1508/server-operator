@@ -156,7 +156,8 @@ export function loadThemeChoice(): string {
   try {
     const raw = localStorage.getItem(THEME_STORAGE_KEY) || '';
     if ((BUILT_IN as string[]).includes(raw)) return raw;
-    if (raw.startsWith(CUSTOM_PREFIX) && loadCustomThemes().some((t) => customChoiceId(t.id) === raw)) return raw;
+    // Folder themes load after startup, so do not check the id exists here.
+    if (raw.startsWith(CUSTOM_PREFIX)) return raw;
   } catch {
     // ignore
   }
@@ -173,9 +174,12 @@ export function applyTheme(choice: string) {
   for (const cssVar of Object.values(THEME_COLOR_VARS)) root.style.removeProperty(cssVar);
   delete root.dataset.customTheme;
 
-  const custom = choice.startsWith(CUSTOM_PREFIX)
-    ? loadCustomThemes().find((t) => customChoiceId(t.id) === choice)
-    : undefined;
+  const custom = choice.startsWith(CUSTOM_PREFIX) ? findTheme(choice) : undefined;
+  if (choice.startsWith(CUSTOM_PREFIX) && !custom) {
+    // Theme not found (yet). Show the default look but keep the saved choice.
+    root.dataset.appTheme = 'default';
+    return;
+  }
   if (custom) {
     root.dataset.appTheme = custom.base === 'light' ? 'light' : 'default';
     root.dataset.customTheme = custom.id;
@@ -190,4 +194,43 @@ export function applyTheme(choice: string) {
   } catch {
     // ignore
   }
+}
+
+export type ThemeSource = 'installer' | 'admin' | 'user' | 'imported';
+export type ListedTheme = CustomTheme & { source: ThemeSource };
+
+let folderThemes: ListedTheme[] = [];
+export const THEMES_CHANGED_EVENT = 'serop-themes-changed';
+
+/** Reads theme files from the installer, admin and user folders. Later folders win on the same id. */
+export async function loadFolderThemes(): Promise<{ themes: ListedTheme[]; problems: string[] }> {
+  const files = (await window.serverOperator?.loadThemeFolders?.().catch(() => [])) ?? [];
+  const byId = new Map<string, ListedTheme>();
+  const problems: string[] = [];
+  for (const f of files) {
+    if (!f.text) {
+      problems.push(`${f.file}: ${f.error ?? 'could not be read'}`);
+      continue;
+    }
+    const result = parseThemeJson(f.text);
+    if (!result.ok) {
+      problems.push(`${f.file}: ${result.error}`);
+      continue;
+    }
+    byId.set(result.theme.id, { ...result.theme, source: f.source });
+  }
+  folderThemes = [...byId.values()];
+  window.dispatchEvent(new Event(THEMES_CHANGED_EVENT));
+  return { themes: folderThemes, problems };
+}
+
+/** Folder themes plus themes imported through Settings. An imported theme replaces a folder theme with the same id. */
+export function listAllThemes(): ListedTheme[] {
+  const byId = new Map<string, ListedTheme>(folderThemes.map((t) => [t.id, t]));
+  for (const t of loadCustomThemes()) byId.set(t.id, { ...t, source: 'imported' });
+  return [...byId.values()];
+}
+
+function findTheme(choice: string): CustomTheme | undefined {
+  return listAllThemes().find((t) => customChoiceId(t.id) === choice);
 }

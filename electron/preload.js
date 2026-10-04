@@ -30,6 +30,8 @@ ipcRenderer.on('open-local-folder', (_event, payload) => {
 });
 
 contextBridge.exposeInMainWorld('serverOperator', {
+  loadThemeFolders: () => ipcRenderer.invoke('themes:load-folders'),
+  openThemesFolder: () => ipcRenderer.invoke('themes:open-user-folder'),
   encryptSecrets: (values) => ipcRenderer.invoke('secrets:encrypt', { values }),
   decryptSecrets: (values) => ipcRenderer.invoke('secrets:decrypt', { values }),
   answerHostKeyPrompt: (opts) => ipcRenderer.invoke('ssh:host-key-answer', opts),

@@ -36,7 +36,7 @@ import { CHANGELOG, ChangeEntry } from './changelogData';
 import { Select } from './Select';
 import {
   CustomTheme, THEME_TEMPLATE, parseThemeJson, loadCustomThemes, addCustomTheme, removeCustomTheme,
-  customChoiceId, loadThemeChoice, applyTheme,
+  customChoiceId, loadThemeChoice, applyTheme, listAllThemes, loadFolderThemes, THEMES_CHANGED_EVENT, ListedTheme,
 } from '../utils/customThemes';
 import packageJson from '../../package.json';
 
@@ -341,7 +341,8 @@ function ModulesView() {
   const [logsContent, setLogsContent] = useState('');
   const [logPath, setLogPath] = useState('');
   const [themeChoice, setThemeChoice] = useState<string>(loadThemeChoice);
-  const [customThemes, setCustomThemes] = useState<CustomTheme[]>(loadCustomThemes);
+  const [customThemes, setCustomThemes] = useState<ListedTheme[]>(listAllThemes);
+  const refreshThemeList = () => setCustomThemes(listAllThemes());
   const [themeMessage, setThemeMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const themeFileRef = React.useRef<HTMLInputElement>(null);
   const [opacity, setOpacity] = useState<number>(loadOpacity);
@@ -352,9 +353,9 @@ function ModulesView() {
     ...customThemes.map((t) => ({
       id: customChoiceId(t.id),
       label: t.name,
-      desc: t.description,
+      desc: t.source === 'imported' ? t.description : `${t.description} (from ${t.source} folder)`,
       swatch: [t.colors.bgPrimary ?? '#1e1e1e', t.colors.accent ?? '#0078d4', t.colors.success ?? '#4ec9b0', t.colors.textPrimary ?? '#cccccc'],
-      customId: t.id as string | null,
+      customId: (t.source === 'imported' ? t.id : null) as string | null,
     })),
   ];
 
@@ -374,7 +375,7 @@ function ModulesView() {
       setThemeMessage({ ok: false, text: added.error });
       return;
     }
-    setCustomThemes(added.themes);
+    refreshThemeList();
     setThemeChoice(customChoiceId(result.theme.id));
     const ignoredNote = result.ignored.length ? ` Ignored: ${result.ignored.join(', ')}.` : '';
     setThemeMessage({ ok: true, text: `Applied "${result.theme.name}".${ignoredNote}` });
@@ -389,8 +390,29 @@ function ModulesView() {
     URL.revokeObjectURL(url);
   };
 
+  const reloadThemeFolders = async () => {
+    const { themes, problems } = await loadFolderThemes();
+    refreshThemeList();
+    setThemeMessage(
+      problems.length
+        ? { ok: false, text: `Loaded ${themes.length} theme(s) from folders. Skipped: ${problems.join('; ')}` }
+        : { ok: true, text: `Loaded ${themes.length} theme(s) from folders.` },
+    );
+  };
+
+  const openThemesFolder = async () => {
+    const res = await window.serverOperator?.openThemesFolder?.();
+    if (res && !res.ok) setThemeMessage({ ok: false, text: `Could not open ${res.path}: ${res.error}` });
+  };
+
+  useEffect(() => {
+    window.addEventListener(THEMES_CHANGED_EVENT, refreshThemeList);
+    return () => window.removeEventListener(THEMES_CHANGED_EVENT, refreshThemeList);
+  }, []);
+
   const deleteCustomTheme = (id: string) => {
-    setCustomThemes(removeCustomTheme(id));
+    removeCustomTheme(id);
+    refreshThemeList();
     if (themeChoice === customChoiceId(id)) setThemeChoice('default');
   };
 
@@ -570,6 +592,24 @@ function ModulesView() {
             >
               <Download size={12} />
               Template
+            </button>
+            <button
+              type="button"
+              onClick={() => void openThemesFolder()}
+              title="Open the folder where you can drop theme .json files"
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-border/30 hover:border-border/60 text-[11px] font-semibold text-text-secondary cursor-pointer"
+            >
+              <FolderOpen size={12} />
+              Themes folder
+            </button>
+            <button
+              type="button"
+              onClick={() => void reloadThemeFolders()}
+              title="Read the theme folders again"
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-border/30 hover:border-border/60 text-[11px] font-semibold text-text-secondary cursor-pointer"
+            >
+              <RotateCcw size={12} />
+              Reload
             </button>
           </div>
         </div>
