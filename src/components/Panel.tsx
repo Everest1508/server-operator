@@ -6,7 +6,7 @@ import { Button } from './ui/Button';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { attachXtermClipboardKeys } from '../utils/xtermClipboardKeys';
-import { useAppTheme, cssVar } from '../hooks/useAppTheme';
+import { useThemeKey, cssVar } from '../hooks/useAppTheme';
 import type { ServerConnection, ProxySettings } from '../types';
 
 interface PanelProps {
@@ -34,7 +34,7 @@ interface TerminalTab {
 }
 
 export function Panel({ currentServer, proxy, panelTab, onTabChange, composePaths = [], onAddComposePath, onRemoveComposePath, pendingTerminalCommand = null, pendingTerminalLabel = null, onClearPendingTerminalCommand }: PanelProps) {
-  const appTheme = useAppTheme();
+  const appTheme = useThemeKey();
   const xtermTheme = useMemo(() => {
     const bg = cssVar('--color-bg-primary', '#1e1e1e');
     const accent = cssVar('--color-accent', '#0078d4');

@@ -29,6 +29,21 @@ export function useAppTheme(): AppTheme {
   return theme;
 }
 
+/** Changes whenever the built-in or custom theme changes. Use as a dependency for colors read via cssVar(). */
+export function useThemeKey(): string {
+  const read = () => {
+    const el = document.documentElement;
+    return `${el.dataset.appTheme ?? ''}:${el.dataset.customTheme ?? ''}`;
+  };
+  const [key, setKey] = useState(read);
+  useEffect(() => {
+    const observer = new MutationObserver(() => setKey(read()));
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-app-theme', 'data-custom-theme'] });
+    return () => observer.disconnect();
+  }, []);
+  return key;
+}
+
 /** Resolve a CSS variable from the document root (with fallback). */
 export function cssVar(name: string, fallback = ''): string {
   if (typeof document === 'undefined') return fallback;

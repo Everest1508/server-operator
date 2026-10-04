@@ -49,9 +49,37 @@ function getLogPath() {
   }
 }
 
+// Keep secrets out of the log file. Keys that hold secrets are replaced outright,
+// keys that hold command output or SQL are cut short, and secret-looking text is scrubbed.
+const SECRET_KEY_RE = /pass(word|wd)?|pwd|secret|token|api_?key|private_?key|authorization|credential/i;
+const LONG_TEXT_KEYS = new Set(['stdout', 'stderr', 'data', 'lastStatement', 'sql', 'query', 'command', 'cmd']);
+const LOG_TEXT_LIMIT = 200;
+
+function scrubText(text) {
+  return String(text)
+    .replace(/(:\/\/[^\s:@\/]+):[^\s@\/]+@/g, '$1:[redacted]@')
+    .replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+\/=-]+/gi, '$1 [redacted]')
+    .replace(/(\b[A-Za-z_]*(?:pass(?:word|wd)?|pwd|secret|token|api_?key)[A-Za-z_]*\b\s*[=:]\s*)("[^"]*"|'[^']*'|\S+)/gi, '$1[redacted]')
+    .replace(/(\s-p)(?=\S)\S+/g, '$1[redacted]')
+    .replace(/(--password[= ])\S+/gi, '$1[redacted]');
+}
+
+function logReplacer(key, value) {
+  if (key && SECRET_KEY_RE.test(key) && value != null && typeof value !== 'boolean') return '[redacted]';
+  if (typeof value === 'string') {
+    const clean = scrubText(value);
+    if (LONG_TEXT_KEYS.has(key) && clean.length > LOG_TEXT_LIMIT) {
+      return clean.slice(0, LOG_TEXT_LIMIT) + `... [${clean.length - LOG_TEXT_LIMIT} more chars cut]`;
+    }
+    return clean;
+  }
+  return value;
+}
+
 function log(message, detail) {
   const ts = new Date().toISOString();
-  const line = detail != null ? `${ts} ${message} ${JSON.stringify(detail)}` : `${ts} ${message}`;
+  const safeMessage = scrubText(message);
+  const line = detail != null ? `${ts} ${safeMessage} ${JSON.stringify(detail, logReplacer)}` : `${ts} ${safeMessage}`;
   console.error('[server-operator]', line);
   try {
     fs.appendFileSync(getLogPath(), line + '\n');
@@ -65,10 +93,10 @@ function setupCrashLogging() {
   const crashLog = (label, err) => {
     try {
       const p = getLogPath();
-      const line = `${new Date().toISOString()} ${label} ${err && (err.stack || err.message || err)}\n`;
+      const line = `${new Date().toISOString()} ${label} ${scrubText(err && (err.stack || err.message || err))}\n`;
       fs.appendFileSync(p, line);
     } catch (_) {}
-    console.error('[server-operator]', label, err);
+    console.error('[server-operator]', label, scrubText(err && (err.stack || err.message || err)));
   };
   process.on('uncaughtException', (err) => {
     crashLog('uncaughtException', err);
@@ -205,6 +233,10 @@ if (process.platform === 'linux') {
 }
 
 const isDev = process.env.ELECTRON_DEV === '1';
+
+const { createHostVerifier, registerHostKeyHandlers } = require('./hostKeys');
+const secrets = require('./secrets');
+const { registerThemeHandlers } = require('./themes');
 
 let mainWindow;
 let launchLocalFolder = null;
@@ -459,6 +491,10 @@ function createWindow() {
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
+registerHostKeyHandlers();
+secrets.registerSecretHandlers();
+registerThemeHandlers(log);
+
 app.whenReady().then(() => {
   log('started', { logFile: getLogPath() });
 
@@ -680,6 +716,8 @@ function connectSSH(connection, proxy) {
         readyTimeout: 30000,
         keepaliveInterval: 10000,
         keepaliveCountMax: 3,
+        hostHash: 'sha256',
+        hostVerifier: createHostVerifier(() => mainWindow, host, 22, log),
         // Use the cloudflared subprocess as the transport socket.
         sock: (() => {
           const duplex = new (require('stream').Transform)({
@@ -737,6 +775,8 @@ function connectSSH(connection, proxy) {
       readyTimeout: viaProxy ? 150000 : 20000,
       keepaliveInterval: 10000,
       keepaliveCountMax: 3,
+      hostHash: 'sha256',
+      hostVerifier: createHostVerifier(() => mainWindow, host, 22, log),
     };
     if (usePassword) {
       config.password = connection.password;
@@ -3603,7 +3643,7 @@ ipcMain.handle('database:import-sql', async (event, { serverId, sql }) => {
       log('SQL import: completed', { serverId, statements: executed });
       event.sender.send('import-progress', { serverId, type: 'complete', executed });
     } catch (err) {
-      log('SQL import: statement failed', { serverId, executed, error: err.message, lastStatement });
+      log('SQL import: statement failed', { serverId, executed, error: err.message, lastStatementLength: String(lastStatement || '').length });
       event.sender.send('import-progress', { serverId, type: 'error', error: err.message, lastStatement });
       if (dbType === 'postgres') {
         try { await dbClient.query('ROLLBACK'); } catch (_) {}
@@ -3711,7 +3751,7 @@ ipcMain.handle('database:import-sql-full', async (event, { serverId, sql }) => {
       log('Full import: completed', { serverId, statements: executed });
       event.sender.send('import-progress', { serverId, type: 'complete', executed });
     } catch (err) {
-      log('Full import: statement failed', { serverId, executed, error: err.message, lastStatement });
+      log('Full import: statement failed', { serverId, executed, error: err.message, lastStatementLength: String(lastStatement || '').length });
       event.sender.send('import-progress', { serverId, type: 'error', error: err.message, lastStatement });
       if (dbType === 'postgres') {
         try { await dbClient.query('ROLLBACK'); } catch (_) {}
@@ -3902,7 +3942,13 @@ function loadCloudinaryConfig() {
   try {
     const p = getCloudinaryConfigPath();
     if (fs.existsSync(p)) {
-      return JSON.parse(fs.readFileSync(p, 'utf8'));
+      const stored = JSON.parse(fs.readFileSync(p, 'utf8'));
+      const wasPlain = typeof stored.apiSecret === 'string' && stored.apiSecret && !stored.apiSecret.startsWith('enc:v1:');
+      if (wasPlain && secrets.canEncrypt()) {
+        // Encrypt a secret saved by an older version.
+        fs.writeFileSync(p, JSON.stringify({ ...stored, apiSecret: secrets.protect(stored.apiSecret) }, null, 2), 'utf8');
+      }
+      return { ...stored, apiSecret: secrets.reveal(stored.apiSecret) };
     }
   } catch (e) {
     log('Failed to load Cloudinary config', { error: String(e) });
@@ -3927,7 +3973,8 @@ function getCloudinary() {
 ipcMain.handle('cloudinary:save-config', async (_, config) => {
   try {
     const p = getCloudinaryConfigPath();
-    fs.writeFileSync(p, JSON.stringify(config, null, 2), 'utf8');
+    const toSave = { ...config, apiSecret: secrets.protect(config.apiSecret) };
+    fs.writeFileSync(p, JSON.stringify(toSave, null, 2), 'utf8');
     log('Cloudinary config saved');
     return { ok: true };
   } catch (e) {

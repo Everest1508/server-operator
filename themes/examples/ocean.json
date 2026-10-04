@@ -1,0 +1,21 @@
+{
+  "name": "Ocean",
+  "description": "Deep blue dark theme with a teal accent",
+  "base": "dark",
+  "colors": {
+    "bgPrimary": "#0b1d2a",
+    "bgSecondary": "#0f2638",
+    "bgTertiary": "#143049",
+    "bgActivity": "#08151f",
+    "border": "#1f4160",
+    "textPrimary": "#d6e8f5",
+    "textSecondary": "#8fb0c7",
+    "textMuted": "#5f7f96",
+    "accent": "#1fb6c9",
+    "accentHover": "#4fd1e0",
+    "success": "#3ddc97",
+    "warning": "#f2c14e",
+    "error": "#ef6f6c",
+    "inputBg": "#0f2638"
+  }
+}

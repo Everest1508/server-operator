@@ -7,6 +7,9 @@ import { Panel } from './components/Panel';
 import { RepoSidebar } from './components/RepoSidebar';
 import { SettingsView } from './components/SettingsView';
 import { UpdateBanner } from './components/UpdateBanner';
+import { HostKeyPrompt } from './components/HostKeyPrompt';
+import { applyTheme, loadThemeChoice, loadFolderThemes } from './utils/customThemes';
+import { STORAGE_KEY_SERVERS, readStoredServers, revealServerPasswords, protectServerPasswords } from './utils/serverStore';
 import { TitleBar } from './components/TitleBar';
 import { CloudTeamView } from './components/CloudTeamView';
 import { CustomContextMenu } from './components/CustomContextMenu';
@@ -19,28 +22,11 @@ import { parseLsLine } from './utils/parseLs';
 import { resolveRemotePath } from './utils/remotePath';
 import { loadProjectContext } from './utils/loadProjectContext';
 
-const STORAGE_KEY_SERVERS = 'server-operator-servers';
 const STORAGE_KEY_PROXY = 'server-operator-proxy';
 const STORAGE_KEY_REPOS = 'server-operator:repos';
 const STORAGE_KEY_COMPOSE_PATHS = 'server-operator:compose-paths';
-const STORAGE_KEY_THEME = 'server-operator:theme';
 const STORAGE_KEY_OPACITY = 'server-operator:opacity';
 const STORAGE_KEY_BLUR = 'server-operator:blur';
-
-function loadAppTheme(): 'default' | 'glassy' | 'light' | 'tokyo-night' {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_THEME);
-    if (raw === 'glassy' || raw === 'light' || raw === 'tokyo-night') return raw;
-    return 'default';
-  } catch {
-    return 'default';
-  }
-}
-
-function applyAppTheme(theme: 'default' | 'glassy' | 'light' | 'tokyo-night') {
-  if (typeof document === 'undefined') return;
-  document.documentElement.dataset.appTheme = theme;
-}
 
 function loadAppOpacity(): number {
   try {
@@ -107,13 +93,7 @@ const defaultProxy: ProxySettings = {
 
 function loadServers(): ServerConnection[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_SERVERS);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (Array.isArray(parsed)) {
-      return (parsed as ServerConnection[]).filter(s => s.id !== 'dummy' && s.host !== 'dummy');
-    }
-    return [];
+    return readStoredServers().filter(s => s.id !== 'dummy' && s.host !== 'dummy');
   } catch {
     return [];
   }
@@ -187,7 +167,12 @@ export interface RepoSidebarState {
 
 export default function App() {
   useEffect(() => {
-    applyAppTheme(loadAppTheme());
+    applyTheme(loadThemeChoice());
+    // Themes from the installer/user folders arrive after startup; re-apply if the saved choice is one of them.
+    loadFolderThemes().then(() => {
+      const choice = loadThemeChoice();
+      if (choice.startsWith('custom:')) applyTheme(choice);
+    });
     document.documentElement.style.setProperty('--glass-blur', `${loadAppBlur()}px`);
     window.serverOperator?.setWindowOpacity?.(loadAppOpacity());
   }, []);
@@ -352,6 +337,7 @@ export default function App() {
   };
 
   const [servers, setServers] = useState<ServerConnection[]>(() => loadServers());
+  const [serversReady, setServersReady] = useState(false);
   const [proxy, setProxy] = useState<ProxySettings>(() => loadProxy());
   const proxyRef = useRef(proxy);
   proxyRef.current = proxy; // always use latest when Connect is clicked (avoids stale closure)
@@ -1669,9 +1655,33 @@ export default function App() {
     }
   };
 
+  // Passwords are stored encrypted, so decrypt them once on startup before anything is saved back.
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_SERVERS, JSON.stringify(servers));
-  }, [servers]);
+    let cancelled = false;
+    revealServerPasswords(servers)
+      .then((revealed) => {
+        if (cancelled) return;
+        const pw = new Map(revealed.map((s) => [s.id, s.password]));
+        setServers((prev) => prev.map((s) => (s.password || !pw.get(s.id) ? s : { ...s, password: pw.get(s.id) })));
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setServersReady(true); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const serversWriteId = useRef(0);
+  useEffect(() => {
+    if (!serversReady) return;
+    const writeId = ++serversWriteId.current;
+    protectServerPasswords(servers)
+      .then((toStore) => {
+        // A newer change started after this one; let it write instead.
+        if (writeId !== serversWriteId.current) return;
+        localStorage.setItem(STORAGE_KEY_SERVERS, JSON.stringify(toStore));
+      })
+      .catch(() => {});
+  }, [servers, serversReady]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_PROXY, JSON.stringify(proxy));
@@ -1799,6 +1809,7 @@ export default function App() {
       />
       <div className="flex flex-1 min-h-0 min-w-0">
         <UpdateBanner />
+        <HostKeyPrompt />
         <ActivityBar
           activeView={activeView}
           onViewChange={setActiveViewAndRoute}

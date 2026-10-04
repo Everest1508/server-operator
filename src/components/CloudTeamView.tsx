@@ -15,19 +15,8 @@ import {
   shareServer,
 } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
+import { readStoredServers, revealServerPasswords } from '../utils/serverStore';
 
-const STORAGE_KEY_SERVERS = 'server-operator-servers';
-
-function loadLocalServers(): ServerConnection[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_SERVERS);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    return Array.isArray(parsed) ? (parsed as ServerConnection[]) : [];
-  } catch {
-    return [];
-  }
-}
 
 interface CloudTeamViewProps {
   onConnectServer?: (server: ServerConnection) => void;
@@ -45,7 +34,11 @@ export function CloudTeamView({ onConnectServer, connectingToId }: CloudTeamView
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
-  const localServers = loadLocalServers();
+  const [localServers, setLocalServers] = useState<ServerConnection[]>(() => readStoredServers());
+  useEffect(() => {
+    // Stored passwords are encrypted; decrypt them so sharing can send the real password.
+    revealServerPasswords(readStoredServers()).then(setLocalServers).catch(() => {});
+  }, []);
 
   const loadData = async () => {
     try {

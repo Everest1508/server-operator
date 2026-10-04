@@ -71,6 +71,12 @@
       "package.json",
       "node_modules/**"
     ],
+    "extraResources": [
+      {
+        "from": "themes",
+        "to": "themes"
+      }
+    ],
     "asarUnpack": [
       "node_modules/ssh2/**",
       "dist/vs/**"

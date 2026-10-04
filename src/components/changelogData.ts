@@ -23,6 +23,46 @@ export interface ChangelogVersion {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: '2.3.0',
+    codename: 'Locked Down',
+    date: '2026-10-04',
+    summary:
+      'Tightens security and adds custom themes. Serop now checks SSH server fingerprints, encrypts saved passwords with your system keychain, and keeps secrets out of its log file. Themes can be loaded from JSON files, including files shipped by an installer.',
+    groups: [
+      {
+        label: 'Security',
+        icon: Shield,
+        color: '#f87171',
+        items: [
+          { type: 'feat', text: 'SSH host key check. The first time you connect to a server, Serop shows its fingerprint and asks you to trust it. Later connections are silent if it matches.' },
+          { type: 'feat', text: 'If a server fingerprint changes, Serop stops and shows the old and new fingerprints before you decide. Fingerprints are saved in known_hosts.json in the app data folder.' },
+          { type: 'feat', text: 'Saved server passwords and the Cloudinary secret are encrypted with the system keychain (Keychain, Credential Manager, or the Linux keyring). Passwords saved by older versions are encrypted the next time the app saves.' },
+          { type: 'improve', text: 'Passwords stay plain text only on Linux systems with no keyring, because Electron has no real protection there.' },
+          { type: 'fix', text: 'The log file no longer records passwords, tokens or keys. Password-like text is scrubbed, long command output and SQL are cut to 200 characters, and failed SQL imports no longer log the statement. Old log entries stay until you clear the log.' },
+        ],
+      },
+      {
+        label: 'Custom Themes',
+        icon: Sliders,
+        color: '#c084fc',
+        items: [
+          { type: 'feat', text: 'Import a theme from a JSON file in Settings (name, light or dark base, and colors). Any color you leave out comes from the base theme. A Template button downloads an example file.' },
+          { type: 'feat', text: 'Themes can also come from folders: the installer themes folder, the folder in the SEROP_THEMES_DIR environment variable, and a themes folder in the app data folder. Settings has Themes folder and Reload buttons.' },
+          { type: 'improve', text: 'Theme files are checked before use. Invalid colors, values like url(...), files over 20 KB, and more than 20 imported themes are refused with a clear message.' },
+          { type: 'improve', text: 'The terminal and editor follow custom theme colors.' },
+        ],
+      },
+      {
+        label: 'Housekeeping',
+        icon: Layers,
+        color: '#93c5fd',
+        items: [
+          { type: 'fix', text: 'Removed a stray vite config timestamp file that was committed by mistake and ignored it in git.' },
+        ],
+      },
+    ],
+  },
+  {
     version: '2.2.0',
     codename: 'Steady Slate',
     date: '2026-09-23',

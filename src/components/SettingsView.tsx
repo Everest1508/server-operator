@@ -27,34 +27,21 @@ import {
   Cloud,
   Save,
   Loader2,
+  Upload,
+  Download,
+  X,
 } from 'lucide-react';
 
 import { CHANGELOG, ChangeEntry } from './changelogData';
 import { Select } from './Select';
+import {
+  CustomTheme, THEME_TEMPLATE, parseThemeJson, loadCustomThemes, addCustomTheme, removeCustomTheme,
+  customChoiceId, loadThemeChoice, applyTheme, listAllThemes, loadFolderThemes, THEMES_CHANGED_EVENT, ListedTheme,
+} from '../utils/customThemes';
 import packageJson from '../../package.json';
 
-const THEME_STORAGE_KEY = 'server-operator:theme';
 const OPACITY_STORAGE_KEY = 'server-operator:opacity';
 const BLUR_STORAGE_KEY = 'server-operator:blur';
-
-function loadThemeChoice(): AppTheme {
-  try {
-    const raw = localStorage.getItem(THEME_STORAGE_KEY);
-    if (raw === 'glassy' || raw === 'light' || raw === 'tokyo-night') return raw;
-    return 'default';
-  } catch {
-    return 'default';
-  }
-}
-
-function applyThemeChoice(theme: AppTheme) {
-  document.documentElement.dataset.appTheme = theme;
-  try {
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
-  } catch {
-    // ignore
-  }
-}
 
 const THEMES: { id: AppTheme; label: string; desc: string; swatch: string[] }[] = [
   {
@@ -353,9 +340,81 @@ function ModulesView() {
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsContent, setLogsContent] = useState('');
   const [logPath, setLogPath] = useState('');
-  const [themeChoice, setThemeChoice] = useState<AppTheme>(loadThemeChoice);
+  const [themeChoice, setThemeChoice] = useState<string>(loadThemeChoice);
+  const [customThemes, setCustomThemes] = useState<ListedTheme[]>(listAllThemes);
+  const refreshThemeList = () => setCustomThemes(listAllThemes());
+  const [themeMessage, setThemeMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const themeFileRef = React.useRef<HTMLInputElement>(null);
   const [opacity, setOpacity] = useState<number>(loadOpacity);
   const [blur, setBlur] = useState<number>(loadBlur);
+
+  const allThemes = [
+    ...THEMES.map((t) => ({ ...t, id: t.id as string, customId: null as string | null })),
+    ...customThemes.map((t) => ({
+      id: customChoiceId(t.id),
+      label: t.name,
+      desc: t.source === 'imported' ? t.description : `${t.description} (from ${t.source} folder)`,
+      swatch: [t.colors.bgPrimary ?? '#1e1e1e', t.colors.accent ?? '#0078d4', t.colors.success ?? '#4ec9b0', t.colors.textPrimary ?? '#cccccc'],
+      customId: (t.source === 'imported' ? t.id : null) as string | null,
+    })),
+  ];
+
+  const importThemeFile = async (file?: File) => {
+    if (!file) return;
+    if (file.size > 20000) {
+      setThemeMessage({ ok: false, text: 'Theme file is too large (max 20 KB).' });
+      return;
+    }
+    const result = parseThemeJson(await file.text());
+    if (!result.ok) {
+      setThemeMessage({ ok: false, text: result.error });
+      return;
+    }
+    const added = addCustomTheme(result.theme);
+    if (!added.ok) {
+      setThemeMessage({ ok: false, text: added.error });
+      return;
+    }
+    refreshThemeList();
+    setThemeChoice(customChoiceId(result.theme.id));
+    const ignoredNote = result.ignored.length ? ` Ignored: ${result.ignored.join(', ')}.` : '';
+    setThemeMessage({ ok: true, text: `Applied "${result.theme.name}".${ignoredNote}` });
+  };
+
+  const downloadThemeTemplate = () => {
+    const url = URL.createObjectURL(new Blob([THEME_TEMPLATE], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'serop-theme-template.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const reloadThemeFolders = async () => {
+    const { themes, problems } = await loadFolderThemes();
+    refreshThemeList();
+    setThemeMessage(
+      problems.length
+        ? { ok: false, text: `Loaded ${themes.length} theme(s) from folders. Skipped: ${problems.join('; ')}` }
+        : { ok: true, text: `Loaded ${themes.length} theme(s) from folders.` },
+    );
+  };
+
+  const openThemesFolder = async () => {
+    const res = await window.serverOperator?.openThemesFolder?.();
+    if (res && !res.ok) setThemeMessage({ ok: false, text: `Could not open ${res.path}: ${res.error}` });
+  };
+
+  useEffect(() => {
+    window.addEventListener(THEMES_CHANGED_EVENT, refreshThemeList);
+    return () => window.removeEventListener(THEMES_CHANGED_EVENT, refreshThemeList);
+  }, []);
+
+  const deleteCustomTheme = (id: string) => {
+    removeCustomTheme(id);
+    refreshThemeList();
+    if (themeChoice === customChoiceId(id)) setThemeChoice('default');
+  };
 
   React.useEffect(() => {
     if (window.serverOperator?.getLogFilePath) {
@@ -364,7 +423,7 @@ function ModulesView() {
   }, []);
 
   useEffect(() => {
-    applyThemeChoice(themeChoice);
+    applyTheme(themeChoice);
   }, [themeChoice]);
 
   useEffect(() => {
@@ -470,10 +529,10 @@ function ModulesView() {
         </div>
         <div className="flex items-center gap-2.5 bg-bg-secondary/40 px-3 py-1.5 rounded-xl border border-border/30 self-start md:self-auto">
           <span className="text-[11px] text-text-secondary font-semibold whitespace-nowrap">Theme:</span>
-          <div className="flex items-center gap-1.5">
-            {THEMES.map((t) => (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {allThemes.map((t) => (
+              <span key={t.id} className="relative inline-flex group">
               <button
-                key={t.id}
                 type="button"
                 onClick={() => setThemeChoice(t.id)}
                 title={t.desc}
@@ -494,7 +553,64 @@ function ModulesView() {
                 </span>
                 <span className="text-[11px] font-semibold text-text-primary">{t.label}</span>
               </button>
+              {t.customId && (
+                <button
+                  type="button"
+                  onClick={() => deleteCustomTheme(t.customId as string)}
+                  title="Remove this custom theme"
+                  className="absolute -top-1.5 -right-1.5 hidden group-hover:flex w-4 h-4 items-center justify-center rounded-full bg-bg-tertiary border border-border text-text-secondary hover:text-error"
+                >
+                  <X size={9} />
+                </button>
+              )}
+              </span>
             ))}
+            <input
+              ref={themeFileRef}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={(e) => {
+                void importThemeFile(e.target.files?.[0]);
+                e.target.value = '';
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => themeFileRef.current?.click()}
+              title="Load a theme from a JSON file"
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-dashed border-border/50 hover:border-accent/60 text-[11px] font-semibold text-text-primary cursor-pointer"
+            >
+              <Upload size={12} />
+              Import JSON
+            </button>
+            <button
+              type="button"
+              onClick={downloadThemeTemplate}
+              title="Download an example theme file to edit"
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-border/30 hover:border-border/60 text-[11px] font-semibold text-text-secondary cursor-pointer"
+            >
+              <Download size={12} />
+              Template
+            </button>
+            <button
+              type="button"
+              onClick={() => void openThemesFolder()}
+              title="Open the folder where you can drop theme .json files"
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-border/30 hover:border-border/60 text-[11px] font-semibold text-text-secondary cursor-pointer"
+            >
+              <FolderOpen size={12} />
+              Themes folder
+            </button>
+            <button
+              type="button"
+              onClick={() => void reloadThemeFolders()}
+              title="Read the theme folders again"
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-border/30 hover:border-border/60 text-[11px] font-semibold text-text-secondary cursor-pointer"
+            >
+              <RotateCcw size={12} />
+              Reload
+            </button>
           </div>
         </div>
         <button
@@ -513,8 +629,11 @@ function ModulesView() {
             <div>
               <p className="text-xs font-semibold text-text-primary">Theme Preview</p>
               <p className="text-[11px] text-text-secondary mt-0.5">
-                {THEMES.find((t) => t.id === themeChoice)?.desc}
+                {allThemes.find((t) => t.id === themeChoice)?.desc}
               </p>
+              {themeMessage && (
+                <p className={`text-[11px] mt-1 ${themeMessage.ok ? 'text-success' : 'text-error'}`}>{themeMessage.text}</p>
+              )}
             </div>
             <div
               className={`h-12 w-24 rounded-xl border border-border/20 shadow-sm ${

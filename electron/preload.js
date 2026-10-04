@@ -19,6 +19,9 @@ ipcRenderer.on('update-available', (_event, payload) => {
 ipcRenderer.on('update-check-result', (_event, payload) => {
   window.dispatchEvent(new CustomEvent('update-check-result', { detail: payload }));
 });
+ipcRenderer.on('ssh-host-key-prompt', (_event, payload) => {
+  window.dispatchEvent(new CustomEvent('ssh-host-key-prompt', { detail: payload }));
+});
 ipcRenderer.on('import-progress', (_event, payload) => {
   window.dispatchEvent(new CustomEvent('import-progress', { detail: payload }));
 });
@@ -27,6 +30,13 @@ ipcRenderer.on('open-local-folder', (_event, payload) => {
 });
 
 contextBridge.exposeInMainWorld('serverOperator', {
+  loadThemeFolders: () => ipcRenderer.invoke('themes:load-folders'),
+  openThemesFolder: () => ipcRenderer.invoke('themes:open-user-folder'),
+  encryptSecrets: (values) => ipcRenderer.invoke('secrets:encrypt', { values }),
+  decryptSecrets: (values) => ipcRenderer.invoke('secrets:decrypt', { values }),
+  answerHostKeyPrompt: (opts) => ipcRenderer.invoke('ssh:host-key-answer', opts),
+  listKnownHosts: () => ipcRenderer.invoke('ssh:host-key-list'),
+  forgetKnownHost: (opts) => ipcRenderer.invoke('ssh:host-key-forget', opts),
   testConnection: (opts) => ipcRenderer.invoke('server:test-connection', opts),
   pickLocalFolder: () => ipcRenderer.invoke('server:pick-local-folder'),
   runCommand: (opts) => ipcRenderer.invoke('server:run-command', opts),
