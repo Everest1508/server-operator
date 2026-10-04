@@ -55,6 +55,8 @@ export interface ServerConnection {
   privateKeyPath?: string;
   /** For password: server password (stored in memory; consider using keychain for production) */
   password?: string;
+  /** Password encrypted with the OS keychain. Stored instead of `password` when encryption is available. */
+  passwordEnc?: string;
   projectPath?: string;
   cwd?: string;
   useProxy?: boolean;

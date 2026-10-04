@@ -107,6 +107,8 @@ export interface ServerOperatorAPI {
   openShell: (opts: { connection: ServerConnection; proxy?: ProxySettings }) => Promise<{ ok: boolean; shellId?: string; error?: string }>;
   closeShell: (opts: { shellId: string }) => Promise<void>;
   shellWrite: (opts: { shellId: string; data: string }) => Promise<void>;
+  encryptSecrets: (values: string[]) => Promise<string[]>;
+  decryptSecrets: (values: string[]) => Promise<(string | null)[]>;
   answerHostKeyPrompt: (opts: { promptId: string; trust: boolean }) => Promise<void>;
   listKnownHosts: () => Promise<Record<string, string>>;
   forgetKnownHost: (opts: { host: string; port?: number }) => Promise<{ ok: boolean }>;

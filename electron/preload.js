@@ -30,6 +30,8 @@ ipcRenderer.on('open-local-folder', (_event, payload) => {
 });
 
 contextBridge.exposeInMainWorld('serverOperator', {
+  encryptSecrets: (values) => ipcRenderer.invoke('secrets:encrypt', { values }),
+  decryptSecrets: (values) => ipcRenderer.invoke('secrets:decrypt', { values }),
   answerHostKeyPrompt: (opts) => ipcRenderer.invoke('ssh:host-key-answer', opts),
   listKnownHosts: () => ipcRenderer.invoke('ssh:host-key-list'),
   forgetKnownHost: (opts) => ipcRenderer.invoke('ssh:host-key-forget', opts),
