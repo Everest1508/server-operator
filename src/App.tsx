@@ -7,6 +7,7 @@ import { Panel } from './components/Panel';
 import { RepoSidebar } from './components/RepoSidebar';
 import { SettingsView } from './components/SettingsView';
 import { UpdateBanner } from './components/UpdateBanner';
+import { HostKeyPrompt } from './components/HostKeyPrompt';
 import { TitleBar } from './components/TitleBar';
 import { CloudTeamView } from './components/CloudTeamView';
 import { CustomContextMenu } from './components/CustomContextMenu';
@@ -1799,6 +1800,7 @@ export default function App() {
       />
       <div className="flex flex-1 min-h-0 min-w-0">
         <UpdateBanner />
+        <HostKeyPrompt />
         <ActivityBar
           activeView={activeView}
           onViewChange={setActiveViewAndRoute}

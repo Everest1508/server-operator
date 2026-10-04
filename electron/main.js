@@ -206,6 +206,8 @@ if (process.platform === 'linux') {
 
 const isDev = process.env.ELECTRON_DEV === '1';
 
+const { createHostVerifier, registerHostKeyHandlers } = require('./hostKeys');
+
 let mainWindow;
 let launchLocalFolder = null;
 
@@ -459,6 +461,8 @@ function createWindow() {
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
+registerHostKeyHandlers();
+
 app.whenReady().then(() => {
   log('started', { logFile: getLogPath() });
 
@@ -680,6 +684,8 @@ function connectSSH(connection, proxy) {
         readyTimeout: 30000,
         keepaliveInterval: 10000,
         keepaliveCountMax: 3,
+        hostHash: 'sha256',
+        hostVerifier: createHostVerifier(() => mainWindow, host, 22, log),
         // Use the cloudflared subprocess as the transport socket.
         sock: (() => {
           const duplex = new (require('stream').Transform)({
@@ -737,6 +743,8 @@ function connectSSH(connection, proxy) {
       readyTimeout: viaProxy ? 150000 : 20000,
       keepaliveInterval: 10000,
       keepaliveCountMax: 3,
+      hostHash: 'sha256',
+      hostVerifier: createHostVerifier(() => mainWindow, host, 22, log),
     };
     if (usePassword) {
       config.password = connection.password;
