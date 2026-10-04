@@ -189,6 +189,19 @@ This creates a local `.server-operator/` configuration folder containing:
 
 ---
 
+## 🎨 Custom Themes
+
+Serop loads extra themes from JSON files. In Settings, use **Import JSON** to load a file, or **Template** to download an example.
+
+Serop also reads theme files from these folders:
+*   `themes/` in this repo, which the installer ships with the app.
+*   The folder named in the `SEROP_THEMES_DIR` environment variable.
+*   A `themes` folder in the app data folder (Settings has a **Themes folder** button).
+
+A theme needs a `name` and a `colors` object. See `themes/README.md` and `themes/examples/ocean.json` for the format.
+
+---
+
 ## 📄 License
 
 Copyright © 2026 **BeForth**. All rights reserved.
