@@ -8,6 +8,7 @@ import { RepoSidebar } from './components/RepoSidebar';
 import { SettingsView } from './components/SettingsView';
 import { UpdateBanner } from './components/UpdateBanner';
 import { HostKeyPrompt } from './components/HostKeyPrompt';
+import { applyTheme, loadThemeChoice } from './utils/customThemes';
 import { STORAGE_KEY_SERVERS, readStoredServers, revealServerPasswords, protectServerPasswords } from './utils/serverStore';
 import { TitleBar } from './components/TitleBar';
 import { CloudTeamView } from './components/CloudTeamView';
@@ -24,24 +25,8 @@ import { loadProjectContext } from './utils/loadProjectContext';
 const STORAGE_KEY_PROXY = 'server-operator-proxy';
 const STORAGE_KEY_REPOS = 'server-operator:repos';
 const STORAGE_KEY_COMPOSE_PATHS = 'server-operator:compose-paths';
-const STORAGE_KEY_THEME = 'server-operator:theme';
 const STORAGE_KEY_OPACITY = 'server-operator:opacity';
 const STORAGE_KEY_BLUR = 'server-operator:blur';
-
-function loadAppTheme(): 'default' | 'glassy' | 'light' | 'tokyo-night' {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_THEME);
-    if (raw === 'glassy' || raw === 'light' || raw === 'tokyo-night') return raw;
-    return 'default';
-  } catch {
-    return 'default';
-  }
-}
-
-function applyAppTheme(theme: 'default' | 'glassy' | 'light' | 'tokyo-night') {
-  if (typeof document === 'undefined') return;
-  document.documentElement.dataset.appTheme = theme;
-}
 
 function loadAppOpacity(): number {
   try {
@@ -182,7 +167,7 @@ export interface RepoSidebarState {
 
 export default function App() {
   useEffect(() => {
-    applyAppTheme(loadAppTheme());
+    applyTheme(loadThemeChoice());
     document.documentElement.style.setProperty('--glass-blur', `${loadAppBlur()}px`);
     window.serverOperator?.setWindowOpacity?.(loadAppOpacity());
   }, []);

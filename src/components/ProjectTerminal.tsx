@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
-import { useAppTheme, cssVar } from '../hooks/useAppTheme';
+import { useThemeKey, cssVar } from '../hooks/useAppTheme';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
@@ -23,7 +23,7 @@ export function ProjectTerminal({ currentServer, proxy, projectPath, onReady, on
   const containerRef = useRef<HTMLDivElement>(null);
   const shellIdRef = useRef<string | null>(null);
   const termRef = useRef<Terminal | null>(null);
-  const appTheme = useAppTheme();
+  const appTheme = useThemeKey();
   const xtermTheme = useMemo(() => {
     const bg = cssVar('--color-bg-primary', '#1e1e1e');
     const accent = cssVar('--color-accent', '#0078d4');
