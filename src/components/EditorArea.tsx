@@ -9,6 +9,7 @@ import { DeployView } from './DeployView';
 import { ServerOverview } from './ServerOverview';
 import { DatabaseView } from './DatabaseView';
 import { FirewallView } from './FirewallView';
+import { FloatingMenu } from './FloatingMenu';
 
 function languageFromPath(path: string): string {
   if (path.startsWith('notes://')) return 'markdown';
@@ -234,7 +235,8 @@ export function EditorArea({
     setFileMenuOpen(false);
   }, [activeContent, activeTabPath, onSaveFile]);
 
-  if (!currentServer && activeView !== 'guide') {
+  const offlineNotesOpen = activeView === 'files' && openTabs.includes('notes://general');
+  if (!currentServer && activeView !== 'guide' && !offlineNotesOpen) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-bg-primary text-text-secondary select-none">
         <p className="text-xs font-mono text-text-muted">Select a server to view analytics, configurations, and logs.</p>
@@ -432,7 +434,7 @@ export function EditorArea({
                         <ChevronDown size={12} />
                       </button>
                       {fileMenuOpen && (
-                        <div className="absolute right-0 top-full mt-1.5 py-1.5 px-1 min-w-[190px] rounded-xl border border-border/40 bg-bg-tertiary/95 shadow-2xl backdrop-blur-md z-50 animate-in fade-in slide-in-from-top-1 duration-100">
+                        <FloatingMenu anchorRef={menuRef} className="py-1.5 px-1 min-w-[190px] rounded-xl border border-border/40 bg-bg-tertiary/95 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-1 duration-100">
                           {onOpenFileByPath && (
                             <>
                               <button type="button" onClick={() => handleOpenFromPath(false)} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg transition-colors cursor-pointer">
@@ -466,7 +468,7 @@ export function EditorArea({
                               </button>
                             </>
                           )}
-                        </div>
+                        </FloatingMenu>
                       )}
                     </div>
                   )}

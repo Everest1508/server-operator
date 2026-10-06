@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { ServerConnection } from '../types';
 import { Tooltip } from './Tooltip';
+import { createPortal } from 'react-dom';
 
 interface NotesSidebarProps {
   currentServer: ServerConnection | null;
@@ -382,7 +383,7 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
 
       {/* Logs Modal View (Visible when logModalOpen === true) */}
       {logModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6 transition-all duration-200 animate-in fade-in">
+        createPortal(<div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6 transition-all duration-200 animate-in fade-in">
           <div className="w-full max-w-4xl h-[85vh] rounded-2xl border border-border/40 bg-bg-secondary/95 shadow-2xl flex flex-col backdrop-blur-md overflow-hidden">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border/20 bg-bg-secondary/45 shrink-0">
@@ -485,7 +486,7 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
               </span>
             </div>
           </div>
-        </div>
+        </div>, document.body)
       )}
     </div>
   );

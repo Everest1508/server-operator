@@ -28,6 +28,7 @@ import { parseLsLine } from '../utils/parseLs';
 import { Tooltip } from './Tooltip';
 import { NotesSidebar } from './NotesSidebar';
 import { DeploySidebar } from './DeploySidebar';
+import { createPortal } from 'react-dom';
 
 interface FileTreeMenuState {
   kind: 'entry' | 'background';
@@ -528,7 +529,7 @@ export function Sidebar({
             </div>
           )}
           <div id="database-sidebar-panel" className="flex-1 flex flex-col overflow-y-auto py-1 min-h-0">
-            {activeView === 'firewall' && (
+            {activeView === 'firewall' && currentServer && (
               <div className="px-3 py-3 flex flex-col gap-4 select-none">
                 <div className="flex flex-col gap-1.5">
                   <span className="text-[9px] font-extrabold uppercase tracking-widest text-text-muted">Quick Reference</span>
@@ -565,7 +566,7 @@ export function Sidebar({
                 </div>
               </div>
             )}
-            {(activeView === 'servers' || activeView === 'docker' || activeView === 'deploy') && (
+            {(activeView === 'servers' || activeView === 'docker' || activeView === 'deploy' || (!currentServer && (activeView === 'files' || activeView === 'database' || activeView === 'firewall'))) && (
               <ul className="space-y-1 px-3 pb-4">
                 {servers.length === 0 && (
                   <li className="px-3 py-4 text-xs text-text-muted text-center italic">
@@ -650,11 +651,6 @@ export function Sidebar({
             )}
           </div>
         )}
-        {activeView === 'files' && !currentServer && (
-          <div className="px-3 py-4 text-sm text-text-secondary">
-            Select a server to browse files.
-          </div>
-        )}
         {activeView === 'docker' && (
           <div className="px-3 pt-2 space-y-3">
             <div className="rounded-lg border border-border bg-bg-primary p-3 text-sm">
@@ -677,7 +673,7 @@ export function Sidebar({
             </div>
           </div>
         )}
-        {activeView === 'deploy' && (
+        {activeView === 'deploy' && currentServer && (
           <DeploySidebar
             currentServer={currentServer}
             proxy={proxy}
@@ -694,8 +690,7 @@ export function Sidebar({
           <div className="px-3 pt-2">
             <div className="rounded-lg border border-border bg-bg-primary p-3 text-sm">
               <div className="flex flex-col gap-3">
-                <p className="text-text-secondary">Select a server above to manage databases.</p>
-                <div className="border-t border-border pt-2.5 mt-1 flex flex-col gap-2">
+                <div className="flex flex-col gap-2">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">Relevant Guide</span>
                   <button
                     type="button"
@@ -712,9 +707,9 @@ export function Sidebar({
 
       </div>
       {fileTreeMenu && showFileBrowser && (
-        <div
+        createPortal(<div
           className="fixed z-50 min-w-[190px] rounded-xl border border-border/40 bg-bg-tertiary/95 py-1.5 px-1 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-1 duration-100 font-sans"
-          style={{ left: fileTreeMenu.x, top: fileTreeMenu.y }}
+          style={{ left: Math.min(fileTreeMenu.x, window.innerWidth - 210), top: Math.min(fileTreeMenu.y, window.innerHeight - 330) }}
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.preventDefault()}
         >
@@ -1027,7 +1022,7 @@ export function Sidebar({
               )}
             </>
           )}
-        </div>
+        </div>, document.body)
       )}
         </>
       )}
