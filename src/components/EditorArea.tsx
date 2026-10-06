@@ -234,7 +234,8 @@ export function EditorArea({
     setFileMenuOpen(false);
   }, [activeContent, activeTabPath, onSaveFile]);
 
-  if (!currentServer && activeView !== 'guide') {
+  const offlineNotesOpen = activeView === 'files' && openTabs.includes('notes://general');
+  if (!currentServer && activeView !== 'guide' && !offlineNotesOpen) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-bg-primary text-text-secondary select-none">
         <p className="text-xs font-mono text-text-muted">Select a server to view analytics, configurations, and logs.</p>

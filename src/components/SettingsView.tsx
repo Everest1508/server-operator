@@ -30,10 +30,14 @@ import {
   Upload,
   Download,
   X,
+  Check,
+  Plus,
+  Pencil,
 } from 'lucide-react';
 
 import { CHANGELOG, ChangeEntry } from './changelogData';
 import { Select } from './Select';
+import { ThemeEditor } from './ThemeEditor';
 import {
   CustomTheme, THEME_TEMPLATE, parseThemeJson, loadCustomThemes, addCustomTheme, removeCustomTheme,
   customChoiceId, loadThemeChoice, applyTheme, listAllThemes, loadFolderThemes, THEMES_CHANGED_EVENT, ListedTheme,
@@ -106,6 +110,10 @@ function saveBlur(value: number) {
   } catch {
     // ignore
   }
+}
+
+function applyOpacity(value: number) {
+  document.documentElement.style.setProperty('--app-opacity', String(value));
 }
 
 function applyBlur(pixels: number) {
@@ -347,6 +355,7 @@ function ModulesView() {
   const themeFileRef = React.useRef<HTMLInputElement>(null);
   const [opacity, setOpacity] = useState<number>(loadOpacity);
   const [blur, setBlur] = useState<number>(loadBlur);
+  const [editor, setEditor] = useState<{ initial: CustomTheme | null; restore: string } | null>(null);
 
   const allThemes = [
     ...THEMES.map((t) => ({ ...t, id: t.id as string, customId: null as string | null })),
@@ -428,7 +437,7 @@ function ModulesView() {
 
   useEffect(() => {
     saveOpacity(opacity);
-    window.serverOperator?.setWindowOpacity?.(opacity);
+    applyOpacity(opacity);
   }, [opacity]);
 
   useEffect(() => {
@@ -500,190 +509,236 @@ function ModulesView() {
     toggleFlag(key);
   };
 
+  const selectedTheme = allThemes.find((t) => t.id === themeChoice) ?? allThemes[0];
+  const sw = selectedTheme.swatch;
+  const ghostBtn =
+    'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/30 hover:border-border/60 hover:bg-bg-tertiary/60 text-[11px] font-semibold text-text-secondary hover:text-text-primary transition-colors cursor-pointer';
+
   return (
-    <>
-      {/* Search & Global Prefs */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 px-6 pt-4 pb-2 shrink-0">
-        <div className="relative flex-1">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Search settings & modules..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-bg-secondary/40 border border-border/30 text-text-primary rounded-xl pl-9 pr-3.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent/40 transition-all placeholder:text-text-muted"
-          />
-        </div>
-        <div className="flex items-center gap-2.5 bg-bg-secondary/40 px-3 py-1.5 rounded-xl border border-border/30 self-start md:self-auto">
-          <span className="text-[11px] text-text-secondary font-semibold whitespace-nowrap">Activity Bar:</span>
-          <Select
-            value={flags.sidebarUx}
-            onChange={(val) => setSidebarUx(val as 'hidden' | 'disabled')}
-            size="sm"
-            containerClassName="w-24"
-            options={[
-              { value: 'hidden', label: 'Hidden' },
-              { value: 'disabled', label: 'Disabled' },
-            ]}
-          />
-        </div>
-        <div className="flex items-center gap-2.5 bg-bg-secondary/40 px-3 py-1.5 rounded-xl border border-border/30 self-start md:self-auto">
-          <span className="text-[11px] text-text-secondary font-semibold whitespace-nowrap">Theme:</span>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {allThemes.map((t) => (
-              <span key={t.id} className="relative inline-flex group">
+    <div className="flex-1 min-h-0 overflow-y-auto">
+      {editor && (
+        <ThemeEditor
+          initial={editor.initial}
+          restoreChoice={editor.restore}
+          onClose={() => setEditor(null)}
+          onSaved={(theme) => {
+            refreshThemeList();
+            setThemeChoice(customChoiceId(theme.id));
+            applyTheme(customChoiceId(theme.id));
+            setThemeMessage({ ok: true, text: `Saved "${theme.name}".` });
+            setEditor(null);
+          }}
+        />
+      )}
+      <div className="p-6 space-y-8">
+        {/* Appearance */}
+        <section className="rounded-2xl border border-border/30 bg-bg-secondary/25">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-border/20">
+            <div>
+              <h2 className="text-sm font-bold text-text-primary">Appearance</h2>
+              <p className="text-[11px] text-text-secondary mt-0.5">Pick a theme and tune window transparency.</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                ref={themeFileRef}
+                type="file"
+                accept=".json,application/json"
+                className="hidden"
+                onChange={(e) => {
+                  void importThemeFile(e.target.files?.[0]);
+                  e.target.value = '';
+                }}
+              />
               <button
                 type="button"
-                onClick={() => setThemeChoice(t.id)}
-                title={t.desc}
-                className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border transition-all duration-150 cursor-pointer ${
-                  themeChoice === t.id
-                    ? 'border-accent/70 bg-accent/10'
-                    : 'border-border/30 hover:border-border/60 hover:bg-bg-tertiary/60'
-                }`}
+                onClick={() => setEditor({ initial: null, restore: themeChoice })}
+                title="Design your own theme with colour pickers"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-accent text-white text-[11px] font-semibold hover:bg-accent-hover cursor-pointer"
               >
-                <span className="flex -space-x-1">
-                  {t.swatch.map((c, i) => (
-                    <span
-                      key={i}
-                      className="w-3 h-3 rounded-full border border-black/20"
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </span>
-                <span className="text-[11px] font-semibold text-text-primary">{t.label}</span>
+                <Plus size={12} /> Create theme
               </button>
-              {t.customId && (
-                <button
-                  type="button"
-                  onClick={() => deleteCustomTheme(t.customId as string)}
-                  title="Remove this custom theme"
-                  className="absolute -top-1.5 -right-1.5 hidden group-hover:flex w-4 h-4 items-center justify-center rounded-full bg-bg-tertiary border border-border text-text-secondary hover:text-error"
-                >
-                  <X size={9} />
-                </button>
-              )}
-              </span>
-            ))}
-            <input
-              ref={themeFileRef}
-              type="file"
-              accept=".json,application/json"
-              className="hidden"
-              onChange={(e) => {
-                void importThemeFile(e.target.files?.[0]);
-                e.target.value = '';
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => themeFileRef.current?.click()}
-              title="Load a theme from a JSON file"
-              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-dashed border-border/50 hover:border-accent/60 text-[11px] font-semibold text-text-primary cursor-pointer"
-            >
-              <Upload size={12} />
-              Import JSON
-            </button>
-            <button
-              type="button"
-              onClick={downloadThemeTemplate}
-              title="Download an example theme file to edit"
-              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-border/30 hover:border-border/60 text-[11px] font-semibold text-text-secondary cursor-pointer"
-            >
-              <Download size={12} />
-              Template
-            </button>
-            <button
-              type="button"
-              onClick={() => void openThemesFolder()}
-              title="Open the folder where you can drop theme .json files"
-              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-border/30 hover:border-border/60 text-[11px] font-semibold text-text-secondary cursor-pointer"
-            >
-              <FolderOpen size={12} />
-              Themes folder
-            </button>
-            <button
-              type="button"
-              onClick={() => void reloadThemeFolders()}
-              title="Read the theme folders again"
-              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-border/30 hover:border-border/60 text-[11px] font-semibold text-text-secondary cursor-pointer"
-            >
-              <RotateCcw size={12} />
-              Reload
-            </button>
+              <button type="button" onClick={() => themeFileRef.current?.click()} title="Load a theme from a JSON file" className={ghostBtn}>
+                <Upload size={12} /> Import
+              </button>
+              <button type="button" onClick={downloadThemeTemplate} title="Download an example theme file to edit" className={ghostBtn}>
+                <Download size={12} /> Template
+              </button>
+              <button type="button" onClick={() => void openThemesFolder()} title="Open the folder where you can drop theme .json files" className={ghostBtn}>
+                <FolderOpen size={12} /> Folder
+              </button>
+              <button type="button" onClick={() => void reloadThemeFolders()} title="Read the theme folders again" className={ghostBtn}>
+                <RotateCcw size={12} /> Reload
+              </button>
+            </div>
           </div>
-        </div>
-        <button
-          onClick={resetToDefaults}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-bg-tertiary/60 hover:bg-bg-tertiary border border-border/30 hover:border-border/60 text-text-primary rounded-xl text-xs font-semibold transition-all duration-150 self-start md:self-auto"
-        >
-          <RotateCcw size={13} />
-          Reset Defaults
-        </button>
-      </div>
 
-      {/* Progress Bar */}
-      <div className="px-6 pb-4 shrink-0">
-        <div className="mb-3 rounded-xl border border-border/20 bg-bg-secondary/25 px-3.5 py-3">
-          <div className="flex items-center justify-between gap-3">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-6 p-5">
+            {/* Theme grid */}
             <div>
-              <p className="text-xs font-semibold text-text-primary">Theme Preview</p>
-              <p className="text-[11px] text-text-secondary mt-0.5">
-                {allThemes.find((t) => t.id === themeChoice)?.desc}
-              </p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted mb-2.5">Theme</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5">
+                {allThemes.map((t) => {
+                  const active = themeChoice === t.id;
+                  return (
+                    <div key={t.id} className="relative group">
+                      <button
+                        type="button"
+                        onClick={() => setThemeChoice(t.id)}
+                        title={t.desc}
+                        className={`w-full text-left rounded-xl border p-2.5 transition-all cursor-pointer ${
+                          active ? 'border-accent bg-accent/10 ring-1 ring-accent/40' : 'border-border/30 hover:border-border/70 hover:bg-bg-tertiary/50'
+                        }`}
+                      >
+                        <span className="flex h-7 rounded-md overflow-hidden border border-black/20 mb-2">
+                          {t.swatch.map((c, i) => (
+                            <span key={i} className="flex-1" style={{ backgroundColor: c }} />
+                          ))}
+                        </span>
+                        <span className="flex items-center justify-between gap-1">
+                          <span className="text-xs font-semibold text-text-primary truncate">{t.label}</span>
+                          {active && <Check size={12} className="text-accent shrink-0" />}
+                        </span>
+                      </button>
+                      {t.customId && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const ct = customThemes.find((x) => x.id === t.customId);
+                            if (ct) setEditor({ initial: ct, restore: themeChoice });
+                          }}
+                          title="Edit this theme"
+                          className="absolute top-1 right-8 hidden group-hover:flex w-5 h-5 items-center justify-center rounded-full bg-bg-tertiary border border-border text-text-secondary hover:text-accent"
+                        >
+                          <Pencil size={10} />
+                        </button>
+                      )}
+                      {t.customId && (
+                        <button
+                          type="button"
+                          onClick={() => deleteCustomTheme(t.customId as string)}
+                          title="Remove this custom theme"
+                          className="absolute top-1 right-1 hidden group-hover:flex w-5 h-5 items-center justify-center rounded-full bg-bg-tertiary border border-border text-text-secondary hover:text-error"
+                        >
+                          <X size={10} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
               {themeMessage && (
-                <p className={`text-[11px] mt-1 ${themeMessage.ok ? 'text-success' : 'text-error'}`}>{themeMessage.text}</p>
+                <p className={`text-[11px] mt-3 ${themeMessage.ok ? 'text-success' : 'text-error'}`}>{themeMessage.text}</p>
               )}
             </div>
-            <div
-              className={`h-12 w-24 rounded-xl border border-border/20 shadow-sm ${
-                themeChoice === 'glassy' ? 'bg-white/8 backdrop-blur-md' : 'bg-bg-primary/80'
-              }`}
-            >
-              <div className="h-full w-full rounded-xl bg-[radial-gradient(circle_at_top_left,rgba(0,120,212,0.28),transparent_55%)]" />
+
+            {/* Preview + sliders */}
+            <div className="space-y-4">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted mb-2.5">Preview</p>
+                <div className="rounded-xl border border-border/30 overflow-hidden" style={{ backgroundColor: sw[0] }}>
+                  <div className="flex h-24">
+                    <div className="w-8 border-r border-white/10 flex flex-col items-center gap-1.5 py-2">
+                      {[0, 1, 2].map((i) => (
+                        <span key={i} className="w-3 h-3 rounded" style={{ backgroundColor: i === 0 ? sw[1] : sw[3], opacity: i === 0 ? 1 : 0.35 }} />
+                      ))}
+                    </div>
+                    <div className="flex-1 p-3 space-y-2">
+                      <span className="block h-2 w-1/2 rounded" style={{ backgroundColor: sw[3] }} />
+                      <span className="block h-1.5 w-3/4 rounded" style={{ backgroundColor: sw[3], opacity: 0.4 }} />
+                      <div className="flex items-center gap-2 pt-1">
+                        <span className="h-4 px-2 rounded text-[8px] font-bold flex items-center" style={{ backgroundColor: sw[1], color: sw[0] }}>Button</span>
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: sw[2] }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs font-semibold text-text-primary mt-2">{selectedTheme.label}</p>
+                <p className="text-[11px] text-text-secondary leading-relaxed">{selectedTheme.desc}</p>
+              </div>
+
+              <div className="space-y-3 pt-1">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-semibold text-text-primary">Window opacity</label>
+                    <span className="text-[11px] text-text-secondary font-mono tabular-nums">{Math.round(opacity * 100)}%</span>
+                  </div>
+                  <input
+                    type="range" min="0.6" max="1" step="0.01" value={opacity}
+                    onChange={(e) => setOpacity(parseFloat(e.target.value))}
+                    className="w-full h-1.5 accent-accent cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[10px] text-text-muted mt-0.5"><span>60% (see-through)</span><span>100% (solid)</span></div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-semibold text-text-primary">Background blur</label>
+                    <span className="text-[11px] text-text-secondary font-mono tabular-nums">{blur}px</span>
+                  </div>
+                  <input
+                    type="range" min="4" max="40" step="1" value={blur}
+                    onChange={(e) => setBlur(parseInt(e.target.value, 10))}
+                    className="w-full h-1.5 accent-accent cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[10px] text-text-muted mt-0.5"><span>Sharp</span><span>Frosted</span></div>
+                </div>
+              </div>
             </div>
           </div>
+        </section>
+
+        {/* General */}
+        <section className="rounded-2xl border border-border/30 bg-bg-secondary/25">
+          <div className="px-5 py-4 border-b border-border/20">
+            <h2 className="text-sm font-bold text-text-primary">General</h2>
+          </div>
+          <div className="flex items-center justify-between gap-4 px-5 py-4">
+            <div>
+              <p className="text-xs font-semibold text-text-primary">Activity bar for disabled modules</p>
+              <p className="text-[11px] text-text-secondary mt-0.5">Choose whether turned-off modules are hidden from the sidebar or shown greyed out.</p>
+            </div>
+            <Select
+              value={flags.sidebarUx}
+              onChange={(val) => setSidebarUx(val as 'hidden' | 'disabled')}
+              size="sm"
+              containerClassName="w-32 shrink-0"
+              options={[
+                { value: 'hidden', label: 'Hidden' },
+                { value: 'disabled', label: 'Greyed out' },
+              ]}
+            />
+          </div>
+        </section>
+
+        {/* Modules header */}
+        <div className="sticky top-0 z-10 -mx-6 px-6 py-3 bg-bg-primary/90 backdrop-blur border-b border-border/20">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="mr-auto">
+              <h2 className="text-sm font-bold text-text-primary">Feature Modules</h2>
+              <div className="flex items-center gap-2 mt-1">
+                <div className="w-32 bg-bg-tertiary/40 rounded-full h-1.5 overflow-hidden border border-border/10">
+                  <div className="bg-gradient-to-r from-accent to-accent-hover h-1.5 rounded-full transition-all duration-500 ease-out" style={{ width: `${percentEnabled}%` }} />
+                </div>
+                <span className="text-[11px] font-semibold text-accent">{enabledCount} of {totalCount} active</span>
+              </div>
+            </div>
+            <div className="relative w-64 max-w-full">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search modules..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-bg-secondary/40 border border-border/30 text-text-primary rounded-xl pl-9 pr-3.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent/40 transition-all placeholder:text-text-muted"
+              />
+            </div>
+            <button onClick={resetToDefaults} className={ghostBtn}>
+              <RotateCcw size={12} /> Reset modules
+            </button>
+          </div>
         </div>
-        <div className="mb-3 rounded-xl border border-border/20 bg-bg-secondary/25 px-3.5 py-2.5 flex items-center gap-3">
-          <span className="text-[11px] text-text-secondary font-semibold whitespace-nowrap">Opacity</span>
-          <input
-            type="range"
-            min="0.6"
-            max="1"
-            step="0.01"
-            value={opacity}
-            onChange={(e) => setOpacity(parseFloat(e.target.value))}
-            className="flex-1 h-1.5 accent-accent cursor-pointer"
-          />
-          <span className="text-[11px] text-text-primary font-mono tabular-nums w-8 text-right">{Math.round(opacity * 100)}%</span>
-        </div>
-        <div className="mb-3 rounded-xl border border-border/20 bg-bg-secondary/25 px-3.5 py-2.5 flex items-center gap-3">
-          <span className="text-[11px] text-text-secondary font-semibold whitespace-nowrap">Blur</span>
-          <input
-            type="range"
-            min="4"
-            max="40"
-            step="1"
-            value={blur}
-            onChange={(e) => setBlur(parseInt(e.target.value, 10))}
-            className="flex-1 h-1.5 accent-accent cursor-pointer"
-          />
-          <span className="text-[11px] text-text-primary font-mono tabular-nums w-8 text-right">{blur}px</span>
-        </div>
-        <div className="flex items-center justify-between text-[11px] font-semibold mb-1">
-          <span className="text-text-secondary">Modules Active</span>
-          <span className="text-accent">{enabledCount} / {totalCount} ({percentEnabled}%)</span>
-        </div>
-        <div className="w-full bg-bg-tertiary/40 rounded-full h-1.5 overflow-hidden border border-border/10">
-          <div
-            className="bg-gradient-to-r from-accent to-accent-hover h-1.5 rounded-full transition-all duration-500 ease-out"
-            style={{ width: `${percentEnabled}%` }}
-          />
-        </div>
-      </div>
 
       {/* Feature Grid */}
-      <div className="p-6 pt-2 space-y-8 flex-1 overflow-y-auto">
+      <div className="space-y-8">
         {/* Core Features (Always Enabled) */}
         {searchQuery === '' && (
           <div className="space-y-4">
@@ -920,7 +975,8 @@ function ModulesView() {
           </div>
         )}
       </div>
-    </>
+      </div>
+    </div>
   );
 }
 
@@ -1122,7 +1178,7 @@ export function SettingsView() {
             <span
               className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold border border-amber-500/20 bg-amber-500/5 text-amber-400 hidden sm:inline-flex"
             >
-              ✦ Iron Forge
+              ✦ {CHANGELOG[0].codename}
             </span>
           </div>
         </div>

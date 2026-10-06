@@ -62,13 +62,13 @@ export const THEME_TEMPLATE = `{
 }
 `;
 
-function isValidColor(value: string): boolean {
+export function isValidColor(value: string): boolean {
   if (value.length > 80 || /[;{}<>\\]|url\(|expression\(|@import/i.test(value)) return false;
   if (typeof CSS !== 'undefined' && typeof CSS.supports === 'function') return CSS.supports('color', value);
   return /^(#[0-9a-f]{3,8}|(rgb|hsl)a?\([^)]*\)|[a-z]+)$/i.test(value.trim());
 }
 
-function slugify(text: string): string {
+export function slugify(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
 }
 

@@ -102,6 +102,7 @@ body {
 }
 
 body::before {
+  opacity: var(--app-opacity, 1);
   content: "";
   position: fixed;
   inset: 0;
@@ -168,8 +169,11 @@ body::before {
 :root[data-app-theme='glassy'] .backdrop-blur-sm,
 :root[data-app-theme='glassy'] .backdrop-blur-md,
 :root[data-app-theme='glassy'] .backdrop-blur-xs,
-:root[data-app-theme='glassy'] [class*='bg-bg-'] {
-  backdrop-filter: blur(18px) saturate(1.15);
+:root[data-app-theme='glassy'] [class*='bg-bg-'],
+:root[data-app-theme='tokyo-night'] [class*='bg-bg-'],
+:root[data-custom-theme] [class*='bg-bg-'] {
+  backdrop-filter: blur(calc(var(--glass-blur, 28px) * 0.6)) saturate(1.15);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur, 28px) * 0.6)) saturate(1.15);
 }
 
 /* Scrollbars in base layer */

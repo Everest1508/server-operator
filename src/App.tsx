@@ -3,6 +3,7 @@ import { ActivityBar } from './components/ActivityBar';
 import { Sidebar } from './components/Sidebar';
 import { EditorArea } from './components/EditorArea';
 import { NoServerView } from './components/NoServerView';
+import { DisconnectedView } from './components/DisconnectedView';
 import { Panel } from './components/Panel';
 import { RepoSidebar } from './components/RepoSidebar';
 import { SettingsView } from './components/SettingsView';
@@ -174,7 +175,7 @@ export default function App() {
       if (choice.startsWith('custom:')) applyTheme(choice);
     });
     document.documentElement.style.setProperty('--glass-blur', `${loadAppBlur()}px`);
-    window.serverOperator?.setWindowOpacity?.(loadAppOpacity());
+    document.documentElement.style.setProperty('--app-opacity', String(loadAppOpacity()));
   }, []);
 
   useEffect(() => {
@@ -1131,6 +1132,8 @@ export default function App() {
       handleOpenSqlite(filePath);
       return;
     }
+    // Notes open in the editor, which only lives in the Files view.
+    if (filePath.startsWith('notes://')) setActiveViewAndRoute('files');
     const useSudo = !!opts?.useSudo;
     setFileLoadError(null);
     setTabSudoByPath((prev) => {
@@ -1960,7 +1963,7 @@ export default function App() {
                 onDismissError={() => setConnectionError(null)}
                 onViewGuide={handleSelectGuideId}
               />
-            ) : (activeView === 'guide' || currentServer) ? (
+            ) : (activeView === 'guide' || currentServer || (activeView === 'files' && openTabs.includes('notes://general'))) ? (
               <EditorArea
                 currentServer={currentServer}
                 servers={servers}
@@ -2015,18 +2018,12 @@ export default function App() {
                 onSqliteDisconnect={() => setConnectedSqlitePath(null)}
               />
             ) : (
-              <NoServerView
+              <DisconnectedView
+                view={activeView as 'files' | 'docker' | 'database' | 'firewall' | 'deploy' | 'notes'}
                 servers={servers}
-                proxy={proxy}
                 connectingTo={connectingTo}
-                connectionError={connectionError}
-                onAddServer={addServer}
-                onUpdateServer={updateServer}
-                onRemoveServer={removeServer}
                 onSelectServer={handleSelectServer}
-                onProxyChange={setProxyAndRef}
-                onDismissError={() => setConnectionError(null)}
-                onViewGuide={handleSelectGuideId}
+                onManageServers={() => setActiveViewAndRoute('servers')}
               />
             )}
           </div>

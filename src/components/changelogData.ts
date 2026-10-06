@@ -23,6 +23,36 @@ export interface ChangelogVersion {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: '2.4.0',
+    codename: 'Open Canvas',
+    date: '2026-10-06',
+    summary:
+      'A redesign of Settings and the Servers page, plus a theme editor so you can build your own look inside Serop. Screens that need a server now explain themselves and let you connect right there.',
+    groups: [
+      {
+        label: 'Theme Editor',
+        icon: Sliders,
+        color: '#c084fc',
+        items: [
+          { type: 'feat', text: 'Create theme in Settings opens a drawer with colour pickers for 14 colours. The whole app recolours live as you edit. Save it, edit it later, or export it as a JSON file.' },
+          { type: 'improve', text: 'Settings is reorganised into Appearance, General and Feature Modules. Themes are shown as cards with a live preview, and the modules header stays visible while you scroll.' },
+          { type: 'fix', text: 'Window opacity now works on Linux. It fades the background layer only, so text stays sharp. Background blur now applies to Tokyo Night and custom themes, not only Glassy.' },
+        ],
+      },
+      {
+        label: 'Servers',
+        icon: Layers,
+        color: '#93c5fd',
+        items: [
+          { type: 'improve', text: 'Servers are now cards with a Connect button instead of a table, and the page uses the full window width.' },
+          { type: 'improve', text: 'Adding and editing share one drawer with connection-type cards, fields that match the type, and clear messages under any field that needs fixing. Edits are saved only when you press Save changes.' },
+          { type: 'improve', text: 'Files, Docker, Database, Firewall, Deploy and Notes each show what they do and a list of servers to connect to when you are not connected. The Deploy panel no longer shows tools that need a server.' },
+          { type: 'fix', text: 'The button that opens General Notes in the editor now works, including with no server connected.' },
+        ],
+      },
+    ],
+  },
+  {
     version: '2.3.0',
     codename: 'Iron Palette',
     date: '2026-10-04',
