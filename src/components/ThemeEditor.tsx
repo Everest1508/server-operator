@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Save, RotateCcw, Download } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import {
   CustomTheme, ThemeColorKey, THEME_COLOR_VARS, parseThemeJson, addCustomTheme, slugify, isValidColor, applyTheme,
 } from '../utils/customThemes';
@@ -132,7 +133,7 @@ export function ThemeEditor({ initial, restoreChoice, onClose, onSaved }: Props)
   };
 
   return (
-    <div className="fixed top-10 right-0 bottom-0 w-[380px] max-w-full z-50 flex flex-col bg-bg-secondary border-l border-border shadow-2xl">
+    createPortal(<div className="fixed top-10 right-0 bottom-0 w-[380px] max-w-full z-50 flex flex-col bg-bg-secondary border-l border-border shadow-2xl">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
         <div>
           <h3 className="text-sm font-bold text-text-primary">{initial ? 'Edit theme' : 'Create theme'}</h3>
@@ -233,6 +234,6 @@ export function ThemeEditor({ initial, restoreChoice, onClose, onSaved }: Props)
           </button>
         </div>
       </div>
-    </div>
+    </div>, document.body)
   );
 }

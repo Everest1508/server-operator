@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import type { ServerConnection } from '../types';
 import { Input } from './ui/Input';
+import { createPortal } from 'react-dom';
 
 interface AddServerModalProps {
   onClose: () => void;
@@ -30,7 +31,7 @@ export function AddServerModal({ onClose, onAdd }: AddServerModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    createPortal(<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-2xl border border-border/40 bg-bg-secondary/95 shadow-2xl backdrop-blur-md overflow-hidden">
         <div className="flex items-center justify-between border-b border-border/30 px-5 py-4 bg-bg-secondary/40">
           <h2 className="text-sm font-semibold text-text-primary">Add New Server Profile</h2>
@@ -80,6 +81,6 @@ export function AddServerModal({ onClose, onAdd }: AddServerModalProps) {
           </div>
         </form>
       </div>
-    </div>
+    </div>, document.body)
   );
 }

@@ -6,6 +6,7 @@ import EyeIcon from './icons/EyeIcon';
 import EyeOffIcon from './icons/EyeOffIcon';
 import type { ServerConnection, ProxySettings, ConnectionType } from '../types';
 import { Tooltip } from './Tooltip';
+import { createPortal } from 'react-dom';
 
 const inputClass =
   'px-3 py-2 rounded-xl bg-bg-primary/50 border border-border/30 text-text-primary placeholder-text-muted focus:border-accent focus:ring-1 focus:ring-accent outline-none text-xs w-full min-w-0 transition-all duration-150 font-sans';
@@ -98,7 +99,7 @@ function ServerDrawer({
 
   const errBorder = (k: keyof typeof errors) => (err(k) ? 'border-error/60 bg-error/5' : '');
 
-  return (
+  return createPortal(
     <>
       <div className="fixed inset-0 top-10 z-40 bg-black/40" onClick={onClose} />
       <form
@@ -259,7 +260,7 @@ function ServerDrawer({
         </div>
       </form>
     </>
-  );
+    , document.body);
 }
 
 interface NoServerViewProps {

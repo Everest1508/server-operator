@@ -4,6 +4,7 @@ import Editor from '@monaco-editor/react';
 import type { ServerConnection, ProxySettings } from '../types';
 import { useAppTheme, isLightTheme } from '../hooks/useAppTheme';
 import { Select } from './Select';
+import { createPortal } from 'react-dom';
 
 const NGINX_MAIN_CONFIG = '/etc/nginx/nginx.conf';
 const NGINX_DEFAULT_NEW_PATH = '/etc/nginx/sites-available/new-site.conf';
@@ -784,7 +785,7 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
 
       {/* Nginx config editor modal */}
       {nginxEditorOpen && (
-        <div
+        createPortal(<div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => !nginxConfigSaving && setNginxEditorOpen(false)}
         >
@@ -873,7 +874,7 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
               )}
             </div>
           </div>
-        </div>
+        </div>, document.body)
       )}
     </div>
   );

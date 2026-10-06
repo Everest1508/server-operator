@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import type { ServerConnection, ProxySettings } from '../types';
 import type { DockerContainer } from '../types';
 import { Tooltip } from './Tooltip';
+import { FloatingMenu } from './FloatingMenu';
 
 const TAB_ALL = '__all__';
 const LOG_TAIL = 200;
@@ -551,7 +552,7 @@ export function DockerView({
                               </button>
                             </Tooltip>
                             {isActionsOpen && (
-                              <div className="absolute right-0 top-full mt-1.5 py-1 min-w-[150px] rounded-xl border border-border/40 bg-bg-tertiary/95 shadow-2xl backdrop-blur-md z-30 overflow-y-auto flex flex-col p-1 gap-0.5 max-h-[70vh]">
+                              <FloatingMenu anchorRef={actionsMenuRef} className="py-1 min-w-[150px] rounded-xl border border-border/40 bg-bg-tertiary/95 shadow-2xl backdrop-blur-md overflow-y-auto flex flex-col p-1 gap-0.5 max-h-[70vh]">
                                 {!isRunning && !isPaused && (
                                   <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runContainerAction(containerId, containerKey, 'start'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors" disabled={!!containerAction}>
                                     {containerAction === `${containerKey}-start` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Play size={12} className="text-success" />}
@@ -624,7 +625,7 @@ export function DockerView({
                                   {isLoadingLogs ? <Loader2 size={12} className="animate-spin text-accent" /> : <FileText size={12} className="text-text-secondary" />}
                                   Logs
                                 </button>
-                              </div>
+                              </FloatingMenu>
                             )}
                           </div>
                           <span
@@ -713,7 +714,7 @@ export function DockerView({
                                   </button>
                                 </Tooltip>
                                 {openActionsKey === `compose:${key}` && (
-                                  <div className="absolute right-0 top-full mt-1.5 py-1 min-w-[150px] rounded-xl border border-border/40 bg-bg-tertiary/95 shadow-2xl backdrop-blur-md z-30 overflow-y-auto flex flex-col p-1 gap-0.5 max-h-[70vh]">
+                                  <FloatingMenu anchorRef={actionsMenuRef} className="py-1 min-w-[150px] rounded-xl border border-border/40 bg-bg-tertiary/95 shadow-2xl backdrop-blur-md overflow-y-auto flex flex-col p-1 gap-0.5 max-h-[70vh]">
                                     <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceAction(activeTab, s, 'start'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors" disabled={!!composeServiceAction}>
                                       {composeServiceAction === `${key}-start` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Play size={12} className="text-success" />}
                                       Start
@@ -782,7 +783,7 @@ export function DockerView({
                                       <FileText size={12} className="text-text-secondary" />
                                       Logs
                                     </button>
-                                  </div>
+                                  </FloatingMenu>
                                 )}
                               </div>
                             </div>

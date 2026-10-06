@@ -28,6 +28,7 @@ import { parseLsLine } from '../utils/parseLs';
 import { Tooltip } from './Tooltip';
 import { NotesSidebar } from './NotesSidebar';
 import { DeploySidebar } from './DeploySidebar';
+import { createPortal } from 'react-dom';
 
 interface FileTreeMenuState {
   kind: 'entry' | 'background';
@@ -706,9 +707,9 @@ export function Sidebar({
 
       </div>
       {fileTreeMenu && showFileBrowser && (
-        <div
+        createPortal(<div
           className="fixed z-50 min-w-[190px] rounded-xl border border-border/40 bg-bg-tertiary/95 py-1.5 px-1 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-1 duration-100 font-sans"
-          style={{ left: fileTreeMenu.x, top: fileTreeMenu.y }}
+          style={{ left: Math.min(fileTreeMenu.x, window.innerWidth - 210), top: Math.min(fileTreeMenu.y, window.innerHeight - 330) }}
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.preventDefault()}
         >
@@ -1021,7 +1022,7 @@ export function Sidebar({
               )}
             </>
           )}
-        </div>
+        </div>, document.body)
       )}
         </>
       )}
