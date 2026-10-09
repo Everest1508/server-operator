@@ -176,7 +176,7 @@ export function ThemeEditor({ initial, restoreChoice, onClose, onSaved }: Props)
 
         {GROUPS.map((g) => (
           <div key={g.title}>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted mb-2">{g.title}</p>
+            <p className="text-xs font-semibold text-text-secondary mb-2">{g.title}</p>
             <div className="space-y-2">
               {g.keys.map(({ key, label, hint }) => {
                 const valid = isValidColor(colors[key]);

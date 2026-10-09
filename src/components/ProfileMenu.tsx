@@ -51,7 +51,7 @@ export function ProfileMenu({ onViewChange }: ProfileMenuProps) {
         onViewChange?.('team');
       },
       trailing: pendingInvites > 0 ? (
-        <span className="ml-auto shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-error/15 text-error text-[10px] font-bold flex items-center justify-center">
+        <span className="ml-auto shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-error/15 text-error text-[11px] font-bold flex items-center justify-center">
           {pendingInvites}
         </span>
       ) : null,
@@ -89,7 +89,7 @@ export function ProfileMenu({ onViewChange }: ProfileMenuProps) {
               : 'bg-bg-tertiary/40 border-border/30 text-text-primary hover:bg-bg-tertiary/70 hover:border-border/50'
           }`}
         >
-          <span className="relative w-5 h-5 rounded-full bg-accent/20 border border-accent/25 text-accent text-[9px] font-bold flex items-center justify-center">
+          <span className="relative w-5 h-5 rounded-full bg-accent/20 border border-accent/25 text-accent text-[11px] font-bold flex items-center justify-center">
             {initials(user.displayName)}
             {pendingInvites > 0 && (
               <span className="absolute -top-1 -right-1 min-w-[12px] h-[12px] px-0.5 rounded-full bg-error text-white text-[7px] font-bold flex items-center justify-center">
@@ -108,13 +108,13 @@ export function ProfileMenu({ onViewChange }: ProfileMenuProps) {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold text-text-primary truncate">{user.displayName}</p>
-            <p className="text-[10px] text-text-secondary truncate mt-0.5">
+            <p className="text-[11px] text-text-secondary truncate mt-0.5">
               {user.email || (user.isGuest ? 'Guest session' : 'No email')}
             </p>
           </div>
         </div>
         {user.isGuest && (
-          <span className="inline-flex mt-2.5 px-2 py-0.5 rounded-md bg-amber-500/12 text-amber-300 text-[9px] font-bold uppercase tracking-wide border border-amber-500/20">
+          <span className="inline-flex mt-2.5 px-2 py-0.5 rounded-md bg-amber-500/12 text-amber-300 text-[11px] font-medium border border-amber-500/20">
             Guest mode
           </span>
         )}

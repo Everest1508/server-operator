@@ -16,6 +16,7 @@ import {
 } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { readStoredServers, revealServerPasswords } from '../utils/serverStore';
+import { confirmDialog } from '../utils/confirm';
 
 
 interface CloudTeamViewProps {
@@ -153,7 +154,7 @@ export function CloudTeamView({ onConnectServer, connectingToId }: CloudTeamView
 
   const handleRemoveShared = async (server: ApiSharedServer) => {
     if (!canRemoveShared(server)) return;
-    const confirmed = window.confirm(`Remove shared access to "${server.name}" for the team?`);
+    const confirmed = await confirmDialog(`Remove shared access to "${server.name}" for the team?`);
     if (!confirmed) return;
     setMessage('');
     setError('');
@@ -215,7 +216,7 @@ export function CloudTeamView({ onConnectServer, connectingToId }: CloudTeamView
               <p className="text-xs font-semibold text-text-primary">{n.title}</p>
               <p className="text-[11px] text-text-secondary mt-0.5">{n.body}</p>
               <div className="flex gap-2 mt-2">
-                <button type="button" onClick={() => handleDismissNotification(n.id)} className="px-2.5 py-1 rounded-md border border-border/30 text-[10px] font-semibold">Dismiss</button>
+                <button type="button" onClick={() => handleDismissNotification(n.id)} className="px-2.5 py-1 rounded-md border border-border/30 text-[11px] font-semibold">Dismiss</button>
               </div>
             </div>
           ))
@@ -274,15 +275,15 @@ export function CloudTeamView({ onConnectServer, connectingToId }: CloudTeamView
               <div key={s.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/20 bg-bg-primary/30 px-3 py-2.5">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold text-text-primary truncate">{s.name}</p>
-                  <p className="text-[10px] text-text-secondary truncate">{s.username}@{s.host}</p>
-                  {isOwner && <p className="text-[9px] text-accent/80 mt-0.5">Shared by you</p>}
+                  <p className="text-[11px] text-text-secondary truncate">{s.username}@{s.host}</p>
+                  {isOwner && <p className="text-[11px] text-accent/80 mt-0.5">Shared by you</p>}
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
                     disabled={isConnecting}
                     onClick={() => handleConnectShared(s.id)}
-                    className="px-2.5 py-1.5 rounded-lg bg-accent text-white text-[10px] font-semibold inline-flex items-center gap-1 disabled:opacity-50"
+                    className="px-2.5 py-1.5 rounded-lg bg-accent text-white text-[11px] font-semibold inline-flex items-center gap-1 disabled:opacity-50"
                   >
                     <Link2 size={11} />
                     {isConnecting ? 'Connecting…' : 'Connect'}
@@ -292,7 +293,7 @@ export function CloudTeamView({ onConnectServer, connectingToId }: CloudTeamView
                       type="button"
                       disabled={busyId === s.id}
                       onClick={() => handleRemoveShared(s)}
-                      className="px-2.5 py-1.5 rounded-lg border border-error/30 text-error text-[10px] font-semibold inline-flex items-center gap-1 hover:bg-error/10 disabled:opacity-50"
+                      className="px-2.5 py-1.5 rounded-lg border border-error/30 text-error text-[11px] font-semibold inline-flex items-center gap-1 hover:bg-error/10 disabled:opacity-50"
                       title="Remove shared access"
                     >
                       <Trash2 size={11} />

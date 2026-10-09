@@ -6,8 +6,9 @@ import type { ServerConnection, ProxySettings } from '../types';
 import { Select } from './Select';
 import { loadProjectContext } from '../utils/loadProjectContext';
 
+import { GroqModelSelect, loadGroqModel } from './GroqModelSelect';
+
 const GROQ_API_KEY_STORAGE = 'server-operator:groq-api-key';
-const GROQ_MODEL = 'llama-3.3-70b-versatile';
 const GROQ_WHISPER_MODEL = 'whisper-large-v3-turbo';
 const GROQ_TRANSCRIPTIONS_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 
@@ -73,6 +74,7 @@ function buildSystemMessage(
 
 async function generateConfigWithGroq(
   apiKey: string,
+  model: string,
   configType: 'compose' | 'dockerfile' | 'nginx' | 'apache',
   conversationMessages: Array<{ role: 'user' | 'assistant'; content: string }>,
   contextText: string
@@ -89,7 +91,7 @@ async function generateConfigWithGroq(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: GROQ_MODEL,
+      model,
       messages,
       max_tokens: 2048,
       temperature: 0.3,
@@ -271,6 +273,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
   const [aiError, setAiError] = useState<string | null>(null);
   const [llmOutput, setLlmOutput] = useState<string | null>(null);
   const [showGroqKey, setShowGroqKey] = useState(false);
+  const [groqModel, setGroqModel] = useState(loadGroqModel);
   const [contextCollapsed, setContextCollapsed] = useState(false);
   const [selectedProjectPath, setSelectedProjectPath] = useState('');
   const [loadingContext, setLoadingContext] = useState(false);
@@ -369,7 +372,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
     setAiLoading(true);
     try {
       const messagesForApi = [...chatMessages, newUserMessage];
-      const { content, error } = await generateConfigWithGroq(key, activeTab, messagesForApi, contextText);
+      const { content, error } = await generateConfigWithGroq(key, groqModel, activeTab, messagesForApi, contextText);
       if (error) {
         setAiError(error);
         setChatMessages((prev) => prev.slice(0, -1));
@@ -558,6 +561,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                         {showGroqKey ? <EyeOffIcon size={14} /> : <EyeIcon size={14} />}
                       </button>
                     </div>
+                    <div className="w-52 shrink-0"><GroqModelSelect apiKey={groqApiKey} model={groqModel} onChange={setGroqModel} /></div>
                   </div>
                   <div className="flex flex-col gap-1.5 w-full">
                     <label className="text-xs font-medium text-text-secondary">Project context</label>

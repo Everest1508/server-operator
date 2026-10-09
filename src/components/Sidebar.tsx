@@ -23,12 +23,13 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react';
-import type { ServerConnection, ViewId, FileTreeClipboard, ProxySettings } from '../types';
+import type { ServerConnection, ViewId, FileTreeClipboard, ProxySettings, DockerContainer } from '../types';
 import { parseLsLine } from '../utils/parseLs';
 import { Tooltip } from './Tooltip';
 import { NotesSidebar } from './NotesSidebar';
 import { DeploySidebar } from './DeploySidebar';
 import { createPortal } from 'react-dom';
+import { confirmDialog } from '../utils/confirm';
 
 interface FileTreeMenuState {
   kind: 'entry' | 'background';
@@ -41,7 +42,43 @@ interface FileTreeMenuState {
   targetDir?: string;
 }
 
+const NO_SERVER_QUIPS = [
+  'This tree has no roots yet. Connect a server and it will grow.',
+  'Your files are on a server you have not called yet.',
+  '404: forest not found.',
+  'rm -rf has nothing to fear here.',
+  'Even ls needs something to list.',
+  'It is quiet. Too quiet. Open a server.',
+  'No server, no files. Just vibes.',
+];
+
+/** Shown in the Files sidebar when no server is connected: a terminal that fails, with a joke. */
+function NoServerTree() {
+  const [quip] = useState(() => NO_SERVER_QUIPS[Math.floor(Math.random() * NO_SERVER_QUIPS.length)]);
+  return (
+    <div className="px-3 pt-1 pb-3 select-none">
+      <div className="rounded-xl border border-border/30 bg-bg-primary/60 overflow-hidden">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border/20">
+          <span className="w-2 h-2 rounded-full bg-error/70" />
+          <span className="w-2 h-2 rounded-full bg-warning/70" />
+          <span className="w-2 h-2 rounded-full bg-success/70" />
+        </div>
+        <div className="p-3 font-mono text-[11px] leading-relaxed text-text-secondary">
+          <p><span className="text-success">$</span> ls ~</p>
+          <p className="text-error/90">ls: cannot access '~': no server connected</p>
+          <p className="mt-1"><span className="text-success">$</span> <span className="inline-block w-1.5 h-3 align-[-2px] bg-text-primary animate-pulse" /></p>
+        </div>
+      </div>
+      <p className="text-xs text-text-muted text-center mt-3 px-2">{quip}</p>
+    </div>
+  );
+}
+
 interface SidebarProps {
+  /** Containers on the connected server, listed in the Docker sidebar. */
+  dockerContainers?: DockerContainer[];
+  /** Path of the file open in the editor, highlighted in the tree. */
+  activeFilePath?: string | null;
   activeView: ViewId;
   servers: ServerConnection[];
   currentServer: ServerConnection | null;
@@ -98,6 +135,8 @@ function buildPath(prefix: string, name: string): string {
 }
 
 export function Sidebar({
+  dockerContainers = [],
+  activeFilePath = null,
   activeView,
   servers,
   currentServer,
@@ -263,7 +302,7 @@ export function Sidebar({
       return (
         <div className="flex items-center gap-2 py-1 rounded" style={{ paddingLeft: 8 }}>
           <Loader2 size={14} className="animate-spin shrink-0 text-text-secondary" />
-          <span className="text-text-secondary text-sm">Loading…</span>
+          <span className="text-text-secondary text-xs">Loading…</span>
         </div>
       );
     }
@@ -274,7 +313,7 @@ export function Sidebar({
         {pathKey === '.' ? null : (
           <div
             data-tree-row
-            className="group flex items-center gap-0 rounded min-w-0 w-full"
+            className="group flex items-center gap-0 rounded-md min-w-0 w-full"
             onContextMenu={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -284,26 +323,28 @@ export function Sidebar({
             <button
               type="button"
               onClick={() => onToggleFolder?.(pathKey)}
-              className="flex-1 min-w-0 text-left rounded hover:bg-bg-tertiary text-text-primary truncate flex items-center gap-2"
+              className="flex-1 min-w-0 text-left rounded-md hover:bg-bg-tertiary/60 text-text-primary truncate flex items-center gap-1.5 text-[13px]"
+              aria-expanded={isOpen}
               style={{ paddingLeft: depth * 12 + 8, paddingRight: 8, paddingTop: 4, paddingBottom: 4 }}
               title={pathKey}
             >
               <ChevronRight size={14} className={`shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
-              <Folder size={14} className="shrink-0 text-accent" />
+              <Folder size={14} className="shrink-0 text-accent/80" />
               <span className="truncate">{pathKey.split('/').pop() || pathKey}</span>
             </button>
             {onDeleteEntry && (
               <button
                 type="button"
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.stopPropagation();
                   const name = pathKey.split('/').pop() || pathKey;
-                  if (window.confirm(`Delete folder "${name}"?\n\nThis cannot be undone.`)) {
+                  if (await confirmDialog(`Delete folder "${name}"?\n\nThis cannot be undone.`, { confirmLabel: 'Delete' })) {
                     onDeleteEntry(pathKey);
                   }
                 }}
-                className="p-1.5 rounded text-text-secondary opacity-0 group-hover:opacity-100 hover:bg-error/20 hover:text-error transition-all shrink-0"
+                className="p-1.5 rounded-md text-text-secondary opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-error/20 hover:text-error transition-opacity shrink-0"
                 title={`Delete folder "${pathKey}"`}
+                aria-label={`Delete folder ${pathKey.split('/').pop() || pathKey}`}
               >
                 <Trash2 size={14} />
               </button>
@@ -340,7 +381,7 @@ export function Sidebar({
         {isOpen && (loading && !listing ? (
           <div className="flex items-center gap-2 py-1 rounded" style={{ paddingLeft: (depth + 1) * 12 + 8 }}>
             <Loader2 size={14} className="animate-spin shrink-0 text-text-secondary" />
-            <span className="text-text-secondary text-sm">Loading…</span>
+            <span className="text-text-secondary text-xs">Loading…</span>
           </div>
         ) : sortedEntries.map((parsed) => {
           const name = parsed.name;
@@ -355,7 +396,7 @@ export function Sidebar({
             <div
               key={`${pathKey}-${name}`}
               data-tree-row
-              className="group flex items-center gap-0 rounded min-w-0 w-full"
+              className={`group flex items-center gap-0 rounded-md min-w-0 w-full ${fullPath === activeFilePath ? 'bg-accent/15' : ''}`}
               onContextMenu={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -365,7 +406,8 @@ export function Sidebar({
               <button
                 type="button"
                 onClick={() => onOpenFile?.(fullPath)}
-                className="flex-1 min-w-0 text-left rounded hover:bg-bg-tertiary text-text-primary truncate flex items-center gap-2"
+                className={`flex-1 min-w-0 text-left rounded-md truncate flex items-center gap-1.5 text-[13px] ${fullPath === activeFilePath ? 'text-accent font-medium' : 'text-text-primary hover:bg-bg-tertiary/60'}`}
+                aria-current={fullPath === activeFilePath ? 'true' : undefined}
                 style={{ paddingLeft: (pathKey === '.' ? depth + 1 : depth + 1) * 12 + 8, paddingRight: 8, paddingTop: 4, paddingBottom: 4 }}
                 title={fullPath}
               >
@@ -376,14 +418,15 @@ export function Sidebar({
               {onDeleteEntry && (
                 <button
                   type="button"
-                  onClick={(e) => {
+                  onClick={async (e) => {
                     e.stopPropagation();
-                    if (window.confirm(`Delete file "${name}"?\n\nThis cannot be undone.`)) {
+                    if (await confirmDialog(`Delete file "${name}"?\n\nThis cannot be undone.`, { confirmLabel: 'Delete' })) {
                       onDeleteEntry(fullPath);
                     }
                   }}
-                  className="p-1.5 rounded text-text-secondary opacity-0 group-hover:opacity-100 hover:bg-error/20 hover:text-error transition-all shrink-0"
+                  className="p-1.5 rounded-md text-text-secondary opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-error/20 hover:text-error transition-opacity shrink-0"
                   title={`Delete file "${name}"`}
+                  aria-label={`Delete file ${name}`}
                 >
                   <Trash2 size={14} />
                 </button>
@@ -400,7 +443,7 @@ export function Sidebar({
       {activeView === 'guide' ? (
         <div className="flex-1 flex flex-col min-h-0 select-none">
           <div className="flex items-center justify-between px-4 py-3 shrink-0">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Feature Guide</span>
+            <span className="text-xs font-semibold text-text-secondary">Feature Guide</span>
           </div>
           <div className="flex-1 overflow-y-auto px-3 space-y-1.5 pb-4">
             {[
@@ -437,7 +480,7 @@ export function Sidebar({
       ) : (
         <>
           <div className="flex items-center justify-between px-4 py-3 shrink-0">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+            <span className="text-xs font-semibold text-text-secondary">
               {activeView === 'servers' && 'Servers'}
               {activeView === 'files' && 'Files'}
               {activeView === 'docker' && 'Docker'}
@@ -447,18 +490,19 @@ export function Sidebar({
             </span>
           </div>
           {showFileBrowser && (
-            <div className="flex items-center gap-2 px-3 py-1 flex-wrap mb-1">
+            <div className="flex items-center gap-2 px-3 py-1 mb-1 min-w-0">
               <Tooltip content="Reload file tree" position="bottom">
                 <button
                   type="button"
                   onClick={() => onLoadDir('.', true)}
                   disabled={rootLoading}
                   className="flex items-center justify-center p-1 rounded-md text-text-secondary hover:bg-bg-tertiary hover:text-accent disabled:opacity-50 transition-colors"
+                  aria-label="Reload file tree"
                 >
-                  <RefreshCw size={12} />
+                  <RefreshCw size={12} className={rootLoading ? 'animate-spin' : ''} />
                 </button>
               </Tooltip>
-              <span className="text-[10px] text-text-muted font-mono truncate flex-1 min-w-0" title={pathDisplay}>{pathDisplay}</span>
+              <span className="text-[11px] text-text-muted font-mono truncate flex-1 min-w-0" title={pathDisplay}>{pathDisplay}</span>
             </div>
           )}
           {canCreate && (
@@ -469,6 +513,7 @@ export function Sidebar({
                     type="button"
                     onClick={() => startCreate(currentPath || '.', 'file')}
                     disabled={creating}
+                    aria-label="New file"
                     className="p-1.5 rounded-md text-text-secondary hover:bg-bg-tertiary hover:text-accent disabled:opacity-50 transition-colors"
                   >
                     <FilePlus size={14} />
@@ -481,6 +526,7 @@ export function Sidebar({
                     type="button"
                     onClick={() => startCreate(currentPath || '.', 'folder')}
                     disabled={creating}
+                    aria-label="New folder"
                     className="p-1.5 rounded-md text-text-secondary hover:bg-bg-tertiary hover:text-accent disabled:opacity-50 transition-colors"
                   >
                     <FolderPlus size={14} />
@@ -492,6 +538,7 @@ export function Sidebar({
                   <button
                     type="button"
                     onClick={onCollapseAll}
+                    aria-label="Collapse all"
                     className="p-1.5 rounded-md text-text-secondary hover:bg-bg-tertiary hover:text-accent transition-colors"
                   >
                     <ChevronsUp size={14} />
@@ -504,6 +551,7 @@ export function Sidebar({
                     type="button"
                     onClick={() => void onUploadLocalFile()}
                     disabled={creating || uploadBusy}
+                    aria-label="Upload local file"
                     className="p-1.5 rounded-md text-text-secondary hover:bg-bg-tertiary hover:text-accent disabled:opacity-50 transition-colors"
                   >
                     {uploadBusy ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
@@ -514,6 +562,8 @@ export function Sidebar({
                 <button
                   type="button"
                   onClick={() => setShowDotfiles(prev => !prev)}
+                  aria-label={showDotfiles ? "Hide hidden files" : "Show hidden files"}
+                  aria-pressed={showDotfiles}
                   className={`p-1.5 rounded-md transition-colors ${showDotfiles ? 'text-accent bg-bg-tertiary/60' : 'text-text-secondary hover:bg-bg-tertiary hover:text-accent'}`}
                 >
                   {showDotfiles ? <Eye size={14} /> : <EyeOff size={14} />}
@@ -523,16 +573,16 @@ export function Sidebar({
           )}
           {connectionError && (
             <div className="mx-3 mt-1 mb-3 px-3 py-2 rounded-lg bg-error/8 border border-error/20 text-error text-[11px] leading-relaxed">
-              <p className="font-semibold">Connection Alert</p>
+              <p className="font-semibold">Connection problem</p>
               <p className="truncate mt-0.5" title={connectionError}>{connectionError}</p>
-              <button type="button" onClick={onDismissError} className="mt-1.5 font-bold underline text-error hover:text-error/80 cursor-pointer">Dismiss</button>
+              <button type="button" onClick={onDismissError} className="mt-1.5 font-semibold underline text-error hover:text-error/80 cursor-pointer">Dismiss</button>
             </div>
           )}
           <div id="database-sidebar-panel" className="flex-1 flex flex-col overflow-y-auto py-1 min-h-0">
             {activeView === 'firewall' && currentServer && (
               <div className="px-3 py-3 flex flex-col gap-4 select-none">
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-text-muted">Quick Reference</span>
+                  <span className="text-xs font-semibold text-text-secondary">Quick Reference</span>
                   {[
                     { port: '22', label: 'SSH' },
                     { port: '80', label: 'HTTP' },
@@ -550,7 +600,7 @@ export function Sidebar({
                   ))}
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-text-muted">UFW Commands</span>
+                  <span className="text-xs font-semibold text-text-secondary">UFW Commands</span>
                   {[
                     'sudo ufw status verbose',
                     'sudo ufw enable',
@@ -566,17 +616,20 @@ export function Sidebar({
                 </div>
               </div>
             )}
-            {(activeView === 'servers' || activeView === 'docker' || activeView === 'deploy' || (!currentServer && (activeView === 'files' || activeView === 'database' || activeView === 'firewall'))) && (
+            {activeView === 'files' && !currentServer && <NoServerTree />}
+            {(activeView === 'servers' || (!currentServer && (activeView === 'files' || activeView === 'docker' || activeView === 'deploy' || activeView === 'database' || activeView === 'firewall'))) && (
               <ul className="space-y-1 px-3 pb-4">
+                {activeView === 'files' && !currentServer && servers.length > 0 && (
+                  <li className="px-3 pb-1 text-xs font-semibold text-text-secondary">Connect to one</li>
+                )}
                 {servers.length === 0 && (
-                  <li className="px-3 py-4 text-xs text-text-muted text-center italic">
-                    No servers. Click + to add.
+                  <li className="px-3 py-4 text-xs text-text-muted text-center">
+                    No servers yet. Use “Open server” in the title bar to add one.
                   </li>
                 )}
                 {servers.map((s) => {
-                  const badgeColor = 'bg-text-muted';
-
                   const isSelected = currentServer?.id === s.id;
+                  const badgeColor = isSelected ? 'bg-success' : 'bg-text-muted/60';
 
                   return (
                     <li key={s.id} className="group flex items-center gap-1.5 rounded-xl">
@@ -584,7 +637,7 @@ export function Sidebar({
                          type="button"
                          onClick={() => onSelectServer(isSelected ? null : s)}
                          disabled={connectingTo !== null}
-                         className={`flex-1 flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-xs w-full transition-all duration-200 disabled:opacity-60 ${
+                         className={`flex-1 min-w-0 flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-xs transition-all duration-200 disabled:opacity-60 ${
                            isSelected
                              ? 'bg-bg-tertiary/75 text-accent font-semibold shadow-inner'
                              : 'text-text-primary hover:bg-bg-tertiary/30 hover:text-text-primary'
@@ -594,7 +647,10 @@ export function Sidebar({
                           <ServerIcon size={12} className={isSelected ? 'text-accent' : 'text-text-secondary'} />
                           <span className={`absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-bg-secondary ${badgeColor}`} />
                         </div>
-                        <span className="truncate">{connectingTo === s.id ? 'Connecting…' : s.name}</span>
+                        <span className="min-w-0 flex flex-col">
+                          <span className="truncate">{connectingTo === s.id ? 'Connecting…' : s.name}</span>
+                          <span className="truncate text-[11px] font-normal text-text-muted">{s.connectionType === 'local' ? (s.projectPath || s.host) : s.host}</span>
+                        </span>
                         <ChevronRight
                           size={12}
                           className={`ml-auto shrink-0 transition-transform text-text-muted/60 ${
@@ -605,8 +661,9 @@ export function Sidebar({
                       <button
                         type="button"
                         onClick={() => onRemoveServer(s.id)}
-                        className="p-2 rounded-xl text-text-muted hover:bg-error/15 hover:text-error opacity-0 group-hover:opacity-100 transition-all duration-200 shrink-0"
+                        className="p-2 rounded-xl text-text-muted hover:bg-error/15 hover:text-error opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all duration-200 shrink-0"
                         title="Remove server"
+                        aria-label={`Remove ${s.name}`}
                       >
                         <Trash2 size={13} />
                       </button>
@@ -651,26 +708,40 @@ export function Sidebar({
             )}
           </div>
         )}
-        {activeView === 'docker' && (
-          <div className="px-3 pt-2 space-y-3">
-            <div className="rounded-lg border border-border bg-bg-primary p-3 text-sm">
-              <div className="flex items-center gap-2 mb-2 text-text-primary font-medium">
+        {activeView === 'docker' && !currentServer && (
+          <div className="px-3 pt-2">
+            <div className="rounded-xl border border-border/30 bg-bg-primary/60 p-3 text-xs text-text-secondary">
+              <div className="flex items-center gap-2 mb-2 text-sm text-text-primary font-medium">
                 <Box size={16} className="shrink-0 text-accent" />
-                What you can do
+                Docker
               </div>
-              <ul className="space-y-1 text-xs text-text-secondary">
-                <li>• View all containers</li>
-                <li>• Manage compose services</li>
-                <li>• Open shell in containers</li>
-                <li>• Connect to Redis / MySQL / Postgres</li>
-                <li>• Stream logs, restart all</li>
-              </ul>
-              {!currentServer ? (
-                <p className="mt-3 text-text-muted text-xs">Select a server above to get started.</p>
-              ) : (
-                <p className="mt-3 text-accent text-xs">Viewing: {currentServer.name}</p>
-              )}
+              Start, stop and restart containers, open a shell in one, and read logs. Pick a server above to begin.
             </div>
+          </div>
+        )}
+        {activeView === 'docker' && currentServer && (
+          <div className="px-3 pt-1 pb-4">
+            <div className="flex items-center justify-between px-1 pb-2">
+              <span className="text-xs font-semibold text-text-secondary">Containers on {currentServer.name}</span>
+              <span className="text-[11px] text-text-muted">{dockerContainers.length}</span>
+            </div>
+            {dockerContainers.length === 0 ? (
+              <p className="px-1 py-3 text-xs text-text-muted">No containers found.</p>
+            ) : (
+              <ul className="space-y-0.5">
+                {dockerContainers.map((c, i) => {
+                  const status = (c.Status || c.State || '').toLowerCase();
+                  const paused = status.includes('paused');
+                  const running = status.startsWith('up') && !paused;
+                  return (
+                    <li key={c.ID || c.Names || i} className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-[13px] text-text-primary" title={`${c.Names || c.ID}: ${c.Status || c.State || ''}`}>
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${running ? 'bg-success' : paused ? 'bg-warning' : 'bg-text-muted/60'}`} />
+                      <span className="truncate">{c.Names || c.ID || 'unnamed'}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
         )}
         {activeView === 'deploy' && currentServer && (
@@ -691,7 +762,7 @@ export function Sidebar({
             <div className="rounded-lg border border-border bg-bg-primary p-3 text-sm">
               <div className="flex flex-col gap-3">
                 <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">Relevant Guide</span>
+                  <span className="text-xs font-semibold text-text-secondary">Related topics</span>
                   <button
                     type="button"
                     onClick={() => onSelectGuideId?.('database')}
@@ -932,7 +1003,7 @@ export function Sidebar({
                   onClick={async () => {
                     const p = fileTreeMenu.path!;
                     const label = p.split('/').pop() || p;
-                    if (!window.confirm(`Delete "${label}"?\n\nThis cannot be undone.`)) {
+                    if (!await confirmDialog(`Delete "${label}"?\n\nThis cannot be undone.`, { confirmLabel: 'Delete' })) {
                       setFileTreeMenu(null);
                       return;
                     }

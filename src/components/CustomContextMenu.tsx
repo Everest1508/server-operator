@@ -237,7 +237,7 @@ export function CustomContextMenu() {
         exit={{ opacity: 0, scale: 0.95, y: -4 }}
         transition={{ duration: 0.1, ease: 'easeOut' }}
         style={{ left: menuState.x, top: menuState.y }}
-        className="fixed z-[999999] min-w-[210px] rounded-xl border border-border/40 bg-bg-secondary/95 backdrop-blur-xl p-1.5 shadow-2xl text-xs font-sans text-text-primary select-none space-y-0.5"
+        className="fixed z-[999999] min-w-[210px] rounded-xl border border-border/40 popover-surface p-1.5 shadow-2xl text-xs font-sans text-text-primary select-none space-y-0.5"
       >
         {menuState.isEditable && (
           <>

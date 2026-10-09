@@ -14,6 +14,7 @@ import {
 import type { ServerConnection } from '../types';
 import { Tooltip } from './Tooltip';
 import { createPortal } from 'react-dom';
+import { confirmDialog } from '../utils/confirm';
 
 interface NotesSidebarProps {
   currentServer: ServerConnection | null;
@@ -156,7 +157,7 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
   // 6. Clear Logs
   const handleClearLogs = async () => {
     if (!window.serverOperator?.clearLogFile) return;
-    if (!window.confirm('Are you sure you want to clear the application log file? This cannot be undone.')) {
+    if (!await confirmDialog('Clear the application log file? This cannot be undone.', { confirmLabel: 'Clear log' })) {
       return;
     }
     setLogsLoading(true);
@@ -190,7 +191,7 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
     <div className="flex flex-col h-full bg-bg-secondary/30 border-r border-border/20 text-text-primary min-w-0 select-none">
       {/* Title bar info */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/20 shrink-0">
-        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-text-muted">
+        <div className="flex items-center gap-2 text-xs font-semibold text-text-secondary">
           <StickyNote size={13} className="text-accent" />
           <span>Notes & Debugging</span>
         </div>
@@ -199,7 +200,7 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
       {/* Main scrolling wrapper */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Section 1: General Notes */}
-        <div className="rounded-xl border border-border/20 bg-bg-primary/50 p-4 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-border/40 hover:bg-bg-primary/65">
+        <div className="rounded-xl border border-border/20 bg-bg-primary/50 p-4 shadow-sm transition-all duration-200 hover:border-border/40 hover:bg-bg-primary/65">
           <div className="flex items-center justify-between mb-3 gap-2 min-w-0 w-full">
             <span className="text-xs font-semibold text-text-primary flex items-center gap-2 min-w-0 flex-1">
               <StickyNote size={13} className="text-warning shrink-0" />
@@ -207,7 +208,7 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
             </span>
             <div className="flex items-center gap-2">
               <Tooltip content="All changes are automatically saved to your computer's local storage" position="top">
-                <span className="text-[10px] text-text-muted flex items-center gap-1 whitespace-nowrap cursor-help font-medium">
+                <span className="text-[11px] text-text-muted flex items-center gap-1 whitespace-nowrap cursor-help font-medium">
                   {generalSaved ? (
                     <>
                       <CheckCircle size={10} className="text-success shrink-0" /> Saved
@@ -239,7 +240,7 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
         </div>
 
         {/* Section 2: Server specific notes */}
-        <div className="rounded-xl border border-border/20 bg-bg-primary/50 p-4 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-border/40 hover:bg-bg-primary/65">
+        <div className="rounded-xl border border-border/20 bg-bg-primary/50 p-4 shadow-sm transition-all duration-200 hover:border-border/40 hover:bg-bg-primary/65">
           <div className="flex items-center justify-between mb-3 gap-2 min-w-0 w-full">
             <span className="text-xs font-semibold text-text-primary flex items-center gap-2 min-w-0 flex-1">
               <Server size={13} className="text-success shrink-0" />
@@ -248,7 +249,7 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
             <div className="flex items-center gap-1.5 shrink-0">
               {currentServer && (
                 <Tooltip content="Changes are auto-saved specifically for this connected server" position="top">
-                  <span className="text-[10px] text-text-muted flex items-center gap-1 whitespace-nowrap cursor-help font-medium">
+                  <span className="text-[11px] text-text-muted flex items-center gap-1 whitespace-nowrap cursor-help font-medium">
                     {serverSaved ? (
                       <>
                         <CheckCircle size={10} className="text-success shrink-0" /> Saved
@@ -275,7 +276,7 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
 
           {currentServer ? (
             <div>
-              <p className="text-[10px] text-text-secondary mb-2 truncate">
+              <p className="text-[11px] text-text-secondary mb-2 truncate">
                 Server: <span className="font-mono text-accent font-semibold">{currentServer.name}</span>
               </p>
               <textarea
@@ -291,7 +292,7 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
               <p className="text-xs text-text-secondary text-center font-medium">
                 No server connected
               </p>
-              <p className="text-[10px] text-text-muted text-center mt-1">
+              <p className="text-[11px] text-text-muted text-center mt-1">
                 Connect to a server to write notes for it.
               </p>
             </div>
@@ -300,7 +301,7 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
 
         {/* Section 3: App Debugging Controls */}
         {process.env.NODE_ENV === 'development' && (
-          <div className="rounded-xl border border-border/20 bg-bg-primary/50 p-4 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-border/40 hover:bg-bg-primary/65">
+          <div className="rounded-xl border border-border/20 bg-bg-primary/50 p-4 shadow-sm transition-all duration-200 hover:border-border/40 hover:bg-bg-primary/65">
             <div className="flex items-center justify-between mb-3 gap-2 min-w-0 w-full">
               <span className="text-xs font-semibold text-text-primary flex items-center gap-2 min-w-0 flex-1">
                 <Bug size={13} className="text-error shrink-0" />
@@ -355,12 +356,12 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
               {/* Log path info */}
               {logPath && (
                 <div className="pt-2.5 border-t border-border/15 mt-3 select-text">
-                  <span className="text-[9px] uppercase tracking-wider text-text-muted block mb-1">
+                  <span className="text-[11px] text-text-muted block mb-1">
                     App Log Path
                   </span>
                   <Tooltip content="Click to copy this path to clipboard" position="top">
                     <span
-                      className="text-[9px] font-mono text-text-secondary break-all select-all hover:text-text-primary block cursor-pointer transition-colors"
+                      className="text-[11px] font-mono text-text-secondary break-all select-all hover:text-text-primary block cursor-pointer transition-colors"
                       onClick={() => {
                         navigator.clipboard.writeText(logPath);
                         showStatus('Log path copied');
@@ -370,7 +371,7 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
                     </span>
                   </Tooltip>
                   {logsStatusMessage && (
-                    <span className="text-[9px] text-success font-semibold mt-1 block">
+                    <span className="text-[11px] text-success font-semibold mt-1 block">
                       ✓ {logsStatusMessage}
                     </span>
                   )}
@@ -383,7 +384,7 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
 
       {/* Logs Modal View (Visible when logModalOpen === true) */}
       {logModalOpen && (
-        createPortal(<div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6 transition-all duration-200 animate-in fade-in">
+        createPortal(<div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-6 transition-all duration-200 animate-in fade-in">
           <div className="w-full max-w-4xl h-[85vh] rounded-2xl border border-border/40 bg-bg-secondary/95 shadow-2xl flex flex-col backdrop-blur-md overflow-hidden">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border/20 bg-bg-secondary/45 shrink-0">
@@ -467,9 +468,9 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
               ) : (
                 <pre className="font-mono text-xs text-text-primary whitespace-pre-wrap break-words leading-relaxed select-text">
                   {logSearchQuery && !filteredLogs ? (
-                    <span className="text-text-muted italic">No matching log entries found for "{logSearchQuery}"</span>
+                    <span className="text-text-muted ">No matching log entries found for "{logSearchQuery}"</span>
                   ) : (
-                    filteredLogs || <span className="text-text-muted italic">Log file is empty. No operations have been recorded yet.</span>
+                    filteredLogs || <span className="text-text-muted ">Log file is empty. No operations have been recorded yet.</span>
                   )}
                   <div ref={modalLogsEndRef} />
                 </pre>
@@ -477,7 +478,7 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
             </div>
 
             {/* Modal Footer */}
-            <div className="px-4 py-2 border-t border-border/20 bg-bg-secondary/45 flex items-center justify-between shrink-0 font-mono text-[9px]">
+            <div className="px-4 py-2 border-t border-border/20 bg-bg-secondary/45 flex items-center justify-between shrink-0 font-mono text-[11px]">
               <span className="text-text-muted truncate max-w-md select-text">
                 Log path: {logPath || 'Unknown'}
               </span>

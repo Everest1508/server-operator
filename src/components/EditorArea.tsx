@@ -174,6 +174,10 @@ export function EditorArea({
       .finally(() => setSaving(false));
   }, [activeTabPath, activeContent, onSaveFile]);
 
+  // Monaco's command is registered once per file, so it reads the latest save through a ref.
+  const saveShortcutRef = useRef<() => void>(() => {});
+  saveShortcutRef.current = () => { if (isDirty && !saving) handleSave(); };
+
   const handleDownload = useCallback(() => {
     if (!activeTabPath || !onDownloadRemoteFile) return;
     setDownloading(true);
@@ -239,7 +243,7 @@ export function EditorArea({
   if (!currentServer && activeView !== 'guide' && !offlineNotesOpen) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-bg-primary text-text-secondary select-none">
-        <p className="text-xs font-mono text-text-muted">Select a server to view analytics, configurations, and logs.</p>
+        <p className="text-sm text-text-muted">Select a server from the sidebar to get started.</p>
       </div>
     );
   }
@@ -308,8 +312,8 @@ export function EditorArea({
       {activeView === 'files' && (
         <div className="flex-1 flex flex-col bg-bg-primary min-h-0 relative">
           {pathDialogOpen && (
-            <div className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
-              <div className="w-full max-w-lg rounded-2xl border border-border/40 bg-bg-secondary/95 shadow-2xl p-6">
+            <div className="absolute inset-0 z-30 bg-black/50 flex items-start justify-center p-6 pt-24" onMouseDown={(e) => e.target === e.currentTarget && setPathDialogOpen(false)}>
+              <div role="dialog" aria-label="File path" className="w-full max-w-lg rounded-xl border border-border/40 popover-surface shadow-2xl p-5">
                 <p className="text-sm font-semibold text-text-primary mb-3">
                   {pathDialogMode === 'open'
                     ? (pathDialogSudo ? 'Open file as sudo' : 'Open file')
@@ -323,7 +327,8 @@ export function EditorArea({
                     if (e.key === 'Enter') submitPathDialog();
                     if (e.key === 'Escape') setPathDialogOpen(false);
                   }}
-                  placeholder="e.g. /etc/nginx/nginx.conf or app/config.json"
+                  placeholder="/etc/nginx/nginx.conf or app/config.json"
+                  aria-label="File path"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-border/40 bg-bg-primary/50 text-text-primary text-xs placeholder-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all duration-150 font-mono"
                 />
                 <div className="mt-4 flex items-center justify-end gap-2">
@@ -348,32 +353,37 @@ export function EditorArea({
           {openTabs.length > 0 ? (
             <>
               <div className="flex items-center justify-between bg-bg-secondary/35 border-b border-border/20 px-2 py-1.5 shrink-0 min-h-0 select-none">
-                <div className="flex items-center gap-1.5 overflow-x-auto min-w-0 flex-1 pr-4">
+                <div role="tablist" className="flex items-center gap-1 overflow-x-auto min-w-0 flex-1 pr-4">
                   {openTabs.map((path) => {
                     const active = path === activeTabPath;
+                    const dirty = (contentByPath[path] ?? '') !== (savedContentByPath[path] ?? '');
                     return (
                       <div
                         key={path}
                         role="tab"
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer shrink-0 max-w-[200px] min-w-0 group transition-all duration-150 border text-xs ${
+                        aria-selected={active}
+                        tabIndex={0}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer shrink-0 max-w-[200px] min-w-0 group transition-colors duration-150 border text-xs ${
                           active
-                            ? 'bg-bg-primary border-border/40 text-accent font-semibold shadow-sm'
-                            : 'bg-transparent border-transparent text-text-secondary hover:bg-bg-tertiary/20 hover:text-text-primary'
+                            ? 'bg-bg-primary border-border/40 text-text-primary font-medium shadow-sm'
+                            : 'bg-transparent border-transparent text-text-secondary hover:bg-bg-tertiary/30 hover:text-text-primary'
                         }`}
                         onClick={() => onSelectTab?.(path)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectTab?.(path); } }}
                         title={path}
                       >
                         <FileCode size={13} className={active ? 'text-accent shrink-0' : 'text-text-muted shrink-0'} />
-                        <span className="truncate min-w-0 flex-1 font-sans">{basename(path)}</span>
+                        <span className="truncate min-w-0 flex-1">{basename(path)}</span>
+                        {dirty && <span className="w-1.5 h-1.5 rounded-full bg-warning shrink-0" title="Unsaved changes" aria-label="Unsaved changes" />}
                         {onCloseTab && (
                           <button
                             type="button"
-                            className="opacity-0 group-hover:opacity-100 p-0.5 rounded-md hover:bg-bg-tertiary text-text-muted hover:text-text-primary transition-all duration-100 shrink-0 cursor-pointer"
+                            className={`${active ? 'opacity-70' : 'opacity-0'} group-hover:opacity-100 focus-visible:opacity-100 p-0.5 rounded-md hover:bg-bg-tertiary text-text-muted hover:text-text-primary transition-opacity duration-100 shrink-0 cursor-pointer`}
                             onClick={(e) => {
                               e.stopPropagation();
                               onCloseTab(path);
                             }}
-                            aria-label="Close tab"
+                            aria-label={`Close ${basename(path)}`}
                           >
                             <X size={11} />
                           </button>
@@ -384,8 +394,8 @@ export function EditorArea({
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   {activeTabPath && activeTabUsesSudo && (
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-error/10 text-error uppercase tracking-wider border border-error/20 mr-1 animate-pulse">
-                      sudo mode
+                    <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-error/10 text-error border border-error/20 mr-1" title="This file opens and saves with sudo">
+                      Editing as sudo
                     </span>
                   )}
                   {activeTabPath && onDownloadRemoteFile && (
@@ -393,33 +403,11 @@ export function EditorArea({
                       type="button"
                       onClick={handleDownload}
                       disabled={downloading}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/30 bg-bg-primary/40 text-text-primary text-xs font-semibold hover:bg-bg-tertiary/60 hover:border-border/60 disabled:opacity-50 transition-all duration-150 shrink-0 cursor-pointer"
+                      className="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/60 disabled:opacity-50 transition-colors shrink-0 cursor-pointer"
                       title="Download a copy to your computer"
+                      aria-label="Download a copy"
                     >
-                      {downloading ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-                      Download
-                    </button>
-                  )}
-                  {onOpenFileByPath && (
-                    <button
-                      type="button"
-                      onClick={() => handleOpenFromPath(false)}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/30 bg-bg-primary/40 text-text-primary text-xs font-semibold hover:bg-bg-tertiary/60 hover:border-border/60 shrink-0 transition-all duration-150 cursor-pointer"
-                      title="Edit file by path"
-                    >
-                      <FolderOpen size={12} />
-                      Edit
-                    </button>
-                  )}
-                  {onCreateFileByPath && (
-                    <button
-                      type="button"
-                      onClick={() => handleCreateFromPath(false)}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/30 bg-bg-primary/40 text-text-primary text-xs font-semibold hover:bg-bg-tertiary/60 hover:border-border/60 shrink-0 transition-all duration-150 cursor-pointer"
-                      title="Create file by path"
-                    >
-                      <Plus size={12} />
-                      Create
+                      {downloading ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
                     </button>
                   )}
                   {(onOpenFileByPath || onCreateFileByPath || (activeTabPath && onSaveFile)) && (
@@ -427,23 +415,25 @@ export function EditorArea({
                       <button
                         type="button"
                         onClick={() => setFileMenuOpen((v) => !v)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border/30 bg-bg-primary/40 text-text-primary text-xs font-semibold hover:bg-bg-tertiary/60 hover:border-border/60 shrink-0 transition-all duration-150 cursor-pointer"
-                        title="File actions"
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border/30 bg-bg-primary/40 text-text-primary text-xs font-medium hover:bg-bg-tertiary/60 hover:border-border/60 shrink-0 transition-colors duration-150 cursor-pointer"
+                        title="Open or create files, save as sudo"
+                        aria-haspopup="menu"
+                        aria-expanded={fileMenuOpen}
                       >
                         File
                         <ChevronDown size={12} />
                       </button>
                       {fileMenuOpen && (
-                        <FloatingMenu anchorRef={menuRef} className="py-1.5 px-1 min-w-[190px] rounded-xl border border-border/40 bg-bg-tertiary/95 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-1 duration-100">
+                        <FloatingMenu anchorRef={menuRef} className="py-1.5 px-1 min-w-[190px] rounded-xl border border-border/40 popover-surface shadow-2xl">
                           {onOpenFileByPath && (
                             <>
                               <button type="button" onClick={() => handleOpenFromPath(false)} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg transition-colors cursor-pointer">
                                 <FolderOpen size={12} />
-                                Open by path
+                                Open by path…
                               </button>
                               <button type="button" onClick={() => handleOpenFromPath(true)} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg transition-colors cursor-pointer">
                                 <Shield size={12} />
-                                Open as sudo
+                                Open as sudo…
                               </button>
                             </>
                           )}
@@ -451,11 +441,11 @@ export function EditorArea({
                             <>
                               <button type="button" onClick={() => handleCreateFromPath(false)} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg transition-colors cursor-pointer">
                                 <Plus size={12} />
-                                Create by path
+                                New file…
                               </button>
                               <button type="button" onClick={() => handleCreateFromPath(true)} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg transition-colors cursor-pointer">
                                 <Shield size={12} />
-                                Create as sudo
+                                New file as sudo…
                               </button>
                             </>
                           )}
@@ -478,16 +468,16 @@ export function EditorArea({
                       onClick={handleSave}
                       disabled={saving || !isDirty}
                       className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent text-white text-xs font-semibold hover:bg-accent-hover shadow-sm disabled:opacity-40 disabled:pointer-events-none transition-all duration-150 shrink-0 cursor-pointer"
-                      title="Save to server"
+                      title={`Save (${window.serverOperator?.platform === 'darwin' ? '⌘' : 'Ctrl+'}S)`}
                     >
                       {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-                      Save
+                      {saving ? 'Saving…' : 'Save'}
                     </button>
                   )}
                 </div>
               </div>
               {(saveError || downloadError) && (
-                <div className="px-4 py-2 bg-error/10 border-b border-error/20 text-error text-xs shrink-0 select-none font-mono">
+                <div className="px-4 py-2 bg-error/10 border-b border-error/20 text-error text-xs shrink-0 select-text" role="alert">
                   {saveError || downloadError}
                 </div>
               )}
@@ -501,7 +491,7 @@ export function EditorArea({
                 {isLoading ? (
                   <div className="flex flex-col items-center justify-center h-full text-text-secondary gap-3 select-none">
                     <Loader2 size={24} className="animate-spin text-accent" />
-                    <span className="text-xs font-mono text-text-muted">Fetching file content...</span>
+                    <span className="text-xs text-text-muted">Opening file…</span>
                   </div>
                 ) : fileLoadError ? (
                   <motion.div
@@ -513,14 +503,14 @@ export function EditorArea({
                       <FileCode size={24} />
                     </div>
                     <div className="max-w-md">
-                      <h3 className="text-sm font-bold text-text-primary mb-1">Failed to load file</h3>
+                      <h3 className="text-sm font-semibold text-text-primary mb-1">Couldn't open this file</h3>
                       <p className="text-[11px] text-text-muted mb-4 font-mono whitespace-pre-wrap break-all bg-bg-tertiary/50 p-2.5 rounded-xl border border-border/40">{fileLoadError}</p>
                       <button
                         type="button"
                         onClick={() => activeTabPath && onOpenFileByPath?.(activeTabPath, { useSudo: activeTabUsesSudo })}
                         className="px-4 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
                       >
-                        Retry Loading File
+                        Try again
                       </button>
                     </div>
                   </motion.div>
@@ -533,42 +523,56 @@ export function EditorArea({
                     value={activeContent}
                     onChange={(v) => onContentChange?.(activeTabPath, v ?? '')}
                     options={{
-                      minimap: { enabled: true },
+                      minimap: { enabled: false },
+                      fontFamily: '"JetBrains Mono", "SF Mono", Menlo, Consolas, monospace',
                       fontSize: 13,
+                      lineHeight: 20,
+                      renderLineHighlight: 'gutter',
+                      smoothScrolling: true,
+                      bracketPairColorization: { enabled: true },
                       lineNumbers: 'on',
                       wordWrap: 'on',
                       scrollBeyondLastLine: false,
-                      padding: { top: 16 },
+                      padding: { top: 16, bottom: 16 },
                       automaticLayout: true,
                       contextmenu: false,
                     }}
                     loading={null}
+                    onMount={(editor, monaco) => {
+                      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => saveShortcutRef.current());
+                    }}
                   />
                 ) : null}
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-text-secondary text-xs gap-4 select-none">
-              <p className="text-text-muted font-sans text-center max-w-sm px-4">Select a configuration or project file in the sidebar explorer to edit, or access direct paths below.</p>
+            <div className="flex-1 flex flex-col items-center justify-center text-center gap-5 select-none px-6">
+              <div className="w-12 h-12 rounded-xl bg-bg-tertiary/60 text-text-muted flex items-center justify-center">
+                <FileCode size={22} />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-text-primary">No file open</h2>
+                <p className="text-xs text-text-secondary mt-1 max-w-xs">Pick a file in the explorer, or open one by its path.</p>
+              </div>
               <div className="flex items-center gap-2">
                 {onOpenFileByPath && (
                   <button
                     type="button"
                     onClick={() => handleOpenFromPath(false)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/30 bg-bg-secondary text-text-primary text-xs font-semibold hover:border-border/60 hover:bg-bg-tertiary transition-all cursor-pointer shadow-sm"
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-accent text-white text-xs font-semibold hover:bg-accent-hover transition-colors cursor-pointer"
                   >
-                    <FolderOpen size={12} />
-                    Open by Path
+                    <FolderOpen size={13} />
+                    Open by path
                   </button>
                 )}
                 {onCreateFileByPath && (
                   <button
                     type="button"
                     onClick={() => handleCreateFromPath(false)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/30 bg-bg-secondary text-text-primary text-xs font-semibold hover:border-border/60 hover:bg-bg-tertiary transition-all cursor-pointer shadow-sm"
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-border/40 text-text-primary text-xs font-semibold hover:bg-bg-tertiary/60 transition-colors cursor-pointer"
                   >
-                    <Plus size={12} />
-                    Create by Path
+                    <Plus size={13} />
+                    New file
                   </button>
                 )}
               </div>
@@ -661,7 +665,7 @@ export function EditorArea({
                     <div className="flex items-center gap-2">
                       <span
                         style={{ color: active.color, backgroundColor: `${active.color}15`, borderColor: `${active.color}30` }}
-                        className="text-[9px] font-extrabold px-2.5 py-0.5 rounded-lg border uppercase tracking-wider"
+                        className="text-[11px] font-medium px-2.5 py-0.5 rounded-full border"
                       >
                         {active.badge}
                       </span>
@@ -678,19 +682,19 @@ export function EditorArea({
 
                 <div className="space-y-6">
                   {/* How It Works */}
-                  <div className="p-5 rounded-xl bg-bg-secondary/40 border border-border/20 backdrop-blur-sm shadow-sm">
-                    <h3 className="text-[10px] font-extrabold uppercase tracking-widest text-text-primary mb-2.5 flex items-center gap-2 select-none">
+                  <div className="p-5 rounded-xl bg-bg-secondary/40 border border-border/20 ">
+                    <h3 className="text-sm font-semibold text-text-primary mb-2.5 flex items-center gap-2 select-none">
                       <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: active.color }} />
-                      Under the Hood
+                      How it works
                     </h3>
                     <p className="text-xs text-text-secondary leading-relaxed font-sans">{active.howItWorks}</p>
                   </div>
 
                   {/* Usage Steps */}
-                  <div className="p-5 rounded-xl bg-bg-secondary/40 border border-border/20 backdrop-blur-sm shadow-sm space-y-4">
-                    <h3 className="text-[10px] font-extrabold uppercase tracking-widest text-text-primary flex items-center gap-2 select-none">
+                  <div className="p-5 rounded-xl bg-bg-secondary/40 border border-border/20  space-y-4">
+                    <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2 select-none">
                       <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: active.color }} />
-                      Step-by-Step Instructions
+                      Steps
                     </h3>
                     <ol className="space-y-3">
                       {active.steps.map((step, i) => (
@@ -707,10 +711,8 @@ export function EditorArea({
                   {/* Pro Tips */}
                   {active.tips && (
                     <div className="p-5 rounded-xl bg-accent/5 border border-accent/20 border-dashed">
-                      <span className="text-[9px] font-extrabold text-accent uppercase tracking-widest block mb-1.5 select-none">
-                        ✦ Pro Tip
-                      </span>
-                      <p className="text-xs text-text-secondary leading-relaxed italic">{active.tips}</p>
+                      <span className="text-sm font-semibold text-accent block mb-1.5 select-none">Tip</span>
+                      <p className="text-xs text-text-secondary leading-relaxed">{active.tips}</p>
                     </div>
                   )}
                 </div>

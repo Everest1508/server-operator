@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { ShieldCheck, ShieldOff, RefreshCw, Plus, Trash2, AlertTriangle, Lock, Unlock, Globe, Layers, ScanSearch } from 'lucide-react';
 import type { ServerConnection, ProxySettings } from '../types';
 import { Select } from './Select';
+import { confirmDialog } from '../utils/confirm';
 
 interface FirewallViewProps {
   currentServer: ServerConnection;
@@ -28,11 +29,17 @@ interface SecurityGroup {
 }
 
 const PRESET_GROUPS: SecurityGroup[] = [
-  { name: 'Web Server', rules: [{ port: '80', proto: 'tcp', from: 'any' }, { port: '443', proto: 'tcp', from: 'any' }] },
-  { name: 'SSH Only', rules: [{ port: '22', proto: 'tcp', from: 'any' }] },
-  { name: 'Database (Local)', rules: [{ port: '3306', proto: 'tcp', from: '127.0.0.1' }, { port: '5432', proto: 'tcp', from: '127.0.0.1' }] },
-  { name: 'Mail Server', rules: [{ port: '25', proto: 'tcp', from: 'any' }, { port: '587', proto: 'tcp', from: 'any' }, { port: '993', proto: 'tcp', from: 'any' }] },
+  { name: 'Web server', rules: [{ port: '80', proto: 'tcp', from: 'any' }, { port: '443', proto: 'tcp', from: 'any' }] },
+  { name: 'SSH only', rules: [{ port: '22', proto: 'tcp', from: 'any' }] },
+  { name: 'Database (this server only)', rules: [{ port: '3306', proto: 'tcp', from: '127.0.0.1' }, { port: '5432', proto: 'tcp', from: '127.0.0.1' }] },
+  { name: 'Mail server', rules: [{ port: '25', proto: 'tcp', from: 'any' }, { port: '587', proto: 'tcp', from: 'any' }, { port: '993', proto: 'tcp', from: 'any' }] },
 ];
+
+// Values go into shell commands on the server, so accept only what UFW and nmap actually take.
+const isPortSpec = (v: string) => /^\d{1,5}(:\d{1,5})?$/.test(v.trim());
+const isAddrSpec = (v: string) => /^(any|[0-9a-fA-F:.]+(\/\d{1,3})?)$/.test(v.trim());
+const isScanPorts = (v: string) => /^\d{1,5}([,-]\d{1,5})*$/.test(v.trim());
+const touchesSsh = (to: string) => /^(22(\/|\s|$)|OpenSSH|SSH)/i.test(to.trim());
 
 export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
   const [openPorts, setOpenPorts] = useState<OpenPort[]>([]);
@@ -129,22 +136,55 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
     }
   };
 
-  const handleAddRule = () => {
+  const handleAddRule = async () => {
+    if (!isPortSpec(rulePort)) return setActionMsg({ type: 'err', text: 'Enter a port like 80, or a range like 8000:9000.' });
+    if (!isAddrSpec(ruleFrom || 'any')) return setActionMsg({ type: 'err', text: 'From must be "any", an IP address, or a range like 10.0.0.0/24.' });
+    if (ruleAction === 'deny' && Number(rulePort.split(':')[0]) <= 22 && 22 <= Number(rulePort.split(':').pop()) && !await confirmDialog('This rule blocks SSH (port 22). If it applies to your connection you will be locked out of this server.\n\nAdd it anyway?', { confirmLabel: 'Add rule' })) return;
     const portPart = ruleProto === 'any' ? rulePort : `${rulePort}/${ruleProto}`;
     const fromPart = ruleFrom && ruleFrom !== 'any' ? ` from ${ruleFrom}` : '';
     ufwAction(`sudo ufw ${ruleAction}${fromPart} to any port ${portPart} 2>&1`, 'add');
   };
 
-  const handleDeleteRule = (rule: UfwRule, idx: number) => {
-    ufwAction(`echo y | sudo ufw delete ${idx + 1} 2>&1`, `del-${idx}`);
+  const handleDeleteRule = async (rule: UfwRule, idx: number) => {
+    const sshWarning = rule.action.includes('ALLOW') && touchesSsh(rule.to) ? '\n\nThis rule allows SSH. Deleting it may lock you out of this server.' : '';
+    if (!await confirmDialog(`Delete rule ${idx + 1}: ${rule.action} ${rule.to} from ${rule.from}?${sshWarning}`, { confirmLabel: 'Delete rule' })) return;
+    setActionLoading(`del-${idx}`);
+    setActionMsg(null);
+    try {
+      // ufw deletes by number, so check that number still points at this rule before deleting.
+      const numbered = await run('sudo ufw status numbered 2>&1');
+      const line = numbered.split('\n').map((l) => l.match(/^\[\s*(\d+)\]\s+(.*)$/)).find((m) => m && Number(m[1]) === idx + 1);
+      if (!line || !line[2].replace(/\s+/g, ' ').startsWith(rule.to.replace(/\s+/g, ' '))) {
+        setActionMsg({ type: 'err', text: 'The rule list has changed since it was loaded. Check the refreshed list and try again.' });
+        setActionLoading(null);
+        await loadUfw();
+        return;
+      }
+    } catch (e: any) {
+      setActionMsg({ type: 'err', text: e.message });
+      setActionLoading(null);
+      return;
+    }
+    await ufwAction(`echo y | sudo ufw delete ${idx + 1} 2>&1`, `del-${idx}`);
   };
 
-  const handleToggleUfw = () => {
+  const handleToggleUfw = async () => {
+    if (ufwEnabled) {
+      if (!await confirmDialog('Turn the firewall off? Every port on this server becomes reachable until you turn it back on.', { confirmLabel: 'Turn off' })) return;
+    } else {
+      const sshAllowed = ufwRules.some((r) => r.action.includes('ALLOW') && touchesSsh(r.to));
+      const msg = sshAllowed
+        ? 'Turn the firewall on? Only ports with an Allow rule will stay reachable.'
+        : 'No rule allows SSH (port 22). If you turn the firewall on now, you will probably lose access to this server.\n\nAdd an Allow rule for SSH first, or use the "SSH only" preset. Turn it on anyway?';
+      if (!await confirmDialog(msg, { confirmLabel: 'Turn on', danger: !sshAllowed })) return;
+    }
     const cmd = ufwEnabled ? 'echo y | sudo ufw disable 2>&1' : 'echo y | sudo ufw enable 2>&1';
     ufwAction(cmd, 'toggle');
   };
 
-  const applySecurityGroup = (group: SecurityGroup) => {
+  const applySecurityGroup = async (group: SecurityGroup) => {
+    const list = group.rules.map((r) => `allow ${r.port}/${r.proto}${r.from !== 'any' ? ` from ${r.from}` : ''}`).join('\n');
+    if (!await confirmDialog(`Apply "${group.name}"?\n\nThis adds:\n${list}`, { confirmLabel: 'Apply', danger: false })) return;
     const cmds = group.rules.map(r => {
       const fromPart = r.from !== 'any' ? ` from ${r.from}` : '';
       return `sudo ufw allow${fromPart} to any port ${r.port}/${r.proto}`;
@@ -154,6 +194,8 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
 
   const handleScan = async () => {
     if (!scanCidr.trim() || !scanPort.trim()) return;
+    if (!isAddrSpec(scanCidr) || scanCidr.trim() === 'any') return setScanError('Enter a subnet like 192.168.1.0/24.');
+    if (!isScanPorts(scanPort)) return setScanError('Enter a port, a list like 22,80, or a range like 8000-8100.');
     setScanLoading(true);
     setScanError(null);
     setScanResults([]);
@@ -204,6 +246,7 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
         setActiveTunnels(prev => { const n = { ...prev }; delete n[key]; return n; });
       } finally { setTunnelLoading(null); }
     } else {
+      if (!/^\d{1,5}$/.test(scanPort.trim())) return setScanError('Forwarding needs a single port. Scan one port to forward it.');
       // Open tunnel
       setTunnelLoading(key);
       try {
@@ -238,17 +281,19 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
           <ShieldCheck size={18} />
         </div>
         <div>
-          <h2 className="text-sm font-bold text-text-primary">Firewall & Port Manager</h2>
-          <p className="text-[11px] text-text-secondary mt-0.5">{currentServer.name} — {currentServer.username}@{currentServer.host}</p>
+          <h2 className="text-sm font-semibold text-text-primary">Firewall and ports</h2>
+          <p className="text-[11px] text-text-secondary mt-0.5">{currentServer.name} · {currentServer.username}@{currentServer.host}</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-border/20 shrink-0 select-none bg-bg-secondary/20">
-        {([['ports', 'Open Ports'], ['firewall', 'UFW Rules'], ['groups', 'Security Groups'], ['scanner', 'Network Scanner']] as const).map(([id, label]) => (
+      <div role="tablist" className="flex border-b border-border/20 shrink-0 select-none bg-bg-secondary/20">
+        {([['ports', 'Open ports'], ['firewall', 'Firewall rules'], ['groups', 'Presets'], ['scanner', 'Port scanner']] as const).map(([id, label]) => (
           <button
             key={id}
             type="button"
+            role="tab"
+            aria-selected={tab === id}
             onClick={() => { setTab(id); if (id === 'ports' && openPorts.length === 0) loadOpenPorts(); if (id === 'firewall' && ufwStatus === null) loadUfw(); }}
             className={`px-5 py-2.5 text-xs font-semibold border-b-2 transition-colors cursor-pointer ${
               tab === id ? 'border-accent text-accent' : 'border-transparent text-text-secondary hover:text-text-primary'
@@ -265,7 +310,7 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
         {tab === 'ports' && (
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between select-none">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted">Listening Ports</h3>
+              <h3 className="text-sm font-semibold text-text-primary">Ports this server is listening on</h3>
               <button type="button" onClick={loadOpenPorts} disabled={portsLoading} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-border/30 rounded-xl hover:bg-bg-tertiary disabled:opacity-50 cursor-pointer">
                 <RefreshCw size={12} className={portsLoading ? 'animate-spin text-accent' : ''} /> Refresh
               </button>
@@ -274,7 +319,7 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
             {portsError && <ErrorBox text={portsError} />}
 
             {openPorts.length === 0 && !portsLoading && !portsError && (
-              <EmptyState icon={<Globe size={20} />} text='Click "Refresh" to scan listening ports on this server.' />
+              <EmptyState icon={<Globe size={20} />} text='Select Refresh to list the ports this server is listening on.' />
             )}
 
             {portsLoading && <LoadingRow />}
@@ -282,9 +327,9 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
             {openPorts.length > 0 && (
               <table className="w-full text-left text-xs font-mono border-collapse">
                 <thead>
-                  <tr className="border-b border-border/20 bg-bg-secondary/35 text-text-secondary text-[10px] uppercase tracking-wider select-none">
-                    {['Port', 'Protocol', 'Local Address', 'State', 'Process'].map(h => (
-                      <th key={h} className="px-3 py-2 font-bold">{h}</th>
+                  <tr className="border-b border-border/20 bg-bg-secondary/35 text-text-secondary text-[11px] select-none">
+                    {['Port', 'Protocol', 'Address', 'State', 'Process'].map(h => (
+                      <th key={h} className="px-3 py-2 font-medium">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -295,7 +340,7 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
                       <td className="px-3 py-1.5 text-text-secondary">{p.proto}</td>
                       <td className="px-3 py-1.5 text-text-muted">{p.localAddress}</td>
                       <td className="px-3 py-1.5">
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase ${p.state === 'LISTEN' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium  ${p.state === 'LISTEN' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
                           {p.state}
                         </span>
                       </td>
@@ -313,10 +358,10 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
           <div className="flex flex-col gap-5">
             <div className="flex items-center justify-between select-none">
               <div className="flex items-center gap-3">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted">UFW Firewall</h3>
+                <h3 className="text-sm font-semibold text-text-primary">Firewall (UFW)</h3>
                 {ufwEnabled !== null && (
-                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase ${ufwEnabled ? 'bg-success/10 text-success border border-success/20' : 'bg-error/10 text-error border border-error/20'}`}>
-                    {ufwEnabled ? 'Active' : 'Inactive'}
+                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium  ${ufwEnabled ? 'bg-success/10 text-success border border-success/20' : 'bg-error/10 text-error border border-error/20'}`}>
+                    {ufwEnabled ? 'On' : 'Off'}
                   </span>
                 )}
               </div>
@@ -324,7 +369,7 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
                 {ufwEnabled !== null && (
                   <button type="button" onClick={handleToggleUfw} disabled={actionLoading === 'toggle'} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border cursor-pointer disabled:opacity-50 transition-colors ${ufwEnabled ? 'border-error/30 text-error hover:bg-error/10' : 'border-success/30 text-success hover:bg-success/10'}`}>
                     {actionLoading === 'toggle' ? <RefreshCw size={11} className="animate-spin" /> : ufwEnabled ? <ShieldOff size={11} /> : <ShieldCheck size={11} />}
-                    {ufwEnabled ? 'Disable UFW' : 'Enable UFW'}
+                    {ufwEnabled ? 'Turn off' : 'Turn on'}
                   </button>
                 )}
                 <button type="button" onClick={loadUfw} disabled={ufwLoading} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-border/30 rounded-xl hover:bg-bg-tertiary disabled:opacity-50 cursor-pointer">
@@ -340,10 +385,10 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
             {/* Add rule form */}
             {ufwStatus !== null && (
               <div className="border border-border/20 rounded-xl p-4 bg-bg-secondary/20 flex flex-col gap-3">
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-muted select-none">Add Rule</h4>
+                <h4 className="text-xs font-semibold text-text-secondary select-none">Add a rule</h4>
                 <div className="flex flex-wrap gap-2 items-end">
                   <div className="flex flex-col gap-1">
-                    <label className="text-[9px] font-extrabold uppercase text-text-muted">Action</label>
+                    <label className="text-xs font-medium text-text-secondary">Action</label>
                     <Select
                       value={ruleAction}
                       onChange={val => setRuleAction(val as any)}
@@ -356,11 +401,11 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[9px] font-extrabold uppercase text-text-muted">Port</label>
-                    <input type="text" value={rulePort} onChange={e => setRulePort(e.target.value)} placeholder="80 or 8000:9000" className="w-32 px-2.5 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent" />
+                    <label className="text-xs font-medium text-text-secondary">Port</label>
+                    <input type="text" aria-label="Port" value={rulePort} onChange={e => setRulePort(e.target.value)} placeholder="80 or 8000:9000" className="w-32 px-2.5 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent" />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[9px] font-extrabold uppercase text-text-muted">Proto</label>
+                    <label className="text-xs font-medium text-text-secondary">Proto</label>
                     <Select
                       value={ruleProto}
                       onChange={val => setRuleProto(val as any)}
@@ -374,12 +419,12 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[9px] font-extrabold uppercase text-text-muted">From (IP or "any")</label>
-                    <input type="text" value={ruleFrom} onChange={e => setRuleFrom(e.target.value)} placeholder="any" className="w-36 px-2.5 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent" />
+                    <label className="text-xs font-medium text-text-secondary">From (IP or any)</label>
+                    <input type="text" aria-label="From" value={ruleFrom} onChange={e => setRuleFrom(e.target.value)} placeholder="any" className="w-36 px-2.5 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent" />
                   </div>
                   <button type="button" onClick={handleAddRule} disabled={!rulePort.trim() || actionLoading === 'add'} className="flex items-center gap-1.5 px-3.5 py-1.5 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-xl disabled:opacity-40 cursor-pointer shadow-sm">
                     {actionLoading === 'add' ? <RefreshCw size={12} className="animate-spin" /> : <Plus size={12} />}
-                    Add Rule
+                    Add rule
                   </button>
                 </div>
               </div>
@@ -389,12 +434,12 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
             {ufwRules.length > 0 && (
               <table className="w-full text-left text-xs font-mono border-collapse">
                 <thead>
-                  <tr className="border-b border-border/20 bg-bg-secondary/35 text-text-secondary text-[10px] uppercase tracking-wider select-none">
-                    <th className="px-3 py-2 font-bold">#</th>
-                    <th className="px-3 py-2 font-bold">To</th>
-                    <th className="px-3 py-2 font-bold">Action</th>
-                    <th className="px-3 py-2 font-bold">From</th>
-                    <th className="px-3 py-2 font-bold"></th>
+                  <tr className="border-b border-border/20 bg-bg-secondary/35 text-text-secondary text-[11px] select-none">
+                    <th className="px-3 py-2 font-medium">#</th>
+                    <th className="px-3 py-2 font-medium">To</th>
+                    <th className="px-3 py-2 font-medium">Action</th>
+                    <th className="px-3 py-2 font-medium">From</th>
+                    <th className="px-3 py-2 font-medium"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/10">
@@ -403,13 +448,13 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
                       <td className="px-3 py-1.5 text-text-muted">{i + 1}</td>
                       <td className="px-3 py-1.5 font-bold text-text-primary">{r.to}</td>
                       <td className="px-3 py-1.5">
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase ${r.action.includes('ALLOW') ? 'bg-success/10 text-success' : 'bg-error/10 text-error'}`}>
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium  ${r.action.includes('ALLOW') ? 'bg-success/10 text-success' : 'bg-error/10 text-error'}`}>
                           {r.action}
                         </span>
                       </td>
                       <td className="px-3 py-1.5 text-text-muted">{r.from}</td>
                       <td className="px-3 py-1.5">
-                        <button type="button" onClick={() => handleDeleteRule(r, i)} disabled={actionLoading === `del-${i}`} className="p-1 rounded-lg text-error/60 hover:bg-error/10 hover:text-error disabled:opacity-40 cursor-pointer transition-colors">
+                        <button type="button" aria-label={`Delete rule ${i + 1}`} title="Delete rule" onClick={() => handleDeleteRule(r, i)} disabled={actionLoading === `del-${i}`} className="p-1 rounded-lg text-error/60 hover:bg-error/10 hover:text-error disabled:opacity-40 cursor-pointer transition-colors">
                           {actionLoading === `del-${i}` ? <RefreshCw size={11} className="animate-spin" /> : <Trash2 size={11} />}
                         </button>
                       </td>
@@ -420,7 +465,7 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
             )}
 
             {ufwStatus !== null && ufwRules.length === 0 && !ufwLoading && (
-              <EmptyState icon={<Lock size={18} />} text="No UFW rules configured." />
+              <EmptyState icon={<Lock size={18} />} text="No firewall rules yet. Add one above." />
             )}
           </div>
         )}
@@ -429,9 +474,9 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
         {tab === 'groups' && (
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between select-none">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted">Security Group Presets</h3>
+              <h3 className="text-sm font-semibold text-text-primary">Presets</h3>
             </div>
-            <p className="text-xs text-text-muted leading-relaxed">Apply a preset to batch-allow the standard ports for a given role. Each preset adds UFW allow rules. You can review and delete individual rules in the UFW Rules tab.</p>
+            <p className="text-xs text-text-muted leading-relaxed">A preset adds the usual Allow rules for a role in one go. You can review or delete each rule afterwards in Firewall rules.</p>
 
             {actionMsg && <ActionMsg msg={actionMsg} />}
 
@@ -447,7 +492,7 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
                       type="button"
                       onClick={() => applySecurityGroup(group)}
                       disabled={actionLoading === `group-${group.name}`}
-                      className="flex items-center gap-1.5 px-3 py-1 bg-accent/15 hover:bg-accent text-accent hover:text-white text-[10px] font-semibold rounded-lg border border-accent/30 hover:border-transparent disabled:opacity-50 cursor-pointer transition-all"
+                      className="flex items-center gap-1.5 px-3 py-1 bg-accent/15 hover:bg-accent text-accent hover:text-white text-[11px] font-semibold rounded-lg border border-accent/30 hover:border-transparent disabled:opacity-50 cursor-pointer transition-all"
                     >
                       {actionLoading === `group-${group.name}` ? <RefreshCw size={10} className="animate-spin" /> : <Unlock size={10} />}
                       Apply
@@ -455,7 +500,7 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {group.rules.map((r, i) => (
-                      <span key={i} className="text-[10px] font-mono bg-bg-tertiary border border-border/20 px-2 py-0.5 rounded-lg text-text-secondary">
+                      <span key={i} className="text-[11px] font-mono bg-bg-tertiary border border-border/20 px-2 py-0.5 rounded-lg text-text-secondary">
                         {r.action ?? 'allow'} :{r.port}/{r.proto} {r.from !== 'any' ? `from ${r.from}` : ''}
                       </span>
                     ))}
@@ -470,34 +515,36 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
         {tab === 'scanner' && (
           <div className="flex flex-col gap-5">
             <div className="flex items-center justify-between select-none">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted">Network Port Scanner</h3>
+              <h3 className="text-sm font-semibold text-text-primary">Port scanner</h3>
             </div>
             <p className="text-xs text-text-muted leading-relaxed">
-              Scan all IPs in a subnet for a specific open port. Runs on the remote server using <strong className="text-text-secondary">nmap</strong> (preferred) or a pure bash fallback.
+              Find machines on the server's network that have a port open. The scan runs on the server, using <strong className="text-text-secondary">nmap</strong> if it's installed, or plain bash if not.
             </p>
 
             {/* Scan form */}
             <div className="border border-border/20 rounded-xl p-4 bg-bg-secondary/20 flex flex-col gap-3">
               <div className="flex flex-wrap gap-2 items-end">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[9px] font-extrabold uppercase text-text-muted">CIDR / Range</label>
+                  <label className="text-xs font-medium text-text-secondary">Subnet</label>
                   <div className="flex gap-1.5">
                     <input
                       type="text"
+                      aria-label="Subnet"
                       value={scanCidr}
                       onChange={e => setScanCidr(e.target.value)}
                       placeholder="192.168.1.0/24"
                       className="w-40 px-2.5 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent font-mono"
                     />
-                    <button type="button" onClick={autoDetectCidr} title="Auto-detect from server" className="px-2.5 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-secondary hover:text-accent hover:border-accent cursor-pointer transition-colors">
+                    <button type="button" onClick={autoDetectCidr} title="Fill in the server's own subnet" className="px-2.5 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-secondary hover:text-accent hover:border-accent cursor-pointer transition-colors">
                       Auto
                     </button>
                   </div>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[9px] font-extrabold uppercase text-text-muted">Port</label>
+                  <label className="text-xs font-medium text-text-secondary">Port</label>
                   <input
                     type="text"
+                    aria-label="Port"
                     value={scanPort}
                     onChange={e => setScanPort(e.target.value)}
                     placeholder="22"
@@ -505,7 +552,7 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[9px] font-extrabold uppercase text-text-muted">Tool</label>
+                  <label className="text-xs font-medium text-text-secondary">Tool</label>
                   <Select
                     value={scanTool}
                     onChange={val => setScanTool(val as any)}
@@ -534,26 +581,26 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
             {scanLoading && (
               <div className="flex items-center gap-2 py-6 justify-center text-xs text-text-muted select-none">
                 <RefreshCw size={14} className="animate-spin text-accent" />
-                Scanning {scanCidr} for port {scanPort}… this may take a moment.
+                Scanning {scanCidr} for port {scanPort}. This can take a minute.
               </div>
             )}
 
             {!scanLoading && scanResults.length === 0 && !scanError && !scanLoading && (
-              <EmptyState icon={<ScanSearch size={20} />} text="No results yet. Enter a CIDR range and port, then click Scan." />
+              <EmptyState icon={<ScanSearch size={20} />} text="No results yet. Enter a subnet and a port, then select Scan." />
             )}
 
             {scanResults.length > 0 && (
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-2 select-none">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Results</span>
-                  <span className="text-[9px] font-extrabold px-2 py-0.5 rounded bg-success/10 text-success border border-success/20">{scanResults.length} host{scanResults.length !== 1 ? 's' : ''} found</span>
+                  <span className="text-xs font-semibold text-text-secondary">Results</span>
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-success/10 text-success border border-success/20">{scanResults.length} host{scanResults.length !== 1 ? 's' : ''} with port {scanPort} open</span>
                 </div>
                 <table className="w-full text-left text-xs font-mono border-collapse">
                   <thead>
-                    <tr className="border-b border-border/20 bg-bg-secondary/35 text-text-secondary text-[10px] uppercase tracking-wider select-none">
-                      <th className="px-3 py-2 font-bold">IP Address</th>
-                      <th className="px-3 py-2 font-bold">Port {scanPort}</th>
-                      <th className="px-3 py-2 font-bold">Tunnel / Connect</th>
+                    <tr className="border-b border-border/20 bg-bg-secondary/35 text-text-secondary text-[11px] select-none">
+                      <th className="px-3 py-2 font-medium">IP address</th>
+                      <th className="px-3 py-2 font-medium">Port {scanPort}</th>
+                      <th className="px-3 py-2 font-medium">Connect</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/10">
@@ -565,25 +612,25 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
                         <tr key={i} className="hover:bg-bg-tertiary/20">
                           <td className="px-3 py-1.5 font-bold text-text-primary">{r.ip}</td>
                           <td className="px-3 py-1.5">
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-success/10 text-success">open</span>
+                            <span className="px-2 py-0.5 rounded-full text-[11px] font-medium  bg-success/10 text-success">open</span>
                           </td>
                           <td className="px-3 py-1.5">
                             {tunnel ? (
                               <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-[10px] font-mono text-success bg-success/10 border border-success/20 px-2 py-0.5 rounded-lg">
+                                  <span className="text-[11px] font-mono text-success bg-success/10 border border-success/20 px-2 py-0.5 rounded-lg">
                                     127.0.0.1:{tunnel.localPort}
                                   </span>
-                                  <button type="button" onClick={() => handleTunnelToggle(r.ip)} disabled={loading} className="px-2 py-0.5 text-[9px] font-semibold rounded-lg bg-error/10 text-error border border-error/20 hover:bg-error/20 cursor-pointer disabled:opacity-50">
+                                  <button type="button" onClick={() => handleTunnelToggle(r.ip)} disabled={loading} className="px-2 py-0.5 text-[11px] font-semibold rounded-lg bg-error/10 text-error border border-error/20 hover:bg-error/20 cursor-pointer disabled:opacity-50">
                                     Close
                                   </button>
                                 </div>
-                                <span className="text-[9px] text-text-muted select-text">{connectHint(tunnel.localPort)}</span>
+                                <span className="text-[11px] text-text-muted select-text">{connectHint(tunnel.localPort)}</span>
                               </div>
                             ) : (
-                              <button type="button" onClick={() => handleTunnelToggle(r.ip)} disabled={loading} className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold rounded-lg bg-accent/10 text-accent border border-accent/20 hover:bg-accent/20 cursor-pointer disabled:opacity-50 transition-colors">
+                              <button type="button" onClick={() => handleTunnelToggle(r.ip)} disabled={loading} className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-accent/10 text-accent border border-accent/20 hover:bg-accent/20 cursor-pointer disabled:opacity-50 transition-colors">
                                 {loading ? <RefreshCw size={10} className="animate-spin" /> : <Globe size={10} />}
-                                Forward Port
+                                Forward to this computer
                               </button>
                             )}
                           </td>
@@ -641,7 +688,7 @@ function parseUfwRules(raw: string): UfwRule[] {
 
 function ErrorBox({ text }: { text: string }) {
   return (
-    <div className="p-3 rounded-xl bg-error/10 border border-error/20 text-error text-xs flex gap-1.5 items-start font-mono">
+    <div role="alert" className="p-3 rounded-xl bg-error/10 border border-error/20 text-error text-xs flex gap-1.5 items-start font-mono select-text">
       <AlertTriangle size={13} className="shrink-0 mt-0.5" />
       <span>{text}</span>
     </div>
@@ -650,7 +697,7 @@ function ErrorBox({ text }: { text: string }) {
 
 function ActionMsg({ msg }: { msg: { type: 'ok' | 'err'; text: string } }) {
   return (
-    <div className={`p-2.5 rounded-xl text-xs font-mono ${msg.type === 'ok' ? 'bg-success/10 text-success border border-success/20' : 'bg-error/10 text-error border border-error/20'}`}>
+    <div role="status" className={`p-2.5 rounded-xl text-xs font-mono select-text ${msg.type === 'ok' ? 'bg-success/10 text-success border border-success/20' : 'bg-error/10 text-error border border-error/20'}`}>
       {msg.text}
     </div>
   );
@@ -669,7 +716,7 @@ function LoadingRow() {
   return (
     <div className="flex items-center justify-center py-8 gap-2 text-text-muted text-xs select-none">
       <RefreshCw size={14} className="animate-spin text-accent" />
-      Running…
+      Loading…
     </div>
   );
 }

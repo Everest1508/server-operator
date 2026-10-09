@@ -5,6 +5,7 @@ import type { ServerConnection, ProxySettings } from '../types';
 import { useAppTheme, isLightTheme } from '../hooks/useAppTheme';
 import { Select } from './Select';
 import { createPortal } from 'react-dom';
+import { confirmDialog } from '../utils/confirm';
 
 const NGINX_MAIN_CONFIG = '/etc/nginx/nginx.conf';
 const NGINX_DEFAULT_NEW_PATH = '/etc/nginx/sites-available/new-site.conf';
@@ -330,6 +331,12 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
   };
 
   const runNginxAction = async (cmd: string, label: string) => {
+    const warning: Record<string, string> = {
+      Stop: 'Stop nginx? Every site it serves goes offline until you start it again.',
+      Disable: 'Disable nginx? It will not start on boot, and sites will go down after the next reboot.',
+      Restart: 'Restart nginx? Open connections drop for a moment.',
+    };
+    if (warning[label] && !await confirmDialog(warning[label])) return;
     if (onRunInTerminal) {
       onRunInTerminal(cmd);
       setNginxActionLoading(true);
@@ -470,9 +477,9 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
       <div className="flex-1 flex items-center justify-center p-8 select-none">
         <div className="max-w-sm text-center space-y-3">
           <Server size={32} className="mx-auto text-text-muted opacity-50" />
-          <p className="text-sm font-semibold text-text-primary">Server Administration</p>
+          <p className="text-sm font-semibold text-text-primary">Server admin needs a remote server</p>
           <p className="text-xs text-text-muted leading-relaxed">
-            Server administration tools (nginx, certbot, cron) are only available for remote SSH connections.
+            Nginx, certbot and cron tools work on remote servers over SSH. Local projects don't have them.
           </p>
         </div>
       </div>
@@ -482,7 +489,7 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
   return (
     <div className="flex-1 overflow-auto p-4 space-y-4 select-none">
       {onRunInTerminal && (
-        <p className="text-xs text-text-muted mb-3 font-sans italic max-w-2xl leading-relaxed">
+        <p className="text-xs text-text-muted mb-3 font-sans  max-w-2xl leading-relaxed">
           Actions like Cron addition, Nginx commands, and Certbot issuance run asynchronously inside your active SSH deployment pipeline terminal stream.
         </p>
       )}
@@ -515,7 +522,7 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
             </div>
             {/* Add new cron job */}
             <div className="rounded-xl border border-border/20 bg-bg-primary/40 p-4 space-y-3">
-              <p className="text-xs font-bold text-text-secondary uppercase tracking-wider">Register new job</p>
+              <p className="text-xs font-bold text-text-secondary">Register new job</p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <input
                   type="text"
@@ -542,7 +549,7 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
                 </button>
               </div>
               {cronAddError && <p className="text-xs text-error font-mono">{cronAddError}</p>}
-              <p className="text-[10px] text-text-muted leading-relaxed font-sans select-none">
+              <p className="text-[11px] text-text-muted leading-relaxed font-sans select-none">
                 Syntax helper: minute (0–59) hour (0–23) day (1–31) month (1–12) weekday (0–7). For instance, <code className="text-text-primary bg-bg-tertiary px-1 rounded font-mono">0 2 * * *</code> re-runs daily at 02:00.
               </p>
             </div>
@@ -661,7 +668,7 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
         </button>
         {certOpen && (
           <div className="p-4 space-y-4">
-            {certbotCheckLoading && <p className="text-xs font-mono text-text-muted">Probing remote system binaries…</p>}
+            {certbotCheckLoading && <p className="text-xs text-text-muted">Checking whether certbot is installed…</p>}
             {certbotInstalled === false && !certbotCheckLoading && (
               <div className="space-y-3">
                 <p className="text-xs text-text-secondary font-sans leading-relaxed">Let\'s Encrypt Certbot utility is not detected on the remote server. Snap integration is recommended for Linux environments.</p>
@@ -679,7 +686,7 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
             {certbotInstalled === true && (
               <div className="space-y-3 select-text">
                 <div>
-                  <label className="block text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-1.5 select-none">Domains (separated by commas or spaces)</label>
+                  <label className="block text-xs font-medium text-text-secondary mb-1.5 select-none">Domains (separated by commas or spaces)</label>
                   <input
                     type="text"
                     value={certDomains}
@@ -689,7 +696,7 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
                   />
                 </div>
                 <div>
-                  <label className="block text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-1.5 select-none">Email Address (Let\'s Encrypt alert notifications)</label>
+                  <label className="block text-xs font-medium text-text-secondary mb-1.5 select-none">Email Address (Let\'s Encrypt alert notifications)</label>
                   <input
                     type="email"
                     value={certEmail}
@@ -698,7 +705,7 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
                     className="w-full px-3.5 py-2 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
                   />
                 </div>
-                <p className="text-[10px] text-text-muted leading-relaxed select-none">
+                <p className="text-[11px] text-text-muted leading-relaxed select-none">
                   Runs standard non-interactive standalone challenge. Please verify port <code className="text-text-primary">80</code> is temporarily freed (shut down Nginx if listening) prior to initiating standalone handshake.
                 </p>
                 <button
@@ -754,13 +761,13 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
               </button>
             </div>
             {renewOutput && <pre className="text-xs font-mono text-text-primary bg-bg-primary p-3 rounded-xl border border-border/20 overflow-auto whitespace-pre-wrap select-text">{renewOutput}</pre>}
-            {certList.length === 0 && !certListLoading && certbotInstalled === true && <p className="text-xs text-text-muted italic">No registered certificates discovered. Trigger standalone generation above.</p>}
+            {certList.length === 0 && !certListLoading && certbotInstalled === true && <p className="text-xs text-text-muted ">No certificates yet. Request one above.</p>}
             <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 select-text">
               {certList.map((c) => (
                 <li key={c.name} className="rounded-xl border border-border/20 bg-bg-primary/50 p-4 text-xs backdrop-blur-xs flex flex-col justify-between">
                   <div className="space-y-1">
                     <p className="font-bold text-text-primary truncate" title={c.name}>{c.name}</p>
-                    <p className="text-text-secondary truncate font-mono text-[10px]" title={c.domains.join(', ')}>Domains: {c.domains.join(', ') || '—'}</p>
+                    <p className="text-text-secondary truncate font-mono text-[11px]" title={c.domains.join(', ')}>Domains: {c.domains.join(', ') || '—'}</p>
                     <p className={`font-semibold ${c.valid ? 'text-success' : 'text-error'}`}>
                       Expiry: {c.expiryStr} {c.valid && c.daysLeft != null ? `(${c.daysLeft} days remaining)` : ''}
                     </p>
@@ -770,7 +777,7 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
                       type="button"
                       onClick={() => handleRenewOne(c.name)}
                       disabled={renewLoading || renewingCertName !== null}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent text-white text-[10px] font-semibold hover:bg-accent-hover disabled:opacity-50 shrink-0 cursor-pointer shadow-sm transition-colors"
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent text-white text-[11px] font-semibold hover:bg-accent-hover disabled:opacity-50 shrink-0 cursor-pointer shadow-sm transition-colors"
                     >
                       {renewingCertName === c.name ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
                       Renew
@@ -848,7 +855,7 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
               {nginxConfigLoading && !nginxConfigIsNew ? (
                 <div className="flex flex-col items-center justify-center flex-1 text-text-secondary gap-3 select-none bg-bg-primary">
                   <Loader2 size={24} className="animate-spin text-accent" />
-                  <span className="text-xs font-mono text-text-muted">Loading configuration file…</span>
+                  <span className="text-xs text-text-muted">Loading configuration file…</span>
                 </div>
               ) : (
                 <div ref={nginxEditorContainerRef} className="w-full flex-1 min-h-0 overflow-hidden">

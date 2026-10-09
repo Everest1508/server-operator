@@ -34,7 +34,7 @@ export function AuthView() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg-primary p-6">
-      <div className="w-full max-w-md rounded-2xl border border-border/30 bg-bg-secondary/80 backdrop-blur-md shadow-2xl overflow-hidden">
+      <div className="w-full max-w-md rounded-2xl border border-border/30 popover-surface  shadow-2xl overflow-hidden">
         <div className="px-6 pt-8 pb-4 text-center border-b border-border/20">
           <h1 className="text-lg font-bold text-text-primary">Serop</h1>
           <p className="text-xs text-text-secondary mt-1">Sign in to sync teams, inbox, and shared servers</p>
@@ -54,7 +54,7 @@ export function AuthView() {
 
           <div className="relative my-3">
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border/20" /></div>
-            <div className="relative flex justify-center"><span className="px-2 text-[10px] text-text-muted bg-bg-secondary/80">or</span></div>
+            <div className="relative flex justify-center"><span className="px-2 text-[11px] text-text-muted bg-bg-secondary/80">or</span></div>
           </div>
 
           <button
@@ -66,7 +66,7 @@ export function AuthView() {
             <UserRound size={14} /> {loading === 'guest' ? 'Please wait…' : 'Continue as guest'}
           </button>
 
-          <p className="text-[10px] text-text-muted text-center mt-3">
+          <p className="text-[11px] text-text-muted text-center mt-3">
             CRM: {getCrmBaseUrl()}
           </p>
         </div>

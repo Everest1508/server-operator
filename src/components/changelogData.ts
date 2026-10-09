@@ -23,6 +23,87 @@ export interface ChangelogVersion {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: '2.5.0',
+    codename: 'Fresh Coat',
+    date: '2026-10-09',
+    summary:
+      'A clean-up of how Serop looks and reads, plus fixes for Docker and Logs on local folder projects. You can now choose which Groq model powers the AI helpers, and the riskiest database buttons ask before they run.',
+    groups: [
+      {
+        label: 'Docker and Logs',
+        icon: TerminalSquare,
+        color: '#4ec9b0',
+        items: [
+          { type: 'fix', text: 'The Actions menu on containers and services opened but stayed invisible. It now appears where you click, and so do the other drop-down menus that share it.' },
+          { type: 'fix', text: 'A folder you add as a project now shows up in Docker and Logs. Serop checks the folder for a compose file and adds it for you. The Logs panel also has a Use project folder button.' },
+          { type: 'improve', text: 'Containers and services are rows with Start, Stop, Restart and Logs on the row itself. Pause, Kill, Remove and the shell and database clients are in the more-actions menu.' },
+          { type: 'improve', text: 'Kill, Remove and Restart all now ask you to confirm. Log views have a filter box and a Copy button, and the Logs panel can clear a tab.' },
+          { type: 'improve', text: 'The Docker sidebar lists the containers on your server with a running, paused or stopped dot. Docker and Deploy no longer repeat your server list once you are connected.' },
+        ],
+      },
+      {
+        label: 'Look and feel',
+        icon: Layers,
+        color: '#93c5fd',
+        items: [
+          { type: 'improve', text: 'The app uses a clean system font for menus and labels. Code, paths, logs and the terminal stay monospace. Keyboard focus is clearly visible, scrollbars are softer, and animations calm down if your system asks for reduced motion.' },
+          { type: 'improve', text: 'Title bar menus open on hover once one is open, close with Escape, and show the right shortcuts for your system. Menus and drawers are solid instead of see-through. The About box shows the real version.' },
+          { type: 'improve', text: 'Server tabs show the connection type. The sidebar shows each server host or folder, and a green dot for the one you are connected to. The Overview page shows memory and disk as cards and explains why local projects have no stats.' },
+          { type: 'improve', text: 'Small all-caps labels, tiny text and pulsing badges were replaced across the app with readable, sentence-case wording. Empty states now say what to do next.' },
+          { type: 'improve', text: 'Settings lists the always-on core modules as a quiet list instead of eight greyed-out switches. Section titles are plain text, long theme names wrap instead of being cut off, and a custom theme\'s Edit and Remove buttons can be reached with the keyboard.' },
+          { type: 'improve', text: 'Confirmations and notices are now Serop dialogs instead of the plain system pop-ups. They match your theme, put the safe choice (Cancel) in focus for risky actions, close with Escape, and name the action on the button, like Delete or Turn off.' },
+          { type: 'feat', text: 'The Files sidebar has a new look when you are not connected: a terminal that cannot find your files, and a joke.' },
+        ],
+      },
+      {
+        label: 'Files and editor',
+        icon: Keyboard,
+        color: '#fbbf24',
+        items: [
+          { type: 'feat', text: 'Press Cmd or Ctrl + S to save the open file.' },
+          { type: 'improve', text: 'Tabs show a dot when a file has unsaved changes. The file open in the editor is highlighted in the file tree. The toolbar no longer repeats the File menu, and the minimap is off.' },
+        ],
+      },
+      {
+        label: 'Deploy',
+        icon: GitBranch,
+        color: '#34d399',
+        items: [
+          { type: 'fix', text: 'Deploy and Rollback now ask you to confirm. Deploy resets the server folder to the remote branch, and Rollback checks out an older commit. Stopping, disabling or restarting nginx in Server admin asks too.' },
+          { type: 'improve', text: 'Tabs are Terminal, Git deploy, Config creators and Server admin. The Git deploy form uses plain wording, the Deploy button matches the rest of the app, and Deploy history shows Succeeded or Failed with a Show output button.' },
+          { type: 'improve', text: 'The AI chat asks for your Groq key once and then shows Groq key saved with a Change link. Its empty state offers example prompts you can click. The suggested command button now says Run in terminal.' },
+        ],
+      },
+      {
+        label: 'Firewall',
+        icon: Shield,
+        color: '#fb923c',
+        items: [
+          { type: 'fix', text: 'Turning the firewall on without an Allow rule for SSH could lock you out of the server. Serop now warns first. Deleting the SSH rule, blocking port 22, or turning the firewall off also asks you to confirm, and presets list the rules they will add.' },
+          { type: 'fix', text: 'Deleting a firewall rule uses its number in UFW. Serop now checks that the number still points at the rule you clicked before deleting, and asks you to refresh if the list changed.' },
+          { type: 'improve', text: 'Ports, source addresses and subnets are checked before they are used in a command on the server. The tabs are Open ports, Firewall rules, Presets and Port scanner, with plain wording and no all-caps labels.' },
+        ],
+      },
+      {
+        label: 'AI helpers',
+        icon: Sparkles,
+        color: '#f0abfc',
+        items: [
+          { type: 'feat', text: 'Choose the Groq model for Deploy chat and Config Creators from a drop-down next to your API key. Serop remembers your choice and loads the models available to your key. Deploy chat still falls back to other models if you hit a rate limit.' },
+        ],
+      },
+      {
+        label: 'Database safety',
+        icon: Shield,
+        color: '#f87171',
+        items: [
+          { type: 'fix', text: 'Import Full SQL deletes everything in the database before importing, with no warning. It is now called Wipe and import, and asks you to confirm. Restoring a Cloudinary backup also asks first.' },
+          { type: 'improve', text: 'Connection buttons and messages use plain words, such as Connect, Disconnect and Connected via local port. Input fields show a focus outline for keyboard users.' },
+        ],
+      },
+    ],
+  },
+  {
     version: '2.4.0',
     codename: 'Open Canvas',
     date: '2026-10-06',

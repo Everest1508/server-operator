@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 
 interface Props {
@@ -18,7 +18,8 @@ export function FloatingMenu({ anchorRef, align = 'right', className = '', child
   const menuRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
-  useLayoutEffect(() => {
+  // useEffect, not useLayoutEffect: the anchor's ref is attached by the parent after child layout effects run.
+  useEffect(() => {
     const place = () => {
       const anchor = anchorRef.current;
       const menu = menuRef.current;

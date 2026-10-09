@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { Minus, Square, X, ExternalLink, RefreshCw, Terminal, Info, ChevronDown } from 'lucide-react';
+import { Minus, Square, Copy, X, ExternalLink } from 'lucide-react';
+import packageJson from '../../package.json';
+import { alertDialog } from '../utils/confirm';
 import type { ServerConnection, ViewId } from '../types';
 import { MultiServerBar, type ServerTabSession } from './MultiServerBar';
 import { ProfileMenu } from './ProfileMenu';
@@ -31,7 +33,7 @@ export function TitleBar({
   onSidebarToggle,
   onViewChange,
 }: TitleBarProps) {
-  const [activeMenu, setActiveMenu] = useState<'file' | 'edit' | 'view' | 'help' | null>(null);
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [isMaximized, setIsMaximized] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -131,6 +133,12 @@ export function TitleBar({
   }, []);
 
   useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setActiveMenu(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  useEffect(() => {
     if (!isElectron) return;
     const interval = setInterval(async () => {
       if (window.serverOperator?.isWindowMaximized) {
@@ -217,9 +225,7 @@ export function TitleBar({
         }
         break;
       case 'about':
-        alert(
-          '⚡ Server Operator ⚡\n\nVersion: 1.0.0\nForged by: BeForth\nA premium, high-performance desktop server manager and deployment environment built on Electron, React, and TypeScript.'
-        );
+        void alertDialog(`Version ${packageJson.version}\nBuilt by BeForth with Electron, React and TypeScript.`, 'Server Operator');
         break;
       default:
         break;
@@ -228,6 +234,53 @@ export function TitleBar({
 
   triggerMenuActionRef.current = triggerMenuAction;
 
+  const mod = isMac ? '⌘' : 'Ctrl+';
+  type MenuItem = { label: string; action: string; shortcut?: string; external?: boolean; danger?: boolean } | 'sep';
+  const menus: { id: string; label: string; items: MenuItem[] }[] = [
+    {
+      id: 'file',
+      label: 'File',
+      items: [
+        { label: 'Open Local Folder…', action: 'open-local-folder', shortcut: `${mod}O` },
+        'sep',
+        { label: 'Reload Window', action: 'reload-window', shortcut: `${mod}R` },
+        { label: 'Developer Tools', action: 'toggle-devtools', shortcut: 'F12' },
+        'sep',
+        { label: 'Exit', action: 'exit', shortcut: isMac ? '⌘Q' : 'Alt+F4', danger: true },
+      ],
+    },
+    {
+      id: 'edit',
+      label: 'Edit',
+      items: [
+        { label: 'Undo', action: 'undo', shortcut: `${mod}Z` },
+        { label: 'Redo', action: 'redo', shortcut: `${mod}${isMac ? '⇧Z' : 'Y'}` },
+        'sep',
+        { label: 'Cut', action: 'cut', shortcut: `${mod}X` },
+        { label: 'Copy', action: 'copy', shortcut: `${mod}C` },
+        { label: 'Paste', action: 'paste', shortcut: `${mod}V` },
+      ],
+    },
+    {
+      id: 'view',
+      label: 'View',
+      items: [
+        { label: `${sidebarOpen ? 'Hide' : 'Show'} Sidebar`, action: 'toggle-sidebar', shortcut: `${mod}B` },
+        { label: 'Toggle Fullscreen', action: 'toggle-fullscreen', shortcut: 'F11' },
+      ],
+    },
+    {
+      id: 'help',
+      label: 'Help',
+      items: [
+        { label: 'View on GitHub', action: 'github', external: true },
+        { label: 'About Server Operator', action: 'about' },
+      ],
+    },
+  ];
+
+  const winBtn = 'w-11 h-full flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/60 transition-colors';
+
   return (
     <div
       style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
@@ -235,177 +288,63 @@ export function TitleBar({
         isMac ? 'pl-[80px]' : 'pl-3'
       }`}
     >
-      {/* Left Area: Logo & Menus */}
-      <div className="flex items-center gap-1.5 h-full" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties} ref={menuRef}>
-        <img src="logo.png" alt="Serop Logo" className="h-4.5 w-auto object-contain mr-1.5 shrink-0 pointer-events-none opacity-90" />
-        
-        {/* Menu Bar */}
-        <div className="flex items-center gap-1 text-[11px] text-text-secondary font-sans">
-          {/* File Menu */}
-          <div className="relative">
-            <button
-              onClick={() => setActiveMenu(activeMenu === 'file' ? null : 'file')}
-              className={`px-2.5 py-1 rounded-md hover:bg-bg-tertiary/50 hover:text-text-primary transition-all duration-150 ${
-                activeMenu === 'file' ? 'bg-bg-tertiary text-text-primary font-semibold' : ''
-              }`}
-            >
-              File
-            </button>
-            {activeMenu === 'file' && (
-              <div className="absolute top-[110%] left-0 w-52 bg-bg-tertiary/95 border border-border/50 shadow-2xl rounded-lg py-1 flex flex-col z-50 text-text-primary font-sans backdrop-blur-md animate-in fade-in slide-in-from-top-1 duration-100">
+      {/* Left: logo + menu bar */}
+      <div className="flex items-center gap-1 h-full" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties} ref={menuRef}>
+        <img src="logo.png" alt="" className="h-5 w-auto object-contain mr-2 shrink-0 pointer-events-none" />
+        <div className="flex items-center gap-0.5 text-xs text-text-secondary" role="menubar">
+          {menus.map((menu) => {
+            const open = activeMenu === menu.id;
+            return (
+              <div key={menu.id} className="relative">
                 <button
-                  onClick={() => triggerMenuAction('open-local-folder')}
-                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
+                  type="button"
+                  role="menuitem"
+                  aria-haspopup="menu"
+                  aria-expanded={open}
+                  onClick={() => setActiveMenu(open ? null : menu.id)}
+                  // Once a menu is open, hovering a sibling switches to it, like a native menu bar.
+                  onMouseEnter={() => activeMenu && setActiveMenu(menu.id)}
+                  className={`px-2.5 py-1 rounded-md transition-colors ${
+                    open ? 'bg-bg-tertiary text-text-primary' : 'hover:bg-bg-tertiary/50 hover:text-text-primary'
+                  }`}
                 >
-                  <span>Open Local Folder…</span>
-                  <span className="text-[10px] text-text-muted">Ctrl+O</span>
+                  {menu.label}
                 </button>
-                <div className="h-[1px] bg-border/40 my-1" />
-                <button
-                  onClick={() => triggerMenuAction('reload-window')}
-                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
-                >
-                  <span>Reload Window</span>
-                  <span className="text-[10px] text-text-muted">Ctrl+R</span>
-                </button>
-                <button
-                  onClick={() => triggerMenuAction('toggle-devtools')}
-                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
-                >
-                  <span>Developer Tools</span>
-                  <span className="text-[10px] text-text-muted">F12</span>
-                </button>
-                <div className="h-[1px] bg-border/40 my-1" />
-                <button
-                  onClick={() => triggerMenuAction('exit')}
-                  className="px-3 py-1.5 hover:bg-error/15 hover:text-error text-left flex justify-between items-center w-full transition-colors text-xs font-semibold"
-                >
-                  <span>Exit</span>
-                  <span className="text-[10px] text-text-muted group-hover:text-error/70">Alt+F4</span>
-                </button>
+                {open && (
+                  <div
+                    role="menu"
+                    className="absolute top-[calc(100%+2px)] left-0 min-w-56 popover-surface border border-border/50 shadow-2xl rounded-xl p-1 flex flex-col z-50 text-text-primary backdrop-blur-md"
+                  >
+                    {menu.items.map((item, i) =>
+                      item === 'sep' ? (
+                        <div key={i} role="separator" className="h-px bg-border/40 my-1" />
+                      ) : (
+                        <button
+                          key={item.action}
+                          type="button"
+                          role="menuitem"
+                          onClick={() => triggerMenuAction(item.action)}
+                          className={`px-2.5 py-1.5 rounded-lg text-left flex justify-between items-center gap-6 w-full transition-colors text-xs ${
+                            item.danger ? 'hover:bg-error/15 hover:text-error' : 'hover:bg-accent/12 hover:text-accent'
+                          }`}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            {item.label}
+                            {item.external && <ExternalLink className="h-3 w-3 opacity-70" />}
+                          </span>
+                          {item.shortcut && <span className="text-[11px] text-text-muted">{item.shortcut}</span>}
+                        </button>
+                      )
+                    )}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-
-          {/* Edit Menu */}
-          <div className="relative">
-            <button
-              onClick={() => setActiveMenu(activeMenu === 'edit' ? null : 'edit')}
-              className={`px-2.5 py-1 rounded-md hover:bg-bg-tertiary/50 hover:text-text-primary transition-all duration-150 ${
-                activeMenu === 'edit' ? 'bg-bg-tertiary text-text-primary font-semibold' : ''
-              }`}
-            >
-              Edit
-            </button>
-            {activeMenu === 'edit' && (
-              <div className="absolute top-[110%] left-0 w-48 bg-bg-tertiary/95 border border-border/50 shadow-2xl rounded-lg py-1 flex flex-col z-50 text-text-primary font-sans backdrop-blur-md">
-                <button
-                  onClick={() => triggerMenuAction('undo')}
-                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
-                >
-                  <span>Undo</span>
-                  <span className="text-[10px] text-text-muted">Ctrl+Z</span>
-                </button>
-                <button
-                  onClick={() => triggerMenuAction('redo')}
-                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
-                >
-                  <span>Redo</span>
-                  <span className="text-[10px] text-text-muted">Ctrl+Y</span>
-                </button>
-                <div className="h-[1px] bg-border/40 my-1" />
-                <button
-                  onClick={() => triggerMenuAction('cut')}
-                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
-                >
-                  <span>Cut</span>
-                  <span className="text-[10px] text-text-muted">Ctrl+X</span>
-                </button>
-                <button
-                  onClick={() => triggerMenuAction('copy')}
-                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
-                >
-                  <span>Copy</span>
-                  <span className="text-[10px] text-text-muted">Ctrl+C</span>
-                </button>
-                <button
-                  onClick={() => triggerMenuAction('paste')}
-                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
-                >
-                  <span>Paste</span>
-                  <span className="text-[10px] text-text-muted">Ctrl+V</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* View Menu */}
-          <div className="relative">
-            <button
-              onClick={() => setActiveMenu(activeMenu === 'view' ? null : 'view')}
-              className={`px-2.5 py-1 rounded-md hover:bg-bg-tertiary/50 hover:text-text-primary transition-all duration-150 ${
-                activeMenu === 'view' ? 'bg-bg-tertiary text-text-primary font-semibold' : ''
-              }`}
-            >
-              View
-            </button>
-            {activeMenu === 'view' && (
-              <div className="absolute top-[110%] left-0 w-52 bg-bg-tertiary/95 border border-border/50 shadow-2xl rounded-lg py-1 flex flex-col z-50 text-text-primary font-sans backdrop-blur-md">
-                <button
-                  onClick={() => triggerMenuAction('toggle-sidebar')}
-                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
-                >
-                  <span>{sidebarOpen ? 'Hide' : 'Show'} Sidebar</span>
-                  <span className="text-[10px] text-text-muted">Ctrl+B</span>
-                </button>
-                <button
-                  onClick={() => triggerMenuAction('toggle-fullscreen')}
-                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
-                >
-                  <span>Toggle Fullscreen</span>
-                  <span className="text-[10px] text-text-muted">F11</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Help Menu */}
-          <div className="relative">
-            <button
-              onClick={() => setActiveMenu(activeMenu === 'help' ? null : 'help')}
-              className={`px-2.5 py-1 rounded-md hover:bg-bg-tertiary/50 hover:text-text-primary transition-all duration-150 ${
-                activeMenu === 'help' ? 'bg-bg-tertiary text-text-primary font-semibold' : ''
-              }`}
-            >
-              Help
-            </button>
-            {activeMenu === 'help' && (
-              <div className="absolute top-[110%] left-0 w-48 bg-bg-tertiary/95 border border-border/50 shadow-2xl rounded-lg py-1 flex flex-col z-50 text-text-primary font-sans backdrop-blur-md">
-                <button
-                  onClick={() => triggerMenuAction('github')}
-                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
-                >
-                  <span className="flex items-center gap-1.5">
-                    View on GitHub
-                    <ExternalLink className="h-3 w-3 opacity-80" />
-                  </span>
-                </button>
-                <button
-                  onClick={() => triggerMenuAction('about')}
-                  className="px-3 py-1.5 hover:bg-accent/10 hover:text-accent text-left flex justify-between items-center w-full transition-colors text-xs"
-                >
-                  <span className="flex items-center gap-1.5">
-                    About Server Operator
-                    <Info className="h-3 w-3 opacity-80" />
-                  </span>
-                </button>
-              </div>
-            )}
-          </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Center Area: App Title & Connected Servers Multi-Tab Bar */}
+      {/* Center: open server tabs */}
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center z-30">
         {onOpenAddServer ? (
           <MultiServerBar
@@ -418,40 +357,27 @@ export function TitleBar({
             onSelectServer={onSelectServer}
           />
         ) : (
-          <span className="text-[10px] font-sans font-bold text-text-muted tracking-widest opacity-85">
-            SERVER OPERATOR
-          </span>
+          <span className="text-xs font-semibold text-text-muted">Server Operator</span>
         )}
       </div>
 
-      {/* Right Area: Profile Menu + Window Controls (Windows/Linux only) */}
+      {/* Right: profile + window controls (Windows/Linux) */}
       <div className="flex items-center h-full" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
         <div className="flex items-center h-full pr-2">
           <ProfileMenu onViewChange={onViewChange} />
         </div>
         {!isMac && (
           <>
-            {/* Minimize */}
-            <button
-              onClick={handleMinimize}
-              title="Minimize"
-              className="w-11 h-full flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/60 transition-colors"
-            >
+            <button type="button" onClick={handleMinimize} aria-label="Minimize" title="Minimize" className={winBtn}>
               <Minus className="w-3.5 h-3.5" />
             </button>
-
-            {/* Maximize / Restore */}
-            <button
-              onClick={handleMaximize}
-              title={isMaximized ? 'Restore' : 'Maximize'}
-              className="w-11 h-full flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/60 transition-colors"
-            >
-              <Square className="w-2.5 h-2.5" />
+            <button type="button" onClick={handleMaximize} aria-label={isMaximized ? 'Restore' : 'Maximize'} title={isMaximized ? 'Restore' : 'Maximize'} className={winBtn}>
+              {isMaximized ? <Copy className="w-3 h-3" /> : <Square className="w-2.5 h-2.5" />}
             </button>
-
-            {/* Close */}
             <button
+              type="button"
               onClick={handleClose}
+              aria-label="Close"
               title="Close"
               className="w-11 h-full flex items-center justify-center text-text-secondary hover:text-white hover:bg-error transition-colors"
             >

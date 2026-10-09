@@ -70,22 +70,23 @@ export function MultiServerBar({
                   if (e.key === 'Enter' || e.key === ' ') onSelectTab(t);
                 }}
                 title={`${s.name} (${s.host})`}
-                className={`flex items-center gap-2 px-2.5 py-1 rounded-lg cursor-pointer shrink-0 max-w-[180px] min-w-0 group border transition-all duration-150 text-[11px] font-mono ${
+                className={`flex items-center gap-2 px-2.5 py-1 rounded-lg cursor-pointer shrink-0 max-w-[180px] min-w-0 group border transition-all duration-150 text-xs ${
                   isActive
                     ? 'bg-bg-primary border-border/40 text-accent font-semibold shadow-sm'
                     : 'bg-bg-tertiary/40 border-transparent text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'
                 }`}
               >
-                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? 'bg-success shadow-[0_0_8px_rgba(78,201,176,0.8)] animate-pulse' : 'bg-text-muted/60'}`} />
-                <span className="truncate min-w-0 flex-1 font-sans font-medium">{s.name}</span>
+                {getServerIcon(s.connectionType)}
+                <span className="truncate min-w-0 flex-1 font-medium">{s.name}</span>
                 <button
                   type="button"
-                  className="opacity-0 group-hover:opacity-100 p-0.5 rounded-md hover:bg-bg-tertiary text-text-muted hover:text-error transition-all duration-100 shrink-0 cursor-pointer"
+                  className={`p-0.5 rounded-md hover:bg-bg-tertiary ${isActive ? 'opacity-70' : 'opacity-0'} group-hover:opacity-100 focus-visible:opacity-100 text-text-muted hover:text-error transition-all duration-100 shrink-0 cursor-pointer`}
                   onClick={(e) => {
                     e.stopPropagation();
                     onCloseTab(t.tabId);
                   }}
                   title="Close server tab"
+                  aria-label={`Close ${s.name}`}
                 >
                   <X size={11} />
                 </button>
@@ -99,29 +100,29 @@ export function MultiServerBar({
         <button
           type="button"
           onClick={() => setDropdownOpen((prev) => !prev)}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-sans font-medium transition-all duration-150 shrink-0 cursor-pointer shadow-sm ${
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium transition-all duration-150 shrink-0 cursor-pointer shadow-sm ${
             dropdownOpen
               ? 'bg-bg-tertiary border-accent/50 text-accent ring-1 ring-accent/20'
               : 'bg-bg-tertiary/50 hover:bg-bg-tertiary border-border/40 text-text-secondary hover:text-accent'
           }`}
-          title="Select a server connection to open in a tab"
+          title="Open a server in a new tab" aria-haspopup="menu" aria-expanded={dropdownOpen}
         >
           <Plus size={13} className="text-accent" />
-          <span>New Tab</span>
+          <span>Open server</span>
         </button>
 
         {dropdownOpen && (
-          <div className="absolute left-0 top-full mt-2 w-64 bg-bg-secondary border border-border/60 rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in duration-150">
+          <div className="absolute left-0 top-full mt-2 w-64 popover-surface border border-border/60 rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in duration-150">
             {servers.length > 0 && (
-              <div className="px-3 py-1 text-[10px] font-semibold tracking-wider text-text-muted uppercase font-mono border-b border-border/20 mb-1">
-                Select Server
+              <div className="px-3 py-1 text-xs font-semibold text-text-muted border-b border-border/20 mb-1">
+                Saved servers
               </div>
             )}
 
             <div className="max-h-60 overflow-y-auto no-scrollbar">
               {servers.length === 0 ? (
-                <div className="px-3 py-2 text-xs text-text-muted italic">
-                  No saved servers found
+                <div className="px-3 py-2 text-xs text-text-muted">
+                  No saved servers yet. Add one below.
                 </div>
               ) : (
                 servers.map((s) => {
@@ -152,7 +153,7 @@ export function MultiServerBar({
                         </div>
                       </div>
                       {isAlreadyOpen && (
-                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-accent/15 text-accent shrink-0 font-medium">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/15 text-accent shrink-0 font-medium">
                           Active
                         </span>
                       )}
@@ -173,7 +174,7 @@ export function MultiServerBar({
               className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-bg-tertiary text-accent font-medium text-xs cursor-pointer transition-colors"
             >
               <Plus size={13} />
-              <span>Connect / Add Server...</span>
+              <span>Add server…</span>
             </button>
           </div>
         )}

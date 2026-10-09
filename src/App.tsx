@@ -22,6 +22,7 @@ import type { ServerSysInfo } from './components/ServerOverview';
 import { parseLsLine } from './utils/parseLs';
 import { resolveRemotePath } from './utils/remotePath';
 import { loadProjectContext } from './utils/loadProjectContext';
+import { confirmDialog } from './utils/confirm';
 
 const STORAGE_KEY_PROXY = 'server-operator-proxy';
 const STORAGE_KEY_REPOS = 'server-operator:repos';
@@ -657,6 +658,20 @@ export default function App() {
     fetchDockerData();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch when server or compose paths change
   }, [currentServer?.id, composePaths.join(',')]);
+
+  // Local folder projects start with no compose paths; auto-add the project folder once if it has a compose file.
+  const autoComposeTriedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!currentServer || !window.serverOperator || currentServer.connectionType !== 'local') return;
+    const folder = currentServer.projectPath;
+    if (!folder || composePaths.length > 0 || autoComposeTriedRef.current.has(currentServer.id)) return;
+    autoComposeTriedRef.current.add(currentServer.id);
+    window.serverOperator
+      .getDockerComposeServices({ connection: currentServer, composePath: folder, proxy: proxyRef.current })
+      .then((res) => {
+        if (res.ok && res.services?.length) setComposePathsByServer((prev) => ({ ...prev, [currentServer.id]: [folder] }));
+      });
+  }, [currentServer?.id]);
 
   const refreshDocker = () => {
     if (currentServer) fetchDockerData();
@@ -1566,7 +1581,7 @@ export default function App() {
       const chk = await runProjectShell(`if test -e '${destEsc}'; then echo exists; fi`);
       const exists = Boolean(chk.stdout?.includes('exists'));
       if (exists) {
-        const okReplace = window.confirm(`Replace existing "${destRel}"?`);
+        const okReplace = await confirmDialog(`Replace existing "${destRel}"?`, { confirmLabel: 'Replace' });
         if (!okReplace) return { ok: false, error: 'Cancelled' };
         const rm = await runProjectShell(`rm -rf '${destEsc}'`);
         if (!rm.ok || rm.code !== 0) {
@@ -1835,6 +1850,7 @@ export default function App() {
       >
         <Sidebar
           activeView={activeView}
+          dockerContainers={dockerContainers}
           servers={servers}
           currentServer={currentServer}
           proxy={proxy}
@@ -1853,6 +1869,7 @@ export default function App() {
           basePath={basePath}
           onToggleFolder={toggleFolder}
           onOpenFile={openFile}
+          activeFilePath={activeTabPath}
           onLoadDir={loadDir}
           onCreateFile={createFile}
           onCreateFolder={createFolder}
@@ -1920,23 +1937,21 @@ export default function App() {
           </div>
         )}
         {connectionError && !currentServer && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 w-[480px] max-w-[calc(100vw-2rem)] rounded-xl border border-error/30 bg-bg-secondary/90 backdrop-blur-md shadow-2xl p-4 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <p className="text-error text-xs font-bold uppercase tracking-wider">SSH Connection Failed</p>
-            </div>
-            <div className="bg-black/20 border border-border/40 p-2.5 rounded text-xs font-mono text-text-primary/95 break-words max-h-36 overflow-y-auto leading-relaxed select-text">
+          <div role="alert" className="absolute top-4 left-1/2 -translate-x-1/2 z-30 w-[480px] max-w-[calc(100vw-2rem)] rounded-xl border border-error/40 popover-surface shadow-2xl p-4 flex flex-col gap-3">
+            <p className="text-error text-sm font-semibold">Couldn't connect</p>
+            <div className="bg-bg-primary/60 border border-border/40 p-2.5 rounded-lg text-xs font-mono text-text-primary break-words max-h-36 overflow-y-auto leading-relaxed select-text">
               {connectionError}
             </div>
             {proxy?.enabled && /Proxy|proxy|ECONNREFUSED|timed out|Tor/i.test(connectionError) && (
-              <p className="text-[11px] text-text-secondary leading-relaxed bg-error/5 border border-error/10 p-2.5 rounded">
-                💡 Tip: If using Tor, ensure it is running (e.g. port 9050) and the server is reachable via Tor.
+              <p className="text-xs text-text-secondary leading-relaxed bg-error/5 border border-error/10 p-2.5 rounded-lg">
+                Tor proxy is on. Check that it's running (usually on port 9050) and that the server is reachable through it.
               </p>
             )}
-            <div className="flex justify-end mt-1">
+            <div className="flex justify-end">
               <button
                 type="button"
                 onClick={() => setConnectionError(null)}
-                className="px-3.5 py-1.5 rounded-lg bg-bg-tertiary hover:bg-bg-tertiary/80 text-text-primary text-xs font-semibold border border-border/60 transition-colors"
+                className="px-3.5 py-1.5 rounded-lg bg-bg-tertiary hover:bg-bg-tertiary/80 text-text-primary text-xs font-semibold border border-border/60 transition-colors cursor-pointer"
               >
                 Dismiss
               </button>

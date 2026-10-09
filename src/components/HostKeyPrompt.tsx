@@ -33,15 +33,15 @@ export function HostKeyPrompt() {
   const changed = current.status === 'changed';
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-border bg-bg-secondary p-5 shadow-2xl">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-4" onKeyDown={(e) => e.key === 'Escape' && answer(false)}>
+      <div role="alertdialog" aria-modal="true" aria-labelledby="hostkey-title" className="w-full max-w-lg rounded-xl border border-border popover-surface p-5 shadow-2xl">
         <div className="flex items-center gap-3 mb-3">
           {changed ? (
             <ShieldAlert size={22} className="text-error shrink-0" />
           ) : (
             <ShieldQuestion size={22} className="text-warning shrink-0" />
           )}
-          <h2 className="text-sm font-bold text-text-primary">
+          <h2 id="hostkey-title" className="text-sm font-semibold text-text-primary">
             {changed ? 'Server fingerprint changed' : 'Trust this server?'}
           </h2>
         </div>
@@ -52,14 +52,14 @@ export function HostKeyPrompt() {
         </p>
         {changed && current.previousFingerprint && (
           <div className="mb-2">
-            <div className="text-[10px] uppercase tracking-wide text-text-secondary mb-1">Previously trusted</div>
+            <div className="text-xs font-medium text-text-secondary mb-1">Previously trusted</div>
             <code className="block break-all rounded-lg bg-bg-primary px-3 py-2 text-[11px] text-text-secondary">
               {current.previousFingerprint}
             </code>
           </div>
         )}
         <div className="mb-4">
-          <div className="text-[10px] uppercase tracking-wide text-text-secondary mb-1">
+          <div className="text-xs font-medium text-text-secondary mb-1">
             {changed ? 'Now presented' : 'Fingerprint'}
           </div>
           <code className="block break-all rounded-lg bg-bg-primary px-3 py-2 text-[11px] text-text-primary">
@@ -68,6 +68,7 @@ export function HostKeyPrompt() {
         </div>
         <div className="flex justify-end gap-2">
           <button
+            autoFocus
             onClick={() => answer(false)}
             className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-bg-tertiary text-text-primary hover:opacity-90"
           >

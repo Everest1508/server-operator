@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
-import { Box, RefreshCw, Loader2, FileText, RotateCw, X, Play, Square, MoreVertical, Pause, Trash2, Zap, Terminal, Database, AlertCircle, Copy, Check } from 'lucide-react';
+import { useState, useEffect, useRef, type ReactNode, type RefObject } from 'react';
+import { Box, RefreshCw, Loader2, FileText, RotateCw, X, Play, Square, MoreVertical, Pause, Trash2, Zap, Terminal, Database, AlertCircle, Copy, Check, Search } from 'lucide-react';
 import { motion } from 'motion/react';
 import type { ServerConnection, ProxySettings } from '../types';
 import type { DockerContainer } from '../types';
 import { Tooltip } from './Tooltip';
 import { FloatingMenu } from './FloatingMenu';
+import { confirmDialog } from '../utils/confirm';
 
 const TAB_ALL = '__all__';
 const LOG_TAIL = 200;
@@ -67,6 +68,168 @@ const hasServerOperator = typeof window !== 'undefined' && typeof window.serverO
 
 function shortName(path: string): string {
   return path.split('/').pop() || path;
+}
+
+
+type RowAction = { id: string; label: string; icon: ReactNode; run: () => void; danger?: boolean };
+type Tone = 'running' | 'paused' | 'stopped' | 'unknown';
+
+const TONE_STYLE: Record<Tone, { dot: string; chip: string }> = {
+  running: { dot: 'bg-success', chip: 'text-success bg-success/10' },
+  paused: { dot: 'bg-warning', chip: 'text-warning bg-warning/10' },
+  stopped: { dot: 'bg-text-muted/60', chip: 'text-text-secondary bg-bg-tertiary' },
+  unknown: { dot: 'bg-text-muted/40', chip: 'text-text-secondary bg-bg-tertiary' },
+};
+
+const iconBtn = 'p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer';
+
+function LogPanel({ title, content, preRef, onClose }: { title: string; content: string; preRef: RefObject<HTMLPreElement>; onClose: () => void }) {
+  const [filter, setFilter] = useState('');
+  const [copied, setCopied] = useState(false);
+  const q = filter.trim().toLowerCase();
+  const shown = q ? content.split('\n').filter((l) => l.toLowerCase().includes(q)).join('\n') || '(no lines match)' : content;
+  return (
+    <div className="border-t border-border/30 bg-bg-primary/80">
+      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/30">
+        <span className="text-xs font-medium text-text-secondary truncate mr-auto">Logs for {title}</span>
+        <div className="relative">
+          <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
+          <input
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Filter lines"
+            aria-label="Filter log lines"
+            className="w-36 pl-7 pr-2 py-1 rounded-md bg-bg-tertiary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+          />
+        </div>
+        <Tooltip content={copied ? 'Copied' : 'Copy logs'} position="top">
+          <button
+            type="button"
+            aria-label="Copy logs"
+            className={iconBtn}
+            onClick={() => {
+              navigator.clipboard.writeText(content);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            }}
+          >
+            {copied ? <Check size={13} className="text-success" /> : <Copy size={13} />}
+          </button>
+        </Tooltip>
+        <Tooltip content="Close logs" position="top">
+          <button type="button" aria-label="Close logs" className={iconBtn} onClick={onClose}>
+            <X size={13} />
+          </button>
+        </Tooltip>
+      </div>
+      <pre
+        ref={preRef}
+        className="p-3 font-mono text-[11px] leading-relaxed text-text-primary whitespace-pre-wrap break-words overflow-auto max-h-[320px] min-h-[120px] select-text"
+      >
+        {shown}
+      </pre>
+    </div>
+  );
+}
+
+/** One container or compose service: status, the common actions inline, the rest in a menu, logs underneath. */
+function DockerRow({
+  name, subtitle, tone, statusText, primary, menu, busyId, disabled,
+  logsOpen, logsLoading, onToggleLogs, menuId, openKey, setOpenKey, menuRef, logs,
+}: {
+  name: string;
+  subtitle?: string;
+  tone: Tone;
+  statusText?: string;
+  primary: RowAction[];
+  menu: (RowAction | 'sep')[];
+  busyId: string | null;
+  disabled: boolean;
+  logsOpen: boolean;
+  logsLoading: boolean;
+  onToggleLogs: () => void;
+  menuId: string;
+  openKey: string | null;
+  setOpenKey: (fn: (k: string | null) => string | null) => void;
+  menuRef: RefObject<HTMLDivElement>;
+  logs: ReactNode;
+}) {
+  const open = openKey === menuId;
+  const style = TONE_STYLE[tone];
+  const spinner = <Loader2 size={14} className="animate-spin text-accent" />;
+  return (
+    <div className="rounded-xl border border-border/30 bg-bg-secondary/40 overflow-hidden hover:border-border/60 transition-colors">
+      <div className="flex items-center gap-3 p-3">
+        <span className={`w-2 h-2 rounded-full shrink-0 ${style.dot}`} aria-hidden />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-text-primary truncate" title={name}>{name}</p>
+          {subtitle && <p className="text-xs font-mono text-text-muted truncate mt-0.5" title={subtitle}>{subtitle}</p>}
+        </div>
+        {statusText && <span className={`hidden sm:inline-block shrink-0 px-2 py-0.5 rounded-full text-[11px] font-medium ${style.chip}`}>{statusText}</span>}
+        <div className="flex items-center gap-0.5 shrink-0">
+          {primary.map((a) => (
+            <Tooltip key={a.id} content={a.label} position="top">
+              <button type="button" aria-label={a.label} disabled={disabled} onClick={a.run} className={iconBtn}>
+                {busyId === a.id ? spinner : a.icon}
+              </button>
+            </Tooltip>
+          ))}
+          <Tooltip content={logsOpen ? 'Hide logs' : 'Show logs'} position="top">
+            <button
+              type="button"
+              aria-label={logsOpen ? 'Hide logs' : 'Show logs'}
+              aria-pressed={logsOpen}
+              onClick={onToggleLogs}
+              className={`${iconBtn} ${logsOpen ? 'text-accent bg-accent/10' : ''}`}
+            >
+              {logsLoading ? spinner : <FileText size={14} />}
+            </button>
+          </Tooltip>
+          {menu.length > 0 && (
+            <div className="relative" ref={open ? menuRef : undefined}>
+              <Tooltip content="More actions" position="top">
+                <button
+                  type="button"
+                  aria-label="More actions"
+                  aria-haspopup="menu"
+                  aria-expanded={open}
+                  disabled={disabled}
+                  onClick={(e) => { e.stopPropagation(); setOpenKey((k) => (k === menuId ? null : menuId)); }}
+                  className={iconBtn}
+                >
+                  <MoreVertical size={14} />
+                </button>
+              </Tooltip>
+              {open && (
+                <FloatingMenu anchorRef={menuRef} className="min-w-[170px] rounded-xl border border-border/40 popover-surface shadow-2xl overflow-y-auto flex flex-col p-1 gap-0.5 max-h-[70vh]">
+                  {menu.map((item, i) =>
+                    item === 'sep' ? (
+                      <div key={`sep-${i}`} role="separator" className="border-t border-border/30 my-1" />
+                    ) : (
+                      <button
+                        key={item.id}
+                        type="button"
+                        role="menuitem"
+                        disabled={disabled}
+                        onClick={(e) => { e.stopPropagation(); setOpenKey(() => null); item.run(); }}
+                        className={`flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs rounded-lg transition-colors cursor-pointer disabled:opacity-50 ${
+                          item.danger ? 'text-error hover:bg-error/10' : 'text-text-primary hover:bg-bg-primary/65'
+                        }`}
+                      >
+                        {item.icon}
+                        {item.label}
+                      </button>
+                    )
+                  )}
+                </FloatingMenu>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      {logsOpen && logs}
+    </div>
+  );
 }
 
 export function DockerView({
@@ -371,34 +534,29 @@ export function DockerView({
     error.toLowerCase().includes('permission denied') &&
     error.toLowerCase().includes('docker.sock')
   );
+  const busyOf = (current: string | null, key: string) => (current && current.startsWith(`${key}-`) ? current.slice(key.length + 1) : null);
+  const confirmThen = (message: string, confirmLabel: string, run: () => void) => async () => { if (await confirmDialog(message, { confirmLabel })) run(); };
+  const runningCount = containers.filter((c) => {
+    const st = (c.Status || c.State || '').toLowerCase();
+    return st.startsWith('up') && !st.includes('paused');
+  }).length;
+
+  const tabCls = (active: boolean) =>
+    `shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors truncate max-w-[180px] ${
+      active ? 'bg-bg-tertiary text-text-primary' : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/40'
+    }`;
+  const toolBtn = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-text-secondary hover:bg-bg-tertiary hover:text-text-primary border border-border/30 transition-colors disabled:opacity-50 cursor-pointer';
 
   return (
     <div className="flex-1 flex flex-col bg-bg-primary min-h-0">
-      {/* Header View Tabs */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/30 bg-bg-secondary/30 backdrop-blur-sm shrink-0">
-        <div className="flex items-center gap-1.5 overflow-x-auto min-w-0 flex-1 p-0.5 scrollbar-none">
-          <button
-            type="button"
-            onClick={() => setActiveTab(TAB_ALL)}
-            className={`shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150 ${
-              showAllContainers
-                ? 'bg-bg-tertiary text-text-primary shadow-md shadow-black/10 border border-border/20'
-                : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/40'
-            }`}
-          >
-            All Containers
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/30 bg-bg-secondary/30 shrink-0">
+        <div role="tablist" className="flex items-center gap-1 overflow-x-auto min-w-0 flex-1 p-0.5 scrollbar-none">
+          <button type="button" role="tab" aria-selected={showAllContainers} onClick={() => setActiveTab(TAB_ALL)} className={tabCls(showAllContainers)}>
+            Containers
           </button>
           {composePaths.map((p) => (
             <Tooltip key={p} content={p} position="bottom">
-              <button
-                type="button"
-                onClick={() => setActiveTab(p)}
-                className={`shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150 truncate max-w-[160px] ${
-                  activeTab === p
-                    ? 'bg-bg-tertiary text-text-primary shadow-md shadow-black/10 border border-border/20'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/40'
-                }`}
-              >
+              <button type="button" role="tab" aria-selected={activeTab === p} onClick={() => setActiveTab(p)} className={tabCls(activeTab === p)}>
                 {shortName(p)}
               </button>
             </Tooltip>
@@ -408,20 +566,20 @@ export function DockerView({
           <Tooltip content={activeTab === TAB_ALL ? 'Restart all running containers' : 'Restart all services in this compose project'} position="bottom">
             <button
               type="button"
-              onClick={runRestartAll}
+              onClick={confirmThen(activeTab === TAB_ALL ? 'Restart all running containers?' : 'Restart every service in this compose project?', 'Restart all', runRestartAll)}
               disabled={restartAllInProgress || loading || (activeTab !== TAB_ALL && !!loadingServicesForPath)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-text-secondary hover:bg-bg-tertiary hover:text-accent border border-border/30 hover:border-accent/30 bg-bg-primary/20 transition-all duration-150 disabled:opacity-50"
+              className={toolBtn}
             >
               {restartAllInProgress ? <Loader2 size={13} className="animate-spin" /> : <RotateCw size={13} />}
-              Restart All
+              Restart all
             </button>
           </Tooltip>
-          <Tooltip content="Refresh status" position="bottom">
+          <Tooltip content="Reload the list" position="bottom">
             <button
               type="button"
               onClick={() => onRefresh?.()}
               disabled={loading || (activeTab !== TAB_ALL && !!loadingServicesForPath)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-text-secondary hover:bg-bg-tertiary hover:text-accent border border-border/30 hover:border-accent/30 bg-bg-primary/20 transition-all duration-150 disabled:opacity-50"
+              className={toolBtn}
             >
               {(loading || loadingServices) ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
               Refresh
@@ -430,241 +588,132 @@ export function DockerView({
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-4 space-y-4">
+      <div className="flex-1 overflow-auto p-4 space-y-3">
         {showAllContainers && (
           <>
             {error && (
               isDockerPermissionError ? (
                 <motion.div
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="p-5 rounded-xl border border-error/20 bg-error/5 flex flex-col gap-4 text-xs"
+                  role="alert"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-lg bg-error/10 text-error shrink-0">
-                      <AlertCircle size={18} />
-                    </div>
+                    <AlertCircle size={18} className="text-error shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-text-primary text-sm">Docker Permission Error</h3>
-                      <p className="text-text-secondary mt-1 font-mono text-[11px] whitespace-pre-wrap break-all bg-bg-primary/50 p-3 rounded-lg border border-border/30">{error}</p>
+                      <h3 className="font-semibold text-text-primary text-sm">Docker permission denied</h3>
+                      <p className="text-text-secondary mt-1 font-mono text-[11px] whitespace-pre-wrap break-all bg-bg-primary/50 p-3 rounded-lg border border-border/30 select-text">{error}</p>
                     </div>
                   </div>
-
                   <div className="border-t border-border/30 pt-4">
-                    <h4 className="font-semibold text-text-primary mb-2">How to fix:</h4>
-                    <p className="text-[11px] text-text-secondary mb-3">
-                      Add your user to the <code className="text-text-primary bg-bg-tertiary px-1 py-0.5 rounded">docker</code> group by running these commands in your server terminal:
+                    <h4 className="font-semibold text-text-primary mb-2">How to fix it</h4>
+                    <p className="text-xs text-text-secondary mb-3">
+                      Add your user to the <code className="text-text-primary bg-bg-tertiary px-1 py-0.5 rounded">docker</code> group by running these in a terminal on the server:
                     </p>
-                    
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-3 p-2 bg-bg-tertiary/40 rounded-lg border border-border/20">
-                        <code className="text-[11px] font-mono text-text-primary select-all">sudo usermod -aG docker $USER</code>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard('sudo usermod -aG docker $USER', 'cmd1')}
-                          className="p-1.5 rounded-md text-text-secondary hover:bg-bg-primary hover:text-accent transition-colors flex items-center justify-center shrink-0"
-                        >
-                          {copiedCmd === 'cmd1' ? <Check size={13} className="text-success" /> : <Copy size={13} />}
-                        </button>
-                      </div>
-                      
-                      <div className="flex items-center justify-between gap-3 p-2 bg-bg-tertiary/40 rounded-lg border border-border/20">
-                        <code className="text-[11px] font-mono text-text-primary select-all">newgrp docker</code>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard('newgrp docker', 'cmd2')}
-                          className="p-1.5 rounded-md text-text-secondary hover:bg-bg-primary hover:text-accent transition-colors flex items-center justify-center shrink-0"
-                        >
-                          {copiedCmd === 'cmd2' ? <Check size={13} className="text-success" /> : <Copy size={13} />}
-                        </button>
-                      </div>
+                      {[['sudo usermod -aG docker $USER', 'cmd1'], ['newgrp docker', 'cmd2']].map(([cmd, id]) => (
+                        <div key={id} className="flex items-center justify-between gap-3 p-2 bg-bg-tertiary/40 rounded-lg border border-border/20">
+                          <code className="text-[11px] font-mono text-text-primary select-all">{cmd}</code>
+                          <button type="button" aria-label={`Copy ${cmd}`} onClick={() => copyToClipboard(cmd, id)} className={iconBtn}>
+                            {copiedCmd === id ? <Check size={13} className="text-success" /> : <Copy size={13} />}
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   </div>
-
-                  <div className="flex justify-end gap-2 pt-2">
+                  <div className="flex justify-end">
                     <button
                       type="button"
                       onClick={() => onRefresh?.()}
                       disabled={loading}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white font-semibold transition-colors disabled:opacity-50 shadow-lg shadow-accent/10 text-xs"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white font-semibold transition-colors disabled:opacity-50 text-xs cursor-pointer"
                     >
                       {loading ? <Loader2 size={13} className="animate-spin" /> : <RotateCw size={13} />}
-                      Retry Connection
+                      Try again
                     </button>
                   </div>
                 </motion.div>
               ) : (
-                <div className="rounded-xl border border-error/20 bg-error/5 text-error px-4 py-3 text-xs flex items-center gap-2">
-                  <AlertCircle size={14} className="shrink-0" />
-                  <span>{error}</span>
+                <div role="alert" className="rounded-xl border border-error/20 bg-error/5 text-error px-4 py-3 text-xs flex items-start gap-2">
+                  <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                  <span className="min-w-0 break-words select-text flex-1">{error}</span>
+                  <button type="button" aria-label="Dismiss" onClick={() => setError(null)} className="text-error/70 hover:text-error cursor-pointer shrink-0"><X size={13} /></button>
                 </div>
               )
             )}
             {!error && containers.length === 0 && !loading && (
-              <div className="flex flex-col items-center justify-center py-16 text-text-secondary text-center">
-                <Box size={40} className="mb-3 opacity-30 text-text-muted" />
-                <p className="font-medium text-text-primary text-sm">No containers found</p>
-                <p className="text-xs text-text-muted mt-1 max-w-sm">Start containers via docker compose or log into a server running active Docker daemons.</p>
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <Box size={36} className="mb-3 text-text-muted opacity-60" />
+                <p className="font-semibold text-text-primary text-sm">No containers yet</p>
+                <p className="text-xs text-text-secondary mt-1 max-w-sm">Run <code className="font-mono text-text-primary">docker compose up -d</code> in your project, then select Refresh. If you have a compose file, add its folder in the Logs panel to manage its services here.</p>
               </div>
             )}
             {!error && containers.length > 0 && (
-              <div className="space-y-2">
-                {containers.map((c: DockerContainer, i: number) => {
-                  const containerId = c.ID || c.Names || '';
-                  const containerKey = `all-${containerId}-${i}`;
-                  const status = (c.Status || c.State || '').toLowerCase();
-                  const isRunning = status.startsWith('up') && !status.includes('paused');
-                  const isPaused = status.includes('paused');
-                  const logsKey = allContainerLogKey(containerId);
-                  const isLogsExpanded = expandedLogsKey === logsKey;
-                  const isLoadingLogs = loadingContainerLogs === containerId;
-                  const actionsKey = `all:${containerKey}`;
-                  const isActionsOpen = openActionsKey === actionsKey;
-                  return (
-                    <div
-                      key={c.ID || c.Names || i}
-                      className="rounded-xl border border-border/30 bg-bg-secondary/40 overflow-hidden hover:border-accent/30 hover:bg-bg-secondary/65 transition-all duration-200"
-                    >
-                      <div className="flex items-center justify-between gap-4 p-3.5">
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div className="w-9 h-9 rounded-lg bg-bg-tertiary flex items-center justify-center shrink-0 border border-border/20">
-                            <Box size={16} className={isRunning ? "text-success" : "text-text-muted"} />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-semibold text-text-primary text-xs truncate flex items-center gap-1.5">
-                              {c.Names || c.ID || 'unnamed'}
-                              {isRunning && <span className="inline-block w-1.5 h-1.5 bg-success rounded-full animate-pulse" />}
-                            </p>
-                            <p className="text-[10px] font-mono text-text-secondary truncate mt-0.5">{c.Image || '-'}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-                          <div className="relative flex items-center" ref={isActionsOpen ? actionsMenuRef : undefined}>
-                            <Tooltip content="Actions" position="top">
-                              <button
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); setOpenActionsKey((k) => (k === actionsKey ? null : actionsKey)); }}
-                                disabled={!!containerAction}
-                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-text-secondary hover:bg-bg-tertiary hover:text-accent border border-border/20 transition-all duration-150 disabled:opacity-50"
-                              >
-                                <MoreVertical size={13} />
-                                Actions
-                              </button>
-                            </Tooltip>
-                            {isActionsOpen && (
-                              <FloatingMenu anchorRef={actionsMenuRef} className="py-1 min-w-[150px] rounded-xl border border-border/40 bg-bg-tertiary/95 shadow-2xl backdrop-blur-md overflow-y-auto flex flex-col p-1 gap-0.5 max-h-[70vh]">
-                                {!isRunning && !isPaused && (
-                                  <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runContainerAction(containerId, containerKey, 'start'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors" disabled={!!containerAction}>
-                                    {containerAction === `${containerKey}-start` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Play size={12} className="text-success" />}
-                                    Start
-                                  </button>
-                                )}
-                                {isRunning && (
-                                  <>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runContainerAction(containerId, containerKey, 'stop'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors" disabled={!!containerAction}>
-                                      {containerAction === `${containerKey}-stop` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Square size={12} className="text-text-muted" />}
-                                      Stop
-                                    </button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runContainerAction(containerId, containerKey, 'restart'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors" disabled={!!containerAction}>
-                                      {containerAction === `${containerKey}-restart` ? <Loader2 size={12} className="animate-spin text-accent" /> : <RotateCw size={12} className="text-accent" />}
-                                      Restart
-                                    </button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runContainerAction(containerId, containerKey, 'pause'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors" disabled={!!containerAction}>
-                                      {containerAction === `${containerKey}-pause` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Pause size={12} className="text-warning" />}
-                                      Pause
-                                    </button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runContainerAction(containerId, containerKey, 'kill'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 hover:text-error rounded-lg transition-colors animate-pulse-once" disabled={!!containerAction}>
-                                      {containerAction === `${containerKey}-kill` ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} className="text-error" />}
-                                      Kill
-                                    </button>
-                                  </>
-                                )}
-                                {isPaused && (
-                                  <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runContainerAction(containerId, containerKey, 'unpause'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors" disabled={!!containerAction}>
-                                    {containerAction === `${containerKey}-unpause` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Play size={12} className="text-success" />}
-                                    Unpause
-                                  </button>
-                                )}
-                                <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runContainerAction(containerId, containerKey, 'remove'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 hover:text-error rounded-lg transition-colors" disabled={!!containerAction}>
-                                  {containerAction === `${containerKey}-remove` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Trash2 size={12} className="text-error" />}
-                                  Remove
-                                </button>
-                                {onOpenTerminalAndRun && (() => {
-                                    const containerLabel = c.Names || c.ID || 'container';
-                                    const idQ = quoteShellArg(containerId, usesWindowsShell(currentServer));
-                                    return (
-                                  <>
-                                    <div className="border-t border-border/30 my-1" />
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`docker exec -it ${idQ} sh`, containerLabel); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
-                                      <Terminal size={12} className="text-text-secondary" />
-                                      Shell
-                                    </button>
-                                    {imageLooksLike(c.Image || '', 'redis') && (
-                                      <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`docker exec -it ${idQ} redis-cli`, `${containerLabel} · redis`); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
-                                        <Database size={12} className="text-text-secondary" />
-                                        Connect Redis
-                                      </button>
-                                    )}
-                                    {imageLooksLike(c.Image || '', 'mysql', 'mariadb') && (
-                                      <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`docker exec -it ${idQ} mysql -u root -p`, `${containerLabel} · mysql`); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
-                                        <Database size={12} className="text-text-secondary" />
-                                        Connect MySQL
-                                      </button>
-                                    )}
-                                    {imageLooksLike(c.Image || '', 'postgres') && (
-                                      <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`docker exec -it ${idQ} psql -U postgres`, `${containerLabel} · postgres`); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
-                                        <Database size={12} className="text-text-secondary" />
-                                        Connect Postgres
-                                      </button>
-                                    )}
-                                  </>
-                                    );
-                                  })()}
-                                <div className="border-t border-border/30 my-1" />
-                                <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); toggleLogsForContainer(containerId); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
-                                  {isLoadingLogs ? <Loader2 size={12} className="animate-spin text-accent" /> : <FileText size={12} className="text-text-secondary" />}
-                                  Logs
-                                </button>
-                              </FloatingMenu>
-                            )}
-                          </div>
-                          <span
-                            className={`shrink-0 px-2.5 py-0.5 rounded-full text-[10px] font-medium border transition-all ${
-                              isRunning
-                                ? 'bg-success/8 text-success border-success/15'
-                                : 'bg-text-secondary/8 text-text-secondary border-border/20'
-                            }`}
-                          >
-                            {c.Status || c.State || 'unknown'}
-                          </span>
-                        </div>
-                      </div>
-                      {isLogsExpanded && (
-                        <div className="border-t border-border/30 bg-bg-primary/90">
-                          <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/30">
-                            <span className="text-[10px] font-mono text-text-muted">Logs: {c.Names || c.ID || 'container'}</span>
-                            <Tooltip content="Close logs" position="left">
-                              <button
-                                type="button"
-                                onClick={() => toggleLogsForContainer(containerId)}
-                                className="p-1 rounded text-text-secondary hover:bg-bg-tertiary hover:text-text-primary flex items-center justify-center transition-colors"
-                              >
-                                <X size={13} />
-                              </button>
-                            </Tooltip>
-                          </div>
-                          <pre
-                            ref={logPreRef}
-                            className="p-3 font-mono text-[10px] text-text-primary whitespace-pre-wrap break-words overflow-auto max-h-[280px] min-h-[120px] scrollbar-vs"
-                          >
-                            {logContent}
-                          </pre>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              <>
+                <p className="text-xs text-text-secondary">
+                  {runningCount} running, {containers.length - runningCount} stopped
+                </p>
+                <div className="space-y-2">
+                  {containers.map((c: DockerContainer, i: number) => {
+                    const containerId = c.ID || c.Names || '';
+                    const containerKey = `all-${containerId}-${i}`;
+                    const status = (c.Status || c.State || '').toLowerCase();
+                    const isPaused = status.includes('paused');
+                    const isRunning = status.startsWith('up') && !isPaused;
+                    const label = c.Names || c.ID || 'container';
+                    const act = (action: ContainerActionType) => () => runContainerAction(containerId, containerKey, action);
+                    const idQ = quoteShellArg(containerId, usesWindowsShell(currentServer));
+                    const term = (cmd: string, suffix = '') => () => onOpenTerminalAndRun?.(cmd, `${label}${suffix}`);
+                    const image = c.Image || '';
+
+                    const primary: RowAction[] = isRunning
+                      ? [
+                          { id: 'restart', label: 'Restart', icon: <RotateCw size={14} />, run: act('restart') },
+                          { id: 'stop', label: 'Stop', icon: <Square size={14} />, run: act('stop') },
+                        ]
+                      : isPaused
+                        ? [{ id: 'unpause', label: 'Unpause', icon: <Play size={14} />, run: act('unpause') }]
+                        : [{ id: 'start', label: 'Start', icon: <Play size={14} />, run: act('start') }];
+                    const menu: (RowAction | 'sep')[] = [
+                      ...(isRunning ? [
+                        { id: 'pause', label: 'Pause', icon: <Pause size={12} className="text-warning" />, run: act('pause') },
+                        { id: 'kill', label: 'Kill', icon: <Zap size={12} />, danger: true, run: confirmThen(`Kill ${label}? This stops it immediately.`, 'Kill', act('kill')) },
+                      ] : []),
+                      { id: 'remove', label: 'Remove', icon: <Trash2 size={12} />, danger: true, run: confirmThen(`Remove ${label}? This force-removes the container.`, 'Remove', act('remove')) },
+                      ...(onOpenTerminalAndRun ? ([
+                        'sep',
+                        { id: 'shell', label: 'Open shell', icon: <Terminal size={12} className="text-text-secondary" />, run: term(`docker exec -it ${idQ} sh`) },
+                        ...(imageLooksLike(image, 'redis') ? [{ id: 'redis', label: 'Redis CLI', icon: <Database size={12} className="text-text-secondary" />, run: term(`docker exec -it ${idQ} redis-cli`, ' · redis') }] : []),
+                        ...(imageLooksLike(image, 'mysql', 'mariadb') ? [{ id: 'mysql', label: 'MySQL client', icon: <Database size={12} className="text-text-secondary" />, run: term(`docker exec -it ${idQ} mysql -u root -p`, ' · mysql') }] : []),
+                        ...(imageLooksLike(image, 'postgres') ? [{ id: 'psql', label: 'Postgres client', icon: <Database size={12} className="text-text-secondary" />, run: term(`docker exec -it ${idQ} psql -U postgres`, ' · postgres') }] : []),
+                      ] as (RowAction | 'sep')[]) : []),
+                    ];
+                    const logsKey = allContainerLogKey(containerId);
+                    return (
+                      <DockerRow
+                        key={c.ID || c.Names || i}
+                        name={label}
+                        subtitle={image || undefined}
+                        tone={isRunning ? 'running' : isPaused ? 'paused' : 'stopped'}
+                        statusText={c.Status || c.State || 'unknown'}
+                        primary={primary}
+                        menu={menu}
+                        busyId={busyOf(containerAction, containerKey)}
+                        disabled={!!containerAction}
+                        logsOpen={expandedLogsKey === logsKey}
+                        logsLoading={loadingContainerLogs === containerId}
+                        onToggleLogs={() => toggleLogsForContainer(containerId)}
+                        menuId={`all:${containerKey}`}
+                        openKey={openActionsKey}
+                        setOpenKey={setOpenActionsKey}
+                        menuRef={actionsMenuRef}
+                        logs={<LogPanel title={label} content={logContent} preRef={logPreRef} onClose={() => toggleLogsForContainer(containerId)} />}
+                      />
+                    );
+                  })}
+                </div>
+              </>
             )}
           </>
         )}
@@ -673,144 +722,62 @@ export function DockerView({
             {loadingServices ? (
               <div className="flex items-center gap-2 py-8 text-text-secondary text-xs">
                 <Loader2 size={16} className="animate-spin shrink-0 text-accent" />
-                <span>Loading Compose services…</span>
+                <span>Loading services…</span>
               </div>
             ) : (
               <>
-                <p className="text-[10px] font-mono text-text-muted mb-2 truncate" title={activeTab}>{activeTab}</p>
+                <p className="text-xs font-mono text-text-muted truncate" title={activeTab}>{activeTab}</p>
                 {currentServices.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-text-secondary text-center">
-                    <Box size={40} className="mb-3 opacity-30 text-text-muted" />
-                    <p className="text-xs font-semibold text-text-primary">No services in this compose project</p>
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Box size={36} className="mb-3 text-text-muted opacity-60" />
+                    <p className="text-sm font-semibold text-text-primary">No services found</p>
+                    <p className="text-xs text-text-secondary mt-1 max-w-sm">Check that this folder has a docker-compose.yml or compose.yaml.</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {currentServices.map((s: string) => {
-                      const key = logKey(activeTab, s);
-                      const isLogsExpanded = expandedLogsKey === key;
+                    {currentServices.map((svc: string) => {
+                      const key = logKey(activeTab, svc);
+                      const win = usesWindowsShell(currentServer);
+                      const execBase = `docker compose ${isComposeFilePath(activeTab) ? '-f' : '--project-directory'} ${quoteShellArg(activeTab, win)} exec ${quoteShellArg(svc, win)}`;
+                      const lower = svc.toLowerCase();
+                      const act = (action: ComposeActionType) => () => runComposeServiceAction(activeTab, svc, action);
+                      const term = (cmd: string, suffix = '') => () => onOpenTerminalAndRun?.(cmd, `${svc}${suffix}`);
+                      const primary: RowAction[] = [
+                        { id: 'start', label: 'Start', icon: <Play size={14} />, run: act('start') },
+                        { id: 'restart', label: 'Restart', icon: <RotateCw size={14} />, run: act('restart') },
+                        { id: 'stop', label: 'Stop', icon: <Square size={14} />, run: act('stop') },
+                      ];
+                      const menu: (RowAction | 'sep')[] = [
+                        { id: 'pause', label: 'Pause', icon: <Pause size={12} className="text-warning" />, run: act('pause') },
+                        { id: 'unpause', label: 'Unpause', icon: <Play size={12} className="text-success" />, run: act('unpause') },
+                        { id: 'kill', label: 'Kill', icon: <Zap size={12} />, danger: true, run: confirmThen(`Kill ${svc}? This stops it immediately.`, 'Kill', act('kill')) },
+                        { id: 'remove', label: 'Remove', icon: <Trash2 size={12} />, danger: true, run: confirmThen(`Stop and remove ${svc}?`, 'Remove', () => runComposeServiceRemove(activeTab, svc)) },
+                        ...(onOpenTerminalAndRun ? ([
+                          'sep',
+                          { id: 'shell', label: 'Open shell', icon: <Terminal size={12} className="text-text-secondary" />, run: term(`${execBase} sh`) },
+                          ...(lower.includes('redis') ? [{ id: 'redis', label: 'Redis CLI', icon: <Database size={12} className="text-text-secondary" />, run: term(`${execBase} redis-cli`, ' · redis') }] : []),
+                          ...(lower.includes('mysql') || lower.includes('mariadb') || lower.includes('db') ? [{ id: 'mysql', label: 'MySQL client', icon: <Database size={12} className="text-text-secondary" />, run: term(`${execBase} mysql -u root -p`, ' · mysql') }] : []),
+                          ...(lower.includes('postgres') || lower.includes('psql') ? [{ id: 'psql', label: 'Postgres client', icon: <Database size={12} className="text-text-secondary" />, run: term(`${execBase} psql -U postgres`, ' · postgres') }] : []),
+                        ] as (RowAction | 'sep')[]) : []),
+                      ];
                       return (
-                        <div
-                          key={s}
-                          className="rounded-xl border border-border/30 bg-bg-secondary/40 overflow-hidden hover:border-accent/30 hover:bg-bg-secondary/65 transition-all duration-200"
-                        >
-                          <div className="flex items-center justify-between gap-2 p-3.5">
-                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                              <div className="w-9 h-9 rounded-lg bg-bg-tertiary flex items-center justify-center shrink-0 border border-border/20">
-                                <Box size={16} className="text-accent" />
-                              </div>
-                              <p className="font-semibold text-text-primary text-xs truncate">{s}</p>
-                            </div>
-                            <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
-                              <div className="relative flex items-center" ref={openActionsKey === `compose:${key}` ? actionsMenuRef : undefined}>
-                                <Tooltip content="Actions" position="top">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); setOpenActionsKey((k) => (k === `compose:${key}` ? null : `compose:${key}`)); }}
-                                    disabled={!!composeServiceAction}
-                                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-text-secondary hover:bg-bg-tertiary hover:text-accent border border-border/20 transition-all duration-150 disabled:opacity-50"
-                                  >
-                                    <MoreVertical size={13} />
-                                    Actions
-                                  </button>
-                                </Tooltip>
-                                {openActionsKey === `compose:${key}` && (
-                                  <FloatingMenu anchorRef={actionsMenuRef} className="py-1 min-w-[150px] rounded-xl border border-border/40 bg-bg-tertiary/95 shadow-2xl backdrop-blur-md overflow-y-auto flex flex-col p-1 gap-0.5 max-h-[70vh]">
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceAction(activeTab, s, 'start'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors" disabled={!!composeServiceAction}>
-                                      {composeServiceAction === `${key}-start` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Play size={12} className="text-success" />}
-                                      Start
-                                    </button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceAction(activeTab, s, 'stop'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors" disabled={!!composeServiceAction}>
-                                      {composeServiceAction === `${key}-stop` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Square size={12} className="text-text-muted" />}
-                                      Stop
-                                    </button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceAction(activeTab, s, 'restart'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors" disabled={!!composeServiceAction}>
-                                      {composeServiceAction === `${key}-restart` ? <Loader2 size={12} className="animate-spin text-accent" /> : <RotateCw size={12} className="text-accent" />}
-                                      Restart
-                                    </button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceAction(activeTab, s, 'pause'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors" disabled={!!composeServiceAction}>
-                                      {composeServiceAction === `${key}-pause` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Pause size={12} className="text-warning" />}
-                                      Pause
-                                    </button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceAction(activeTab, s, 'unpause'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors" disabled={!!composeServiceAction}>
-                                      {composeServiceAction === `${key}-unpause` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Play size={12} className="text-success" />}
-                                      Unpause
-                                    </button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceAction(activeTab, s, 'kill'); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 hover:text-error rounded-lg transition-colors" disabled={!!composeServiceAction}>
-                                      {composeServiceAction === `${key}-kill` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Zap size={12} className="text-error" />}
-                                      Kill
-                                    </button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); runComposeServiceRemove(activeTab, s); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 hover:text-error rounded-lg transition-colors" disabled={!!composeServiceAction}>
-                                      {composeServiceAction === `${key}-remove` ? <Loader2 size={12} className="animate-spin text-accent" /> : <Trash2 size={12} className="text-error" />}
-                                      Remove
-                                    </button>
-                                    {onOpenTerminalAndRun && (() => {
-                                      const win = usesWindowsShell(currentServer);
-                                      const pathQ = quoteShellArg(activeTab, win);
-                                      const serviceQ = quoteShellArg(s, win);
-                                      const composeFlag = isComposeFilePath(activeTab) ? `-f ${pathQ}` : `--project-directory ${pathQ}`;
-                                      const execBase = `docker compose ${composeFlag} exec ${serviceQ}`;
-                                      const sLower = (s || '').toLowerCase();
-                                      return (
-                                        <>
-                                          <div className="border-t border-border/30 my-1" />
-                                          <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`${execBase} sh`, s); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
-                                            <Terminal size={12} className="text-text-secondary" />
-                                            Shell
-                                          </button>
-                                          {sLower.includes('redis') && (
-                                            <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`${execBase} redis-cli`, `${s} · redis`); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
-                                              <Database size={12} className="text-text-secondary" />
-                                              Connect Redis
-                                            </button>
-                                          )}
-                                          {(sLower.includes('mysql') || sLower.includes('mariadb') || sLower.includes('db')) && (
-                                            <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`${execBase} mysql -u root -p`, `${s} · mysql`); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
-                                              <Database size={12} className="text-text-secondary" />
-                                              Connect MySQL
-                                            </button>
-                                          )}
-                                          {(sLower.includes('postgres') || sLower.includes('psql')) && (
-                                            <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); onOpenTerminalAndRun(`${execBase} psql -U postgres`, `${s} · postgres`); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
-                                              <Database size={12} className="text-text-secondary" />
-                                              Connect Postgres
-                                            </button>
-                                          )}
-                                        </>
-                                      );
-                                    })()}
-                                    <div className="border-t border-border/30 my-1" />
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenActionsKey(null); toggleLogs(activeTab, s); }} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-bg-primary/65 rounded-lg transition-colors">
-                                      <FileText size={12} className="text-text-secondary" />
-                                      Logs
-                                    </button>
-                                  </FloatingMenu>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          {isLogsExpanded && (
-                            <div className="border-t border-border/30 bg-bg-primary/90">
-                              <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/30">
-                                <span className="text-[10px] font-mono text-text-muted">Logs: {s}</span>
-                                <Tooltip content="Close logs" position="left">
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleLogs(activeTab, s)}
-                                    className="p-1 rounded text-text-secondary hover:bg-bg-tertiary hover:text-text-primary flex items-center justify-center transition-colors"
-                                  >
-                                    <X size={13} />
-                                  </button>
-                                </Tooltip>
-                              </div>
-                              <pre
-                                ref={logPreRef}
-                                className="p-3 font-mono text-[10px] text-text-primary whitespace-pre-wrap break-words overflow-auto max-h-[280px] min-h-[120px] scrollbar-vs"
-                              >
-                                {logContent}
-                              </pre>
-                            </div>
-                          )}
-                        </div>
+                        <DockerRow
+                          key={svc}
+                          name={svc}
+                          tone="unknown"
+                          primary={primary}
+                          menu={menu}
+                          busyId={busyOf(composeServiceAction, key)}
+                          disabled={!!composeServiceAction}
+                          logsOpen={expandedLogsKey === key}
+                          logsLoading={false}
+                          onToggleLogs={() => toggleLogs(activeTab, svc)}
+                          menuId={`compose:${key}`}
+                          openKey={openActionsKey}
+                          setOpenKey={setOpenActionsKey}
+                          menuRef={actionsMenuRef}
+                          logs={<LogPanel title={svc} content={logContent} preRef={logPreRef} onClose={() => toggleLogs(activeTab, svc)} />}
+                        />
                       );
                     })}
                   </div>
@@ -822,12 +789,8 @@ export function DockerView({
       </div>
       <div className="px-4 py-2.5 border-t border-border/30 bg-bg-secondary/40 flex items-center gap-2 text-xs text-text-secondary shrink-0">
         <FileText size={13} className="text-text-muted" />
-        <span>View compose logs in the bottom panel (Logs tab).</span>
-        <button
-          type="button"
-          onClick={onOpenLogs}
-          className="text-accent hover:text-accent-hover font-semibold transition-colors ml-1"
-        >
+        <span>Live compose logs are also in the bottom panel.</span>
+        <button type="button" onClick={onOpenLogs} className="text-accent hover:text-accent-hover font-semibold transition-colors cursor-pointer">
           Open logs
         </button>
       </div>

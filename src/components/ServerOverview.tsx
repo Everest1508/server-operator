@@ -1,4 +1,4 @@
-import { FolderOpen, Box, Rocket, Server as ServerIcon, Loader2, Cpu, HardDrive, Clock, RefreshCw, Copy, Check } from 'lucide-react';
+import { FolderOpen, Box, Rocket, Server as ServerIcon, HardDrive as FolderDrive, Loader2, Cpu, HardDrive, Clock, RefreshCw, Copy, Check, ChevronRight } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import type { ServerConnection, ViewId, ProxySettings } from '../types';
 
@@ -78,27 +78,43 @@ function parseDisk(raw: string | null): ParsedDisk | null {
   return { size, used, avail, percentage };
 }
 
-function getProgressColor(percentage: number): { text: string; bg: string; fill: string } {
-  if (percentage < 70) {
-    return {
-      text: 'text-success',
-      bg: 'bg-success/10',
-      fill: 'bg-success shadow-[0_0_6px_rgba(78,201,176,0.4)]',
-    };
-  } else if (percentage < 90) {
-    return {
-      text: 'text-warning',
-      bg: 'bg-warning/10',
-      fill: 'bg-warning shadow-[0_0_6px_rgba(220,220,170,0.4)]',
-    };
-  } else {
-    return {
-      text: 'text-error',
-      bg: 'bg-error/10',
-      fill: 'bg-error shadow-[0_0_6px_rgba(241,76,76,0.4)]',
-    };
-  }
+function usageTone(percentage: number): { text: string; fill: string } {
+  if (percentage < 70) return { text: 'text-success', fill: 'bg-success' };
+  if (percentage < 90) return { text: 'text-warning', fill: 'bg-warning' };
+  return { text: 'text-error', fill: 'bg-error' };
 }
+
+function Meter({ icon: Icon, label, value, detail, percentage }: { icon: typeof Cpu; label: string; value: string; detail: string; percentage: number }) {
+  const tone = usageTone(percentage);
+  return (
+    <div className="rounded-xl border border-border/30 bg-bg-secondary/40 p-4 flex flex-col gap-3">
+      <div className="flex items-center gap-2 text-xs font-medium text-text-secondary">
+        <Icon size={14} className="shrink-0" />
+        {label}
+      </div>
+      <div className="flex items-baseline gap-2">
+        <span className={`text-2xl font-semibold tabular-nums ${tone.text}`}>{value}</span>
+        <span className="text-xs text-text-muted truncate">{detail}</span>
+      </div>
+      <div
+        className="h-1.5 w-full bg-bg-tertiary rounded-full overflow-hidden"
+        role="progressbar"
+        aria-label={label}
+        aria-valuenow={percentage}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        <div className={`h-full rounded-full transition-[width] duration-300 ${tone.fill}`} style={{ width: `${percentage}%` }} />
+      </div>
+    </div>
+  );
+}
+
+const MODULES: { view: ViewId; icon: typeof Box; title: string; text: string }[] = [
+  { view: 'files', icon: FolderOpen, title: 'Files', text: 'Browse, upload and edit files on the server.' },
+  { view: 'docker', icon: Box, title: 'Docker', text: 'Start, stop and restart containers; read their logs.' },
+  { view: 'deploy', icon: Rocket, title: 'Deploy', text: 'Pull branches, run build steps and roll back.' },
+];
 
 export function ServerOverview({
   currentServer,
@@ -111,197 +127,126 @@ export function ServerOverview({
   const loading = serverStatusLoading;
   const [copied, setCopied] = useState(false);
 
-  const projectPath = currentServer.projectPath || currentServer.cwd || '—';
-  const fullAddress = `${currentServer.username}@${currentServer.host}`;
+  const isLocal = currentServer.connectionType === 'local' || currentServer.id === 'dummy';
+  const projectPath = currentServer.projectPath || currentServer.cwd || '';
+  const address = isLocal ? projectPath || 'This computer' : `${currentServer.username}@${currentServer.host}`;
+  const kind = isLocal ? 'Local project' : (({ ec2: 'SSH key', password: 'SSH password', cloudflare: 'Cloudflare tunnel' }) as Record<string, string>)[currentServer.connectionType ?? 'ec2'] ?? 'SSH';
 
   const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(fullAddress);
+    navigator.clipboard.writeText(address);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  }, [fullAddress]);
+  }, [address]);
 
-  const uptimeDisplay = parseUptime(sysInfo.uptime);
-  const parsedMem = parseMemory(sysInfo.memory);
-  const parsedDisk = parseDisk(sysInfo.disk);
+  const uptime = parseUptime(sysInfo.uptime);
+  const mem = parseMemory(sysInfo.memory);
+  const disk = parseDisk(sysInfo.disk);
+  const hasStats = !!(mem || disk || uptime);
 
   return (
-    <div className="flex-1 flex flex-col bg-bg-primary min-h-0 overflow-auto select-none">
-      <div className="max-w-3xl mx-auto w-full p-6 space-y-6">
-        
-        {/* Server identity */}
-        <div className="rounded-xl border border-border/20 bg-bg-secondary/35 p-5 shadow-sm backdrop-blur-sm">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-bg-tertiary text-accent shrink-0 border border-border/30">
-              <ServerIcon size={20} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-base font-bold text-text-primary tracking-wide">{currentServer.name}</h2>
-              <div className="flex items-center gap-2 mt-1.5 select-text">
-                <code className="text-xs bg-bg-tertiary/70 text-text-secondary px-2.5 py-0.5 rounded-xl border border-border/30 select-all truncate font-mono">
-                  {fullAddress}
-                </code>
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  className="p-1 rounded-md text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors cursor-pointer shrink-0"
-                  title="Copy SSH Address"
-                >
-                  {copied ? <Check size={13} className="text-success" /> : <Copy size={13} />}
-                </button>
-              </div>
-              {projectPath !== '—' && (
-                <div className="flex items-center gap-1.5 text-[9px] uppercase font-bold tracking-wider text-text-secondary mt-3">
-                  <span className="text-text-muted">CWD:</span>
-                  <span className="truncate max-w-[400px] font-mono text-xs text-text-primary select-text" title={projectPath}>
-                    {projectPath}
-                  </span>
-                </div>
-              )}
-            </div>
+    <div className="flex-1 flex flex-col bg-bg-primary min-h-0 overflow-auto">
+      <div className="max-w-3xl mx-auto w-full p-6 space-y-8">
+        <header className="flex items-center gap-4">
+          <div className="w-11 h-11 rounded-xl bg-accent/12 text-accent flex items-center justify-center shrink-0">
+            {isLocal ? <FolderDrive size={20} /> : <ServerIcon size={20} />}
           </div>
-        </div>
-
-        {/* Quick Actions (Icon-Forward Cards) */}
-        <div>
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-3">
-            Available Modules
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {onViewChange && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => onViewChange('files')}
-                  className="flex flex-col items-start p-5 rounded-2xl bg-bg-secondary/40 border border-border/25 hover:border-accent/40 hover:bg-bg-tertiary/30 shadow-sm backdrop-blur-sm transition-all duration-200 cursor-pointer group text-left"
-                >
-                  <div className="p-2.5 rounded-xl bg-bg-tertiary group-hover:bg-accent/10 text-text-muted group-hover:text-accent transition-colors duration-200 mb-4 border border-border/10">
-                    <FolderOpen size={18} />
-                  </div>
-                  <span className="text-sm font-bold text-text-primary">File Explorer</span>
-                  <span className="text-[10px] text-text-secondary mt-1 font-medium">Browse, upload and edit remote server configurations</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onViewChange('docker')}
-                  className="flex flex-col items-start p-5 rounded-2xl bg-bg-secondary/40 border border-border/25 hover:border-accent/40 hover:bg-bg-tertiary/30 shadow-sm backdrop-blur-sm transition-all duration-200 cursor-pointer group text-left"
-                >
-                  <div className="p-2.5 rounded-xl bg-bg-tertiary group-hover:bg-accent/10 text-text-muted group-hover:text-accent transition-colors duration-200 mb-4 border border-border/10">
-                    <Box size={18} />
-                  </div>
-                  <span className="text-sm font-bold text-text-primary">Docker Containers</span>
-                  <span className="text-[10px] text-text-secondary mt-1 font-medium">Manage daemon services, run compose reloads, stream live stdout</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onViewChange('deploy')}
-                  className="flex flex-col items-start p-5 rounded-2xl bg-bg-secondary/40 border border-border/25 hover:border-accent/40 hover:bg-bg-tertiary/30 shadow-sm backdrop-blur-sm transition-all duration-200 cursor-pointer group text-left"
-                >
-                  <div className="p-2.5 rounded-xl bg-bg-tertiary group-hover:bg-accent/10 text-text-muted group-hover:text-accent transition-colors duration-200 mb-4 border border-border/10">
-                    <Rocket size={18} />
-                  </div>
-                  <span className="text-sm font-bold text-text-primary">Git Deployment</span>
-                  <span className="text-[10px] text-text-secondary mt-1 font-medium">Trigger branches pulls, compile hooks, pm2 reloading, check rollbacks</span>
-                </button>
-              </>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-lg font-semibold text-text-primary truncate">{currentServer.name}</h1>
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-bg-tertiary text-text-secondary shrink-0">{kind}</span>
+            </div>
+            <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+              <code className="text-xs text-text-secondary font-mono truncate select-text" title={address}>{address}</code>
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors cursor-pointer shrink-0"
+                title={isLocal ? 'Copy folder path' : 'Copy SSH address'}
+                aria-label={isLocal ? 'Copy folder path' : 'Copy SSH address'}
+              >
+                {copied ? <Check size={13} className="text-success" /> : <Copy size={13} />}
+              </button>
+            </div>
+            {!isLocal && projectPath && (
+              <p className="text-xs text-text-muted mt-0.5 truncate" title={projectPath}>
+                Working folder <span className="font-mono text-text-secondary select-text">{projectPath}</span>
+              </p>
             )}
           </div>
-        </div>
+        </header>
 
-        {/* System info */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
-              Resource Telemetry
-            </h3>
-            {onRefreshServerStatus && (
+        {onViewChange && (
+          <section aria-label="Open a tool">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {MODULES.map(({ view, icon: Icon, title, text }) => (
+                <button
+                  key={view}
+                  type="button"
+                  onClick={() => onViewChange(view)}
+                  className="group flex flex-col items-start gap-3 p-4 rounded-xl bg-bg-secondary/40 border border-border/30 hover:border-accent/50 hover:bg-bg-tertiary/40 transition-colors cursor-pointer text-left"
+                >
+                  <span className="flex items-center justify-between w-full">
+                    <span className="w-8 h-8 rounded-lg bg-bg-tertiary group-hover:bg-accent/12 text-text-secondary group-hover:text-accent flex items-center justify-center transition-colors">
+                      <Icon size={16} />
+                    </span>
+                    <ChevronRight size={14} className="text-text-muted group-hover:text-accent transition-colors" />
+                  </span>
+                  <span>
+                    <span className="block text-sm font-semibold text-text-primary">{title}</span>
+                    <span className="block text-xs text-text-secondary mt-0.5 leading-snug">{text}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section aria-label="Server health">
+          <div className="flex items-center justify-between mb-3 h-7">
+            <h2 className="text-sm font-semibold text-text-primary">Health</h2>
+            {onRefreshServerStatus && !isLocal && (
               <button
                 type="button"
                 onClick={onRefreshServerStatus}
                 disabled={loading}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs text-text-secondary hover:bg-bg-tertiary/50 hover:text-accent disabled:opacity-50 transition-colors cursor-pointer font-semibold border border-transparent hover:border-border/30"
-                title="Refresh status"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-text-secondary hover:bg-bg-tertiary/60 hover:text-text-primary disabled:opacity-50 transition-colors cursor-pointer"
               >
-                {loading ? <Loader2 size={13} className="animate-spin text-accent" /> : <RefreshCw size={12} />}
-                <span>Refresh Logs</span>
+                {loading ? <Loader2 size={13} className="animate-spin text-accent" /> : <RefreshCw size={13} />}
+                Refresh
               </button>
             )}
           </div>
-          
-          <div className="rounded-xl border border-border/20 bg-bg-secondary/35 divide-y divide-border/10 overflow-hidden shadow-sm backdrop-blur-sm">
-            {loading ? (
-              <div className="flex items-center gap-3 p-6 text-text-secondary">
-                <Loader2 size={18} className="animate-spin shrink-0 text-accent" />
-                <span className="text-xs font-mono text-text-muted">Gathering virtual host telemetry…</span>
+
+          {isLocal ? (
+            <p className="rounded-xl border border-dashed border-border/40 p-5 text-xs text-text-secondary">
+              Memory and disk stats are shown for remote servers. This project runs on your own machine, so use Activity Monitor or Task Manager for those.
+            </p>
+          ) : loading ? (
+            <div className="flex items-center gap-3 rounded-xl border border-border/30 bg-bg-secondary/40 p-5 text-xs text-text-secondary">
+              <Loader2 size={16} className="animate-spin text-accent shrink-0" />
+              Reading server stats…
+            </div>
+          ) : sysInfo.error ? (
+            <p className="rounded-xl border border-error/30 bg-error/5 p-5 text-xs text-error font-mono">{sysInfo.error}</p>
+          ) : hasStats ? (
+            <div className="space-y-3">
+              {uptime && (
+                <div className="flex items-center gap-2 text-xs text-text-secondary">
+                  <Clock size={14} className="shrink-0" />
+                  Up for <span className="font-semibold text-text-primary tabular-nums">{uptime}</span>
+                </div>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {mem && <Meter icon={Cpu} label="Memory" value={`${mem.percentage}%`} detail={`${mem.used} of ${mem.total} MB`} percentage={mem.percentage} />}
+                {disk && <Meter icon={HardDrive} label="Disk" value={`${disk.percentage}%`} detail={`${disk.used} of ${disk.size}`} percentage={disk.percentage} />}
               </div>
-            ) : sysInfo.error ? (
-              <div className="p-6 text-error text-xs font-mono">{sysInfo.error}</div>
-            ) : (
-              <>
-                {/* Uptime */}
-                {sysInfo.uptime && (
-                  <div className="flex items-center justify-between p-4">
-                    <div className="flex items-center gap-3">
-                      <Clock size={15} className="text-text-secondary shrink-0" />
-                      <span className="text-xs font-semibold text-text-secondary">Uptime</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 bg-bg-tertiary border border-border/30 px-2.5 py-0.5 rounded-xl text-xs font-mono font-bold text-text-primary">
-                      <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse shrink-0" />
-                      {uptimeDisplay}
-                    </div>
-                  </div>
-                )}
-
-                {/* Memory Status */}
-                {parsedMem && (
-                  <div className="flex flex-col gap-3 p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Cpu size={15} className="text-text-secondary shrink-0" />
-                        <span className="text-xs font-semibold text-text-secondary">Memory Usage (RAM)</span>
-                      </div>
-                      <span className="text-xs font-mono font-semibold text-text-primary select-text">
-                        {parsedMem.used} MB / {parsedMem.total} MB ({parsedMem.percentage}%)
-                      </span>
-                    </div>
-                    {/* Visual Progress Bar */}
-                    <div className="h-1.5 w-full bg-bg-tertiary rounded-full overflow-hidden border border-border/10">
-                      <div
-                        className={`h-full transition-all duration-300 ${getProgressColor(parsedMem.percentage).fill}`}
-                        style={{ width: `${parsedMem.percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Disk Status */}
-                {parsedDisk && (
-                  <div className="flex flex-col gap-3 p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <HardDrive size={15} className="text-text-secondary shrink-0" />
-                        <span className="text-xs font-semibold text-text-secondary">Storage Disk Space</span>
-                      </div>
-                      <span className="text-xs font-mono font-semibold text-text-primary select-text">
-                        {parsedDisk.used} / {parsedDisk.size} ({parsedDisk.percentage}%)
-                      </span>
-                    </div>
-                    {/* Visual Progress Bar */}
-                    <div className="h-1.5 w-full bg-bg-tertiary rounded-full overflow-hidden border border-border/10">
-                      <div
-                        className={`h-full transition-all duration-300 ${getProgressColor(parsedDisk.percentage).fill}`}
-                        style={{ width: `${parsedDisk.percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {!sysInfo.uptime && !sysInfo.memory && !sysInfo.disk && !sysInfo.error && (
-                  <div className="p-6 text-text-secondary text-xs text-center italic">No active server telemetry discovered yet. Run diagnostics.</div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
+            </div>
+          ) : (
+            <p className="rounded-xl border border-dashed border-border/40 p-5 text-xs text-text-secondary">
+              No stats yet. Select Refresh to read them from the server.
+            </p>
+          )}
+        </section>
       </div>
     </div>
   );

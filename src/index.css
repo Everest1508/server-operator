@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, monospace;
+  --font-sans: Inter, "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, monospace;
   --color-bg-primary: rgba(30, 30, 30, 0.55);
   --color-bg-secondary: rgba(37, 37, 38, 0.45);
@@ -21,6 +21,17 @@
 
 :root {
   --glass-blur: 28px;
+  --popover-base: #1c1d21;
+}
+:root[data-app-theme='glassy'] { --popover-base: #0f172a; }
+:root[data-app-theme='light'] { --popover-base: #f7f8fb; }
+:root[data-app-theme='tokyo-night'] { --popover-base: #1a1b26; }
+
+/* Menus that sit inside a backdrop-blurred bar can't blur what's behind them, so give them a solid base. */
+.popover-surface {
+  background: linear-gradient(var(--color-bg-tertiary), var(--color-bg-tertiary)), var(--popover-base);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 :root[data-app-theme='glassy'] {
@@ -82,18 +93,29 @@
 }
 
 ::selection {
-  background: rgba(0, 120, 212, 0.25);
-  color: #cccccc;
+  background: color-mix(in srgb, var(--color-accent) 30%, transparent);
 }
 
-:root[data-app-theme='light'] ::selection {
-  background: rgba(10, 102, 212, 0.16);
-  color: #1f2328;
+/* Keyboard focus: one consistent ring that follows the theme accent. Mouse clicks don't show it. */
+:where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 body {
   margin: 0;
   font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
   background: transparent;
   color: var(--color-text-primary);
   overflow: hidden;
@@ -186,12 +208,12 @@ body::before {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: var(--color-bg-tertiary);
+    background: color-mix(in srgb, var(--color-text-muted) 35%, transparent);
     border-radius: 3px;
     transition: background 0.2s ease;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--color-border);
+    background: color-mix(in srgb, var(--color-text-muted) 65%, transparent);
   }
 }
 

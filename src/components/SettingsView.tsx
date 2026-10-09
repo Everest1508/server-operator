@@ -43,6 +43,7 @@ import {
   customChoiceId, loadThemeChoice, applyTheme, listAllThemes, loadFolderThemes, THEMES_CHANGED_EVENT, ListedTheme,
 } from '../utils/customThemes';
 import packageJson from '../../package.json';
+import { confirmDialog, alertDialog } from '../utils/confirm';
 
 const OPACITY_STORAGE_KEY = 'server-operator:opacity';
 const BLUR_STORAGE_KEY = 'server-operator:blur';
@@ -297,7 +298,7 @@ function ChangelogView() {
                     </div>
                     <span className="text-sm font-semibold text-text-primary flex-1">{group.label}</span>
                     <span
-                      className="text-[10px] font-medium px-1.5 py-0.5 rounded border"
+                      className="text-[11px] font-medium px-1.5 py-0.5 rounded border"
                       style={{ color: group.color, borderColor: `${group.color}30`, background: `${group.color}10` }}
                     >
                       {group.items.length} changes
@@ -316,7 +317,7 @@ function ChangelogView() {
                         return (
                           <li key={i} className="flex items-start gap-3 px-4 py-2.5 hover:bg-bg-tertiary/30 transition-colors">
                             <span
-                              className="mt-0.5 shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded tracking-wider"
+                              className="mt-0.5 shrink-0 text-[11px] font-bold px-1.5 py-0.5 rounded tracking-wider"
                               style={{ color: badge.color, background: badge.bg }}
                             >
                               {badge.label}
@@ -463,30 +464,31 @@ function ModulesView() {
       if (res.ok) {
         setLogsContent(res.content ?? '');
       } else {
-        alert(res.error || 'Failed to read logs');
+        void alertDialog(res.error || 'Could not read the log file.', 'Couldn\'t read logs');
       }
     } catch (e: any) {
-      alert(e?.message || 'Error reading log file');
+      void alertDialog(e?.message || 'Could not read the log file.', 'Couldn\'t read logs');
     } finally {
       setLogsLoading(false);
     }
   };
 
+  const [pathCopied, setPathCopied] = useState(false);
+
   const handleClearLogs = async () => {
     if (!window.serverOperator?.clearLogFile) return;
-    if (!window.confirm('Are you sure you want to clear the application log file? This cannot be undone.')) {
+    if (!await confirmDialog('Clear the application log file? This cannot be undone.', { confirmLabel: 'Clear log' })) {
       return;
     }
     try {
       const res = await window.serverOperator.clearLogFile();
       if (res.ok) {
         setLogsContent('Log file cleared.');
-        alert('Logs cleared successfully');
       } else {
-        alert(res.error || 'Failed to clear logs');
+        void alertDialog(res.error || 'Could not clear the log file.', 'Couldn\'t clear logs');
       }
     } catch (e: any) {
-      alert(e?.message || 'Error clearing logs');
+      void alertDialog(e?.message || 'Could not clear the log file.', 'Couldn\'t clear logs');
     }
   };
 
@@ -575,7 +577,7 @@ function ModulesView() {
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-6 p-5">
             {/* Theme grid */}
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted mb-2.5">Theme</p>
+              <p className="text-xs font-semibold text-text-secondary mb-2.5">Theme</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5">
                 {allThemes.map((t) => {
                   const active = themeChoice === t.id;
@@ -595,7 +597,7 @@ function ModulesView() {
                           ))}
                         </span>
                         <span className="flex items-center justify-between gap-1">
-                          <span className="text-xs font-semibold text-text-primary truncate">{t.label}</span>
+                          <span className="text-xs font-semibold text-text-primary line-clamp-2 leading-tight">{t.label}</span>
                           {active && <Check size={12} className="text-accent shrink-0" />}
                         </span>
                       </button>
@@ -607,7 +609,8 @@ function ModulesView() {
                             if (ct) setEditor({ initial: ct, restore: themeChoice });
                           }}
                           title="Edit this theme"
-                          className="absolute top-1 right-8 hidden group-hover:flex w-5 h-5 items-center justify-center rounded-full bg-bg-tertiary border border-border text-text-secondary hover:text-accent"
+                          aria-label="Edit this theme"
+                          className="absolute top-1 right-8 hidden group-hover:flex group-focus-within:flex w-5 h-5 items-center justify-center rounded-full bg-bg-tertiary border border-border text-text-secondary hover:text-accent"
                         >
                           <Pencil size={10} />
                         </button>
@@ -617,7 +620,8 @@ function ModulesView() {
                           type="button"
                           onClick={() => deleteCustomTheme(t.customId as string)}
                           title="Remove this custom theme"
-                          className="absolute top-1 right-1 hidden group-hover:flex w-5 h-5 items-center justify-center rounded-full bg-bg-tertiary border border-border text-text-secondary hover:text-error"
+                          aria-label="Remove this custom theme"
+                          className="absolute top-1 right-1 hidden group-hover:flex group-focus-within:flex w-5 h-5 items-center justify-center rounded-full bg-bg-tertiary border border-border text-text-secondary hover:text-error"
                         >
                           <X size={10} />
                         </button>
@@ -634,7 +638,7 @@ function ModulesView() {
             {/* Preview + sliders */}
             <div className="space-y-4">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted mb-2.5">Preview</p>
+                <p className="text-xs font-semibold text-text-secondary mb-2.5">Preview</p>
                 <div className="rounded-xl border border-border/30 overflow-hidden" style={{ backgroundColor: sw[0] }}>
                   <div className="flex h-24">
                     <div className="w-8 border-r border-white/10 flex flex-col items-center gap-1.5 py-2">
@@ -646,7 +650,7 @@ function ModulesView() {
                       <span className="block h-2 w-1/2 rounded" style={{ backgroundColor: sw[3] }} />
                       <span className="block h-1.5 w-3/4 rounded" style={{ backgroundColor: sw[3], opacity: 0.4 }} />
                       <div className="flex items-center gap-2 pt-1">
-                        <span className="h-4 px-2 rounded text-[8px] font-bold flex items-center" style={{ backgroundColor: sw[1], color: sw[0] }}>Button</span>
+                        <span className="h-4 px-2 rounded text-[11px] font-bold flex items-center" style={{ backgroundColor: sw[1], color: sw[0] }}>Button</span>
                         <span className="w-2 h-2 rounded-full" style={{ backgroundColor: sw[2] }} />
                       </div>
                     </div>
@@ -667,7 +671,7 @@ function ModulesView() {
                     onChange={(e) => setOpacity(parseFloat(e.target.value))}
                     className="w-full h-1.5 accent-accent cursor-pointer"
                   />
-                  <div className="flex justify-between text-[10px] text-text-muted mt-0.5"><span>60% (see-through)</span><span>100% (solid)</span></div>
+                  <div className="flex justify-between text-[11px] text-text-muted mt-0.5"><span>60% (see-through)</span><span>100% (solid)</span></div>
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1">
@@ -679,7 +683,7 @@ function ModulesView() {
                     onChange={(e) => setBlur(parseInt(e.target.value, 10))}
                     className="w-full h-1.5 accent-accent cursor-pointer"
                   />
-                  <div className="flex justify-between text-[10px] text-text-muted mt-0.5"><span>Sharp</span><span>Frosted</span></div>
+                  <div className="flex justify-between text-[11px] text-text-muted mt-0.5"><span>Sharp</span><span>Frosted</span></div>
                 </div>
               </div>
             </div>
@@ -743,43 +747,23 @@ function ModulesView() {
         {searchQuery === '' && (
           <div className="space-y-4">
             <div>
-              <h2 className="text-xs font-bold tracking-wide uppercase text-success flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-                Core Application Modules
+              <h2 className="text-sm font-semibold text-text-primary flex items-center gap-1.5">
+                <Lock size={12} className="text-text-muted" />
+                Core modules
               </h2>
-              <p className="text-[11px] text-text-secondary mt-0.5">Essential built-in features that are locked on and always active.</p>
+              <p className="text-xs text-text-secondary mt-0.5">Always on. These can't be turned off.</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
               {ALL_FEATURES.filter((f) => ['servers', 'files', 'docker', 'deployModule', 'notes', 'aiAssistant', 'configCreators', 'serverAdmin'].includes(f.key)).map((item) => {
                 const Icon = item.icon;
                 return (
-                  <div
-                    key={item.key}
-                    className="relative flex gap-3 p-4 rounded-xl border border-border/30 bg-bg-secondary/30 hover:border-accent/30 hover:bg-bg-secondary/50 transition-all duration-200"
-                  >
-                    <div className="p-2 rounded-lg shrink-0 flex items-center justify-center bg-accent/10 text-accent border border-accent/20 shadow-sm h-9 w-9">
-                      <Icon size={16} />
+                  <div key={item.key} className="flex items-start gap-3 py-2.5 border-b border-border/20">
+                    <div className="h-8 w-8 rounded-lg shrink-0 flex items-center justify-center bg-accent/10 text-accent">
+                      <Icon size={15} />
                     </div>
-                    <div className="flex-1 min-w-0 pr-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <h3 className="text-xs font-semibold text-text-primary">{item.title}</h3>
-                        <span className="text-[8px] font-bold bg-success/8 text-success px-1.5 py-0.5 rounded-full border border-success/15 uppercase tracking-wider">
-                          Always Enabled
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-text-secondary leading-relaxed mt-1">{item.description}</p>
-                    </div>
-                    <div className="shrink-0 flex items-center">
-                      <button
-                        type="button"
-                        disabled
-                        aria-checked="true"
-                        className="relative inline-flex h-5 w-9 shrink-0 bg-accent rounded-full transition-colors duration-200 ease-in-out cursor-not-allowed opacity-60"
-                      >
-                        <span
-                          className="pointer-events-none absolute top-[2px] left-[2px] inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out translate-x-4"
-                        />
-                      </button>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-medium text-text-primary">{item.title}</h3>
+                      <p className="text-xs text-text-secondary leading-relaxed mt-0.5">{item.description}</p>
                     </div>
                   </div>
                 );
@@ -792,8 +776,8 @@ function ModulesView() {
         <div className="space-y-8 pt-2">
           {searchQuery === '' && (
             <div className="border-t border-border pt-6">
-              <h2 className="text-sm font-bold tracking-wide uppercase text-text-primary">Optional Feature Add-ons</h2>
-              <p className="text-xs text-text-secondary mt-0.5">Toggle advanced capabilities, integrations, and deployment subsystems.</p>
+              <h2 className="text-sm font-semibold text-text-primary">Optional modules</h2>
+              <p className="text-xs text-text-secondary mt-0.5">Turn on the extras you want. The sidebar and tabs follow what you enable.</p>
             </div>
           )}
           {(Object.keys(CATEGORIES) as Array<keyof typeof CATEGORIES>).map((catKey) => {
@@ -804,7 +788,7 @@ function ModulesView() {
             return (
               <div key={catKey} className="space-y-4">
                 <div>
-                  <h2 className="text-xs font-bold tracking-wide uppercase text-accent">{CATEGORIES[catKey].name}</h2>
+                  <h2 className="text-sm font-semibold text-text-primary">{CATEGORIES[catKey].name}</h2>
                   <p className="text-[11px] text-text-secondary mt-0.5">{CATEGORIES[catKey].desc}</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -834,8 +818,8 @@ function ModulesView() {
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <h3 className="text-xs font-semibold text-text-primary">{item.title}</h3>
                             {isDisabled && (
-                              <span className="flex items-center gap-0.5 text-[8px] font-bold bg-bg-tertiary/60 text-text-muted px-1.5 py-0.5 rounded-full border border-border/20 uppercase tracking-wider">
-                                <Lock size={7} /> Locked
+                              <span className="flex items-center gap-1 text-[11px] font-medium bg-bg-tertiary/60 text-text-muted px-2 py-0.5 rounded-full border border-border/20" title="Needs the Deploy module">
+                                <Lock size={10} /> Needs Deploy
                               </span>
                             )}
                           </div>
@@ -938,17 +922,19 @@ function ModulesView() {
 
                 {logPath && (
                   <div className="pt-3 border-t border-border">
-                    <span className="text-[10px] uppercase tracking-wider text-text-muted block mb-1">
+                    <span className="text-xs text-text-muted block mb-1">
                       Log File Path
                     </span>
                     <span
                       className="text-xs font-mono text-text-secondary break-all select-all hover:text-text-primary cursor-pointer"
                       onClick={() => {
                         navigator.clipboard.writeText(logPath);
-                        alert('Log path copied to clipboard');
+                        setPathCopied(true);
+                        setTimeout(() => setPathCopied(false), 1500);
                       }}
+                      title="Click to copy"
                     >
-                      {logPath}
+                      {pathCopied ? 'Copied' : logPath}
                     </span>
                   </div>
                 )}
@@ -956,7 +942,7 @@ function ModulesView() {
                 {logsContent && (
                   <div className="mt-4 border border-border bg-bg-secondary rounded-md p-3 flex flex-col gap-2">
                     <div className="flex items-center justify-between border-b border-border pb-2">
-                      <span className="text-xs font-bold text-text-primary">Application Log Contents:</span>
+                      <span className="text-xs font-bold text-text-primary">Log contents</span>
                       <button
                         type="button"
                         onClick={() => setLogsContent('')}
@@ -965,7 +951,7 @@ function ModulesView() {
                         Close Logs
                       </button>
                     </div>
-                    <pre className="font-mono text-[10px] text-text-secondary max-h-60 overflow-y-auto whitespace-pre-wrap break-all p-2 rounded bg-bg-primary">
+                    <pre className="font-mono text-[11px] text-text-secondary max-h-60 overflow-y-auto whitespace-pre-wrap break-all p-2 rounded bg-bg-primary">
                       {logsContent}
                     </pre>
                   </div>
@@ -1067,8 +1053,9 @@ function CloudinarySettingsView() {
 
       <div className="rounded-xl border border-border/20 bg-bg-secondary/35 p-5 space-y-4">
         <div className="flex flex-col gap-1.5">
-          <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted">Cloud Name</label>
+          <label htmlFor="cld-name" className="text-xs font-medium text-text-secondary">Cloud name</label>
           <input
+            id="cld-name"
             type="text"
             value={cloudName}
             onChange={(e) => setCloudName(e.target.value)}
@@ -1077,8 +1064,9 @@ function CloudinarySettingsView() {
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted">API Key</label>
+          <label htmlFor="cld-key" className="text-xs font-medium text-text-secondary">API key</label>
           <input
+            id="cld-key"
             type="text"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
@@ -1087,8 +1075,9 @@ function CloudinarySettingsView() {
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted">API Secret</label>
+          <label htmlFor="cld-secret" className="text-xs font-medium text-text-secondary">API secret</label>
           <input
+            id="cld-secret"
             type="password"
             value={apiSecret}
             onChange={(e) => setApiSecret(e.target.value)}
@@ -1105,7 +1094,7 @@ function CloudinarySettingsView() {
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent-hover disabled:opacity-50 cursor-pointer transition-colors shadow-sm"
           >
             {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-            Save Credentials
+            Save credentials
           </button>
           <button
             type="button"
@@ -1114,7 +1103,7 @@ function CloudinarySettingsView() {
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border/30 bg-bg-primary/50 text-text-primary text-xs font-semibold hover:border-border/60 hover:bg-bg-tertiary disabled:opacity-40 cursor-pointer transition-all"
           >
             {testing ? <Loader2 size={13} className="animate-spin" /> : <Cloud size={13} />}
-            Test Connection
+            Test connection
           </button>
         </div>
 
@@ -1128,7 +1117,7 @@ function CloudinarySettingsView() {
       </div>
 
       <div className="rounded-xl border border-border/20 bg-bg-secondary/35 p-5 space-y-3">
-        <h3 className="text-[10px] font-bold uppercase tracking-wider text-text-muted">How it works</h3>
+        <h3 className="text-sm font-semibold text-text-primary">How it works</h3>
         <ul className="text-[11px] text-text-secondary space-y-2 leading-relaxed">
           <li>1. Enter your Cloudinary credentials above and save them once.</li>
           <li>2. Open the <strong className="text-text-primary">Database</strong> tab and connect to any remote database.</li>
@@ -1171,12 +1160,12 @@ export function SettingsView() {
           {/* Version badge */}
           <div className="flex items-center gap-1.5 shrink-0">
             <span
-              className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider border border-indigo-500/20 bg-indigo-500/5 text-indigo-400"
+              className="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider border border-indigo-500/20 bg-indigo-500/5 text-indigo-400"
             >
               v{packageJson.version}
             </span>
             <span
-              className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold border border-amber-500/20 bg-amber-500/5 text-amber-400 hidden sm:inline-flex"
+              className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold border border-amber-500/20 bg-amber-500/5 text-amber-400 hidden sm:inline-flex"
             >
               ✦ {CHANGELOG[0].codename}
             </span>

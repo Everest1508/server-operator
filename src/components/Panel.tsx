@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Terminal as TerminalIcon, FileText, Loader2, RefreshCw, Plus, Trash2, X } from 'lucide-react';
+import { Terminal as TerminalIcon, FileText, Loader2, RefreshCw, Plus, Trash2, X, Search, Copy, Check, Eraser, FolderOpen } from 'lucide-react';
 import { Terminal } from '@xterm/xterm';
 import { EmptyState } from './ui/EmptyState';
 import { Button } from './ui/Button';
@@ -53,6 +53,8 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
   const [activeLogTabId, setActiveLogTabId] = useState<string | null>(null);
   const [logContentByTabId, setLogContentByTabId] = useState<Record<string, string>>({});
   const logPreRef = useRef<HTMLPreElement>(null);
+  const [logFilter, setLogFilter] = useState('');
+  const [logCopied, setLogCopied] = useState(false);
   const [tail, setTail] = useState<number | ''>(200);
 
   const [terminalTabs, setTerminalTabs] = useState<TerminalTab[]>([]);
@@ -528,14 +530,16 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
   return (
     <div className="flex-1 flex flex-col min-h-0 border-t border-border/20 bg-bg-secondary/35 select-none">
       <div className="flex items-center justify-between border-b border-border/20 bg-bg-secondary/45 px-3 py-1.5 gap-1 shrink-0">
-        <div className="flex items-center gap-1.5">
+        <div role="tablist" className="flex items-center gap-1">
           <button
             type="button"
             onClick={() => onTabChange('logs')}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all border duration-150 cursor-pointer ${
+            role="tab"
+            aria-selected={panelTab === 'logs'}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
               panelTab === 'logs'
-                ? 'bg-bg-primary border-border/40 text-accent shadow-sm'
-                : 'bg-transparent border-transparent text-text-secondary hover:bg-bg-tertiary/20 hover:text-text-primary'
+                ? 'bg-bg-primary text-text-primary shadow-sm'
+                : 'text-text-secondary hover:bg-bg-tertiary/40 hover:text-text-primary'
             }`}
           >
             <FileText size={13} />
@@ -544,10 +548,12 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
           <button
             type="button"
             onClick={() => onTabChange('terminal')}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all border duration-150 cursor-pointer ${
+            role="tab"
+            aria-selected={panelTab === 'terminal'}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
               panelTab === 'terminal'
-                ? 'bg-bg-primary border-border/40 text-accent shadow-sm'
-                : 'bg-transparent border-transparent text-text-secondary hover:bg-bg-tertiary/20 hover:text-text-primary'
+                ? 'bg-bg-primary text-text-primary shadow-sm'
+                : 'text-text-secondary hover:bg-bg-tertiary/40 hover:text-text-primary'
             }`}
           >
             <TerminalIcon size={13} />
@@ -556,8 +562,9 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
         </div>
         {panelTab === 'logs' && currentServer && composePaths && composePaths.length > 0 && (
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Tail:</span>
+            <label htmlFor="log-tail" className="text-xs text-text-secondary">Start with last</label>
             <input
+              id="log-tail"
               type="number"
               value={tail}
               onChange={(e) => {
@@ -575,12 +582,13 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                 }
               }}
               className="w-14 px-2 py-0.5 rounded-lg bg-bg-primary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent text-center font-mono"
-              title="Tail lines for new streams"
+              title="How many past lines to load when a stream opens"
             />
+            <span className="text-xs text-text-secondary">lines</span>
           </div>
         )}
         {panelTab === 'terminal' && currentServer && (
-          <div className="flex items-center gap-1.5 text-[10px] font-bold text-text-muted font-mono tracking-wide uppercase">
+          <div className="flex items-center gap-1.5 text-xs text-text-secondary font-mono">
             <span
               className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                 activeTerminalStatus === 'connected'
@@ -593,7 +601,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
               }`}
               title={activeTerminalStatus ? `Session ${activeTerminalStatus}` : 'No active session'}
             />
-            {currentServer.username || 'erp'}@{currentServer.host || 'hrms'}
+            {currentServer.connectionType === 'local' ? 'Local shell' : `${currentServer.username}@${currentServer.host}`}
           </div>
         )}
       </div>
@@ -608,7 +616,8 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                     value={newComposePath}
                     onChange={(e) => setNewComposePath(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && addComposePath()}
-                    placeholder="Compose file path (e.g. docker-compose.yml)"
+                    placeholder="Compose file or project folder, e.g. docker-compose.yml"
+                    aria-label="Compose file or project folder"
                     className="flex-1 min-w-[200px] px-3 py-1.5 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent font-mono"
                   />
                   <button
@@ -618,12 +627,23 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-bg-tertiary border border-border/30 text-text-primary hover:border-accent/40 hover:text-accent disabled:opacity-50 text-xs font-semibold cursor-pointer transition-colors"
                   >
                     <Plus size={13} />
-                    Add Path
+                    Add
                   </button>
+                  {currentServer.connectionType === 'local' && currentServer.projectPath && !composePaths.includes(currentServer.projectPath) && (
+                    <button
+                      type="button"
+                      onClick={() => { setNewComposePath(currentServer.projectPath || ''); }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-text-secondary hover:text-accent text-xs font-medium cursor-pointer transition-colors"
+                      title="Fill in this project's folder"
+                    >
+                      <FolderOpen size={13} />
+                      Use project folder
+                    </button>
+                  )}
                 </div>
                 {composePaths.length > 0 && (
                   <div className="space-y-2">
-                    <p className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Registered Compose Projects</p>
+                    <p className="text-xs font-semibold text-text-secondary">Compose projects</p>
                     <div className="flex flex-wrap gap-3">
                       {composePaths.map((p) => {
                         const services = servicesByPath[p] ?? [];
@@ -632,33 +652,33 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                         return (
                           <div
                             key={p}
-                            className="flex items-center gap-3 rounded-xl border border-border/20 bg-bg-primary/50 px-3.5 py-2 shadow-sm backdrop-blur-sm"
+                            className="flex items-center gap-3 rounded-xl border border-border/30 bg-bg-primary/50 px-3.5 py-2"
                           >
                             <div className="flex flex-col gap-0.5 min-w-0 max-w-[240px]">
-                              <span className="text-xs font-bold text-text-primary truncate" title={p}>
+                              <span className="text-xs font-semibold text-text-primary truncate" title={p}>
                                 {shortName}
                               </span>
-                              <span className="text-[10px] text-text-muted truncate font-mono" title={p}>
+                              <span className="text-[11px] text-text-muted truncate font-mono" title={p}>
                                 {p}
                               </span>
-                              <span className="text-[9px] font-semibold text-text-secondary mt-0.5">
-                                {isLoading ? 'fetching services…' : `${services.length} active service${services.length !== 1 ? 's' : ''}`}
+                              <span className="text-[11px] text-text-secondary mt-0.5">
+                                {isLoading ? 'Loading services…' : `${services.length} service${services.length !== 1 ? 's' : ''}`}
                               </span>
                             </div>
                             <div className="flex flex-wrap gap-1">
                               <button
                                 type="button"
                                 onClick={() => openLogTab(p, '')}
-                                className="px-2.5 py-0.5 rounded-lg bg-bg-tertiary border border-border/30 text-[10px] text-text-primary hover:border-accent hover:text-accent font-semibold transition-all duration-150 cursor-pointer"
+                                className="px-2.5 py-0.5 rounded-lg bg-bg-tertiary border border-border/30 text-[11px] text-text-primary hover:border-accent hover:text-accent font-medium transition-colors cursor-pointer"
                               >
-                                All Logs
+                                All services
                               </button>
                               {services.map((s) => (
                                 <button
                                   key={s}
                                   type="button"
                                   onClick={() => openLogTab(p, s)}
-                                  className="px-2.5 py-0.5 rounded-lg bg-bg-tertiary border border-border/30 text-[10px] text-text-primary hover:border-accent hover:text-accent font-semibold transition-all duration-150 cursor-pointer"
+                                  className="px-2.5 py-0.5 rounded-lg bg-bg-tertiary border border-border/30 text-[11px] text-text-primary hover:border-accent hover:text-accent font-medium transition-colors cursor-pointer"
                                 >
                                   {s}
                                 </button>
@@ -670,7 +690,8 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                                 onClick={() => refreshServicesForPath(p)}
                                 disabled={loadingServicesForPath !== null}
                                 className="p-1 rounded-md text-text-secondary hover:bg-bg-tertiary hover:text-accent disabled:opacity-50 cursor-pointer transition-colors"
-                                title="Refresh service list"
+                                title="Reload services"
+                                aria-label="Reload services"
                               >
                                 {loadingServicesForPath === p ? <Loader2 size={12} className="animate-spin text-accent" /> : <RefreshCw size={12} />}
                               </button>
@@ -678,7 +699,8 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                                 type="button"
                                 onClick={() => removeComposePath(p)}
                                 className="p-1 rounded-md text-text-secondary hover:bg-error/15 hover:text-error cursor-pointer transition-colors"
-                                title="Remove compose file"
+                                title="Remove this project from the list"
+                                aria-label="Remove compose project"
                               >
                                 <Trash2 size={12} />
                               </button>
@@ -693,29 +715,32 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
             )}
             {currentServer && logTabs.length > 0 && (
               <>
-                <div className="shrink-0 flex items-center gap-1.5 border-b border-border/20 bg-bg-secondary/35 px-2 py-1.5 overflow-x-auto">
+                <div role="tablist" className="shrink-0 flex items-center gap-1 border-b border-border/20 bg-bg-secondary/35 px-2 py-1.5 overflow-x-auto">
                   {logTabs.map((t) => (
                     <div
                       key={t.id}
                       role="tab"
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer shrink-0 max-w-[200px] min-w-0 group border transition-all duration-150 text-xs ${
+                      aria-selected={activeLogTabId === t.id}
+                      tabIndex={0}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer shrink-0 max-w-[200px] min-w-0 group border transition-colors text-xs ${
                         activeLogTabId === t.id
-                          ? 'bg-bg-primary border-border/40 text-accent font-semibold shadow-sm'
-                          : 'bg-transparent border-transparent text-text-secondary hover:bg-bg-tertiary/20 hover:text-text-primary'
+                          ? 'bg-bg-primary border-border/40 text-text-primary font-medium shadow-sm'
+                          : 'bg-transparent border-transparent text-text-secondary hover:bg-bg-tertiary/30 hover:text-text-primary'
                       }`}
                       onClick={() => setActiveLogTabId(t.id)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveLogTabId(t.id); } }}
                       title={t.label}
                     >
                       <FileText size={12} className="shrink-0" />
-                      <span className="truncate min-w-0 flex-1 font-sans">{t.label}</span>
+                      <span className="truncate min-w-0 flex-1">{t.label}</span>
                       <button
                         type="button"
-                        className="opacity-0 group-hover:opacity-100 p-0.5 rounded-md hover:bg-bg-tertiary text-text-muted hover:text-text-primary transition-all duration-100 shrink-0 cursor-pointer"
+                        className={`${activeLogTabId === t.id ? 'opacity-70' : 'opacity-0'} group-hover:opacity-100 focus-visible:opacity-100 p-0.5 rounded-md hover:bg-bg-tertiary text-text-muted hover:text-text-primary transition-opacity shrink-0 cursor-pointer`}
                         onClick={(e) => {
                           e.stopPropagation();
                           closeLogTab(t.id);
                         }}
-                        aria-label="Close tab"
+                        aria-label={`Close ${t.label}`}
                       >
                         <X size={11} />
                       </button>
@@ -723,27 +748,81 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                   ))}
                 </div>
                 <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg-primary">
-                  <pre
-                    ref={logPreRef}
-                    className="flex-1 p-4 font-mono text-xs text-text-primary whitespace-pre-wrap break-words overflow-auto min-h-0 select-text selection:bg-accent/30 selection:text-white"
-                  >
-                    {activeLogTabId ? (logContentByTabId[activeLogTabId] ?? 'Connecting log stream…') : '(Select a log tab above)'}
-                  </pre>
+                  {(() => {
+                    const raw = activeLogTabId ? (logContentByTabId[activeLogTabId] ?? 'Connecting to the log stream…') : '';
+                    const q = logFilter.trim().toLowerCase();
+                    const shown = !activeLogTabId
+                      ? 'Pick a log tab above.'
+                      : q
+                        ? raw.split('\n').filter((l) => l.toLowerCase().includes(q)).join('\n') || 'No lines match the filter.'
+                        : raw;
+                    const barBtn = 'p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors cursor-pointer';
+                    return (
+                      <>
+                        <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 border-b border-border/20">
+                          <div className="relative flex-1 max-w-xs">
+                            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
+                            <input
+                              value={logFilter}
+                              onChange={(e) => setLogFilter(e.target.value)}
+                              placeholder="Filter lines"
+                              aria-label="Filter log lines"
+                              className="w-full pl-7 pr-2 py-1 rounded-md bg-bg-tertiary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+                            />
+                          </div>
+                          <span className="mr-auto" />
+                          <button
+                            type="button"
+                            title="Copy logs"
+                            aria-label="Copy logs"
+                            disabled={!activeLogTabId}
+                            className={barBtn}
+                            onClick={() => {
+                              navigator.clipboard.writeText(raw);
+                              setLogCopied(true);
+                              setTimeout(() => setLogCopied(false), 1500);
+                            }}
+                          >
+                            {logCopied ? <Check size={13} className="text-success" /> : <Copy size={13} />}
+                          </button>
+                          <button
+                            type="button"
+                            title="Clear output"
+                            aria-label="Clear output"
+                            disabled={!activeLogTabId}
+                            className={barBtn}
+                            onClick={() => activeLogTabId && setLogContentByTabId((prev) => ({ ...prev, [activeLogTabId]: '' }))}
+                          >
+                            <Eraser size={13} />
+                          </button>
+                        </div>
+                        <pre
+                          ref={logPreRef}
+                          className="flex-1 p-4 font-mono text-xs leading-relaxed text-text-primary whitespace-pre-wrap break-words overflow-auto min-h-0 select-text selection:bg-accent/30"
+                        >
+                          {shown}
+                        </pre>
+                      </>
+                    );
+                  })()}
                 </div>
               </>
             )}
             {currentServer && logTabs.length === 0 && (
               <div className="flex-1 p-6 flex flex-col items-center justify-center text-text-secondary text-xs text-center max-w-md mx-auto gap-1">
-                <p className="text-text-muted">
+                <p className="text-sm font-semibold text-text-primary">
+                  {composePaths.length === 0 ? 'No compose project yet' : 'Choose what to stream'}
+                </p>
+                <p className="text-text-secondary">
                   {composePaths.length === 0
-                    ? 'Register a docker-compose.yml file above to begin scanning and streaming microservice container outputs.'
-                    : 'Select a microservice or the entire compose recipe above to open a live stream logs tab.'}
+                    ? 'Add a docker-compose.yml, or the folder that contains it, above. Its services will appear here.'
+                    : 'Select All services, or a single service, above to open a live log tab.'}
                 </p>
               </div>
             )}
             {!currentServer && panelTab === 'logs' && (
               <div className="flex-1 p-6 flex items-center justify-center text-text-secondary text-xs">
-                Select a server to view Docker Compose logs.
+                Select a server to see its Docker Compose logs.
               </div>
             )}
           </>
@@ -752,7 +831,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
           <div className="flex flex-col h-full min-h-0 flex-1 flex">
             {!currentServer ? (
               <div className="flex-1 p-6 flex items-center justify-center text-xs text-text-secondary">
-                <p>Select a server to open an SSH shell terminal.</p>
+                <p>Select a server to open a terminal.</p>
               </div>
             ) : (
               <>
@@ -762,11 +841,13 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                     {terminalTabs.length === 0 ? (
                       <EmptyState
                         className="bg-bg-primary"
-                        message="No active terminal session. Spawn a remote SSH command shell or container debug console."
+                        icon={TerminalIcon}
+                        title="No terminal open"
+                        message="Open one to run commands on this server."
                         action={
                           <Button variant="outline" onClick={addTerminalTab} className="shadow-sm">
                             <Plus size={14} />
-                            New Shell Session
+                            New terminal
                           </Button>
                         }
                       />

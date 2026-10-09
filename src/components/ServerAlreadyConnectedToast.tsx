@@ -27,7 +27,7 @@ export function ServerAlreadyConnectedToast({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -20, scale: 0.95 }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
-          className="fixed top-12 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl bg-bg-secondary/95 border border-accent/40 shadow-2xl backdrop-blur-xl max-w-sm select-none"
+          role="status" className="fixed top-12 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl popover-surface border border-accent/40 shadow-2xl max-w-sm select-none"
         >
           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-accent/15 text-accent shrink-0">
             <Server size={18} />
@@ -46,6 +46,7 @@ export function ServerAlreadyConnectedToast({
             onClick={onDismiss}
             className="p-1 rounded-lg hover:bg-bg-tertiary text-text-muted hover:text-text-primary transition-colors cursor-pointer shrink-0"
             title="Dismiss notification"
+            aria-label="Dismiss notification"
           >
             <X size={14} />
           </button>

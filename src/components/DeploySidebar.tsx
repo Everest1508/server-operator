@@ -585,7 +585,7 @@ export function DeploySidebar({
         <div className="flex items-center justify-between gap-2">
           <SectionLabel>Projects</SectionLabel>
           {loadingContext && (
-            <span className="flex items-center gap-1 text-[10px] text-text-secondary">
+            <span className="flex items-center gap-1 text-[11px] text-text-secondary">
               <Loader2 size={11} className="animate-spin text-accent" />
               Loading
             </span>
@@ -611,11 +611,11 @@ export function DeploySidebar({
             );
           })}
         </div>
-        {currentServer && <p className="text-accent text-xs">Viewing: {currentServer.name}</p>}
+        {currentServer && <p className="text-text-muted text-xs">On {currentServer.name}</p>}
       </Card>
 
       <div className="rounded-lg border border-border bg-bg-primary overflow-hidden">
-        <button type="button" onClick={() => setShortcutsOpen((open) => !open)} className="w-full flex items-center justify-between gap-2 px-3 py-3 text-left hover:bg-bg-secondary/60 transition-colors cursor-pointer">
+        <button type="button" onClick={() => setShortcutsOpen((open) => !open)} aria-expanded={shortcutsOpen} className="w-full flex items-center justify-between gap-2 px-3 py-3 text-left hover:bg-bg-secondary/60 transition-colors cursor-pointer">
           <SectionLabel>Serop Commands</SectionLabel>
           <ChevronDown size={14} className={`text-text-secondary transition-transform ${shortcutsOpen ? 'rotate-0' : '-rotate-90'}`} />
         </button>
@@ -638,14 +638,14 @@ export function DeploySidebar({
             />
             {hiddenFiles.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[10px] text-text-muted">Hidden from dropdown:</span>
+                <span className="text-[11px] text-text-muted">Hidden from dropdown:</span>
                 {hiddenFiles.map((name) => (
                   <button
                     key={name}
                     type="button"
                     onClick={() => handleUnhideShortcutFile(name)}
                     title="Restore to dropdown"
-                    className="px-2 py-0.5 rounded-full border border-border/25 bg-bg-secondary/40 text-[10px] font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-secondary/70 transition-colors cursor-pointer"
+                    className="px-2 py-0.5 rounded-full border border-border/25 bg-bg-secondary/40 text-[11px] font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-secondary/70 transition-colors cursor-pointer"
                   >
                     {name} ↺
                   </button>
@@ -653,7 +653,7 @@ export function DeploySidebar({
               </div>
             )}
             <div className="max-h-56 overflow-auto space-y-2 pr-1">
-              {shortcutsLoading && <p className="text-xs text-text-muted flex items-center gap-1.5"><Loader2 size={12} className="animate-spin text-accent" />Parsing build shortcuts…</p>}
+              {shortcutsLoading && <p className="text-xs text-text-muted flex items-center gap-1.5"><Loader2 size={12} className="animate-spin text-accent" />Reading recipes…</p>}
               {!shortcutsLoading && seropShortcuts.map((shortcut) => {
                 const isOpen = expandedShortcutId === shortcut.id;
                 const editedCommand = editedShortcutCommands[shortcut.id] ?? shortcut.command;
@@ -666,7 +666,7 @@ export function DeploySidebar({
                         className="flex-1 min-w-0 flex items-center gap-2 text-left cursor-pointer"
                       >
                         <ChevronDown size={14} className={`shrink-0 text-text-secondary transition-transform ${isOpen ? 'rotate-0' : '-rotate-90'}`} />
-                        <span className="text-xs font-bold text-text-primary truncate">{shortcut.name}</span>
+                        <span className="text-xs font-semibold text-text-primary truncate">{shortcut.name}</span>
                       </button>
                       <Button variant="subtle" size="sm" onClick={() => runShortcut(shortcut.command)} className="shrink-0">
                         <Play size={10} />Run
@@ -687,7 +687,7 @@ export function DeploySidebar({
                           <button
                             type="button"
                             onClick={() => setEditedShortcutCommands((prev) => ({ ...prev, [shortcut.id]: shortcut.command }))}
-                            className="px-2.5 py-1 rounded-lg border border-border/30 bg-bg-primary/40 text-[10px] font-semibold text-text-primary hover:bg-bg-tertiary/60 transition-colors cursor-pointer"
+                            className="px-2.5 py-1 rounded-lg border border-border/30 bg-bg-primary/40 text-[11px] font-semibold text-text-primary hover:bg-bg-tertiary/60 transition-colors cursor-pointer"
                           >
                             Reset
                           </button>
@@ -697,7 +697,7 @@ export function DeploySidebar({
                   </div>
                 );
               })}
-              {shortcutsError && <p className="text-xs text-error font-mono">{shortcutsError}</p>}
+              {shortcutsError && <p className="text-xs text-error break-words">{shortcutsError}</p>}
               {shortcutsWarning && !shortcutsError && <p className="text-xs text-text-muted">{shortcutsWarning}</p>}
             </div>
             <div className="flex items-center gap-2 flex-wrap pt-1">
@@ -709,20 +709,20 @@ export function DeploySidebar({
               </button>
             </div>
             {shortcutBootstrapMessage && <p className="text-xs text-text-secondary">{shortcutBootstrapMessage}</p>}
-            {shortcutBootstrapError && <p className="text-xs text-error font-mono">{shortcutBootstrapError}</p>}
+            {shortcutBootstrapError && <p className="text-xs text-error break-words">{shortcutBootstrapError}</p>}
           </div>
         )}
       </div>
 
       <div className="rounded-lg border border-border bg-bg-primary overflow-hidden">
-        <button type="button" onClick={() => setScheduleOpen((open) => !open)} className="w-full flex items-center justify-between gap-2 px-3 py-3 text-left hover:bg-bg-secondary/60 transition-colors cursor-pointer">
-          <SectionLabel>Scheduled Commands</SectionLabel>
+        <button type="button" onClick={() => setScheduleOpen((open) => !open)} aria-expanded={scheduleOpen} className="w-full flex items-center justify-between gap-2 px-3 py-3 text-left hover:bg-bg-secondary/60 transition-colors cursor-pointer">
+          <SectionLabel>Scheduled commands</SectionLabel>
           <ChevronDown size={14} className={`text-text-secondary transition-transform ${scheduleOpen ? 'rotate-0' : '-rotate-90'}`} />
         </button>
         {scheduleOpen && (
           <div className="border-t border-border/20 p-3 space-y-3">
-            <p className="text-[10px] text-text-muted leading-relaxed">
-              Runs once, at this time on the target's own clock, via a self-removing job — no need to keep Serop open.
+            <p className="text-[11px] text-text-muted leading-relaxed">
+              Runs once at the time you pick, on the server's own clock. Serop doesn't need to stay open.
             </p>
             <Select
               value={scheduleSource}
@@ -748,6 +748,7 @@ export function DeploySidebar({
             )}
             <input
               type="datetime-local"
+              aria-label="Run at"
               value={scheduleRunAt}
               onChange={(e) => setScheduleRunAt(e.target.value)}
               className="w-full px-3 py-2 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-primary"
@@ -756,7 +757,7 @@ export function DeploySidebar({
               {scheduleBusy ? <Loader2 size={11} className="animate-spin" /> : <CalendarClock size={11} />}
               Schedule
             </Button>
-            {scheduleError && <p className="text-xs text-error font-mono">{scheduleError}</p>}
+            {scheduleError && <p className="text-xs text-error break-words">{scheduleError}</p>}
             {scheduleMessage && <p className="text-xs text-text-secondary">{scheduleMessage}</p>}
 
             {scheduledCommands.length > 0 && (
@@ -765,9 +766,9 @@ export function DeploySidebar({
                   <div key={row.id} className="rounded-xl border border-border/20 bg-bg-secondary/35 px-3 py-2.5 space-y-1">
                     <p className="text-[11px] font-mono text-text-primary truncate" title={row.command}>{row.command}</p>
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] text-text-muted">{formatScheduledTime(row.runAt)}</span>
+                      <span className="text-[11px] text-text-muted">{formatScheduledTime(row.runAt)}</span>
                       <span
-                        className={`text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${
+                        className={`text-[11px] font-medium capitalize px-1.5 py-0.5 rounded-full ${
                           row.status === 'scheduled'
                             ? 'bg-accent/15 text-accent'
                             : row.status === 'ran'
@@ -786,7 +787,7 @@ export function DeploySidebar({
                           type="button"
                           disabled={scheduleActionId === row.id}
                           onClick={() => handleCancelScheduledCommand(row)}
-                          className="flex items-center gap-1 px-2 py-1 rounded-md border border-border/30 text-[10px] font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/60 disabled:opacity-50 transition-colors cursor-pointer"
+                          className="flex items-center gap-1 px-2 py-1 rounded-md border border-border/30 text-[11px] font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/60 disabled:opacity-50 transition-colors cursor-pointer"
                         >
                           <X size={10} />Cancel
                         </button>
@@ -795,7 +796,7 @@ export function DeploySidebar({
                           type="button"
                           disabled={scheduleActionId === row.id}
                           onClick={() => handleDeleteScheduledCommand(row)}
-                          className="flex items-center gap-1 px-2 py-1 rounded-md border border-border/30 text-[10px] font-semibold text-text-secondary hover:text-error hover:bg-error/10 disabled:opacity-50 transition-colors cursor-pointer"
+                          className="flex items-center gap-1 px-2 py-1 rounded-md border border-border/30 text-[11px] font-semibold text-text-secondary hover:text-error hover:bg-error/10 disabled:opacity-50 transition-colors cursor-pointer"
                         >
                           <Trash2 size={10} />Remove
                         </button>
@@ -810,18 +811,18 @@ export function DeploySidebar({
       </div>
 
       <div className="rounded-lg border border-border bg-bg-primary overflow-hidden">
-        <button type="button" onClick={() => setContextOpen((open) => !open)} className="w-full flex items-center justify-between gap-2 px-3 py-3 text-left hover:bg-bg-secondary/60 transition-colors cursor-pointer">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Context</span>
+        <button type="button" onClick={() => setContextOpen((open) => !open)} aria-expanded={contextOpen} className="w-full flex items-center justify-between gap-2 px-3 py-3 text-left hover:bg-bg-secondary/60 transition-colors cursor-pointer">
+          <span className="text-xs font-semibold text-text-secondary">AI context</span>
           <ChevronDown size={14} className={`text-text-secondary transition-transform ${contextOpen ? 'rotate-0' : '-rotate-90'}`} />
         </button>
         {contextOpen && (
           <div className="border-t border-border/20 p-3 space-y-3">
-            <div className="flex items-center gap-2 text-[10px] text-text-secondary">
+            <div className="flex items-center gap-2 text-[11px] text-text-secondary">
               <FolderTree size={12} className="text-accent shrink-0" />
               <span className="truncate" title={activeProjectPath}>{activeProjectPath}</span>
             </div>
-            <textarea value={contextText} onChange={(e) => onContextTextChange(e.target.value)} placeholder="Project tree context will appear here for the selected project." rows={10} className="w-full px-3 py-2 rounded-xl bg-bg-primary/50 border border-border/30 text-xs font-mono text-text-primary placeholder-text-muted resize-y" />
-            {contextError && <p className="text-xs text-error font-mono">{contextError}</p>}
+            <textarea value={contextText} onChange={(e) => onContextTextChange(e.target.value)} placeholder="The project file tree appears here once a project is selected. The AI chat uses it as context." rows={10} className="w-full px-3 py-2 rounded-xl bg-bg-primary/50 border border-border/30 text-xs font-mono text-text-primary placeholder-text-muted resize-y" />
+            {contextError && <p className="text-xs text-error break-words">{contextError}</p>}
           </div>
         )}
       </div>

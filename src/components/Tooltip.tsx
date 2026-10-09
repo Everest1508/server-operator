@@ -137,7 +137,7 @@ export function Tooltip({ content, children, position = 'top' }: TooltipProps) {
           }}
         >
           {/* Bubble */}
-          <div className="relative w-max max-w-[280px] px-2.5 py-1.5 rounded-lg bg-bg-tertiary/95 border border-border/40 text-[10.5px] leading-tight text-text-primary shadow-2xl backdrop-blur-md font-sans whitespace-normal break-words">
+          <div className="relative w-max max-w-[280px] px-2.5 py-1.5 rounded-lg bg-bg-tertiary/95 border border-border/40 text-[11px] leading-tight text-text-primary shadow-2xl font-sans whitespace-normal break-words">
             {content}
             {/* Arrow */}
             {coords && (

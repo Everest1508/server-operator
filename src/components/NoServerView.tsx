@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import {
   Server, Shield, Plus, Trash2, Edit2, LogIn, Key, Lock, AlertCircle, Check, MonitorCog, FolderOpen, Search, X, Cloud, Loader2,
 } from 'lucide-react';
@@ -23,9 +23,16 @@ const TYPE_META: Record<ConnectionType, { label: string; short: string; hint: st
 const typeOf = (s: ServerConnection): ConnectionType => s.connectionType ?? (s.privateKeyPath ? 'ec2' : 'password');
 
 function Field({ label, hint, error, children }: { label: string; hint?: string; error?: string; children: React.ReactNode }) {
+  const id = useId();
   return (
-    <div>
-      <label className="block text-xs font-semibold text-text-primary mb-1.5">{label}</label>
+    <div
+      // Tie the label to the first input inside, however it is wrapped.
+      ref={(el) => {
+        const input = el?.querySelector('input');
+        if (input && !input.id) input.id = id;
+      }}
+    >
+      <label htmlFor={id} className="block text-xs font-semibold text-text-primary mb-1.5">{label}</label>
       {children}
       {error ? (
         <p className="text-[11px] text-error mt-1 flex items-center gap-1"><AlertCircle size={11} />{error}</p>
@@ -105,7 +112,10 @@ function ServerDrawer({
       <form
         onSubmit={submit}
         noValidate
-        className="fixed top-10 right-0 bottom-0 z-50 w-[460px] max-w-full flex flex-col bg-bg-secondary border-l border-border shadow-2xl select-text"
+        role="dialog"
+        aria-label={editing ? `Edit ${server!.name}` : 'Add a server'}
+        onKeyDown={(e) => e.key === 'Escape' && onClose()}
+        className="fixed top-10 right-0 bottom-0 z-50 w-[460px] max-w-full flex flex-col popover-surface border-l border-border shadow-2xl select-text"
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-border/40">
           <div>
@@ -114,14 +124,14 @@ function ServerDrawer({
               {editing ? 'Changes apply the next time you connect.' : 'Choose how you connect, then fill in the details.'}
             </p>
           </div>
-          <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary cursor-pointer">
+          <button type="button" onClick={onClose} aria-label="Close" className="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary cursor-pointer">
             <X size={15} />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted mb-2">Connection type</p>
+            <p className="text-xs font-semibold text-text-primary mb-2">Connection type</p>
             <div className="grid grid-cols-2 gap-2">
               {(Object.keys(TYPE_META) as ConnectionType[]).map((t) => {
                 const { label, hint, Icon } = TYPE_META[t];
@@ -147,7 +157,7 @@ function ServerDrawer({
           </div>
 
           <div className="space-y-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">Details</p>
+            <p className="text-xs font-semibold text-text-primary">Details</p>
             <Field label="Name" error={err('name')} hint="Shown in the sidebar and tabs.">
               <input className={`${inputClass} ${errBorder('name')}`} value={d.name} onChange={(e) => set('name', e.target.value)} placeholder="Production App" autoFocus />
             </Field>
@@ -376,7 +386,7 @@ export function NoServerView({
                   <input
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search servers..."
+                    placeholder="Search servers…" aria-label="Search servers"
                     className={`${inputClass} pl-9 select-text`}
                   />
                 </div>
@@ -417,7 +427,7 @@ export function NoServerView({
                   return (
                     <div
                       key={s.id}
-                      className="group flex flex-col rounded-2xl border border-border/30 bg-bg-secondary/35 hover:border-accent/40 hover:bg-bg-secondary/55 transition-all p-4"
+                      className="group flex flex-col rounded-xl border border-border/30 bg-bg-secondary/35 hover:border-accent/40 hover:bg-bg-secondary/55 transition-colors p-4"
                     >
                       <div className="flex items-start gap-3">
                         <div className={`p-2 rounded-xl border shrink-0 ${meta.tone}`}><meta.Icon size={16} /></div>
@@ -427,9 +437,9 @@ export function NoServerView({
                             {t === 'local' ? 'This computer' : `${s.username}@${s.host}`}
                           </p>
                         </div>
-                        <div className="flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-0.5 opacity-60 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                           <Tooltip content="Edit" position="top">
-                            <button type="button" onClick={() => setDrawer({ server: s })} className="p-1.5 rounded-lg text-text-secondary hover:bg-bg-tertiary/60 hover:text-accent cursor-pointer">
+                            <button type="button" onClick={() => setDrawer({ server: s })} aria-label={`Edit ${s.name}`} className="p-1.5 rounded-lg text-text-secondary hover:bg-bg-tertiary/60 hover:text-accent cursor-pointer">
                               <Edit2 size={13} />
                             </button>
                           </Tooltip>
@@ -439,13 +449,13 @@ export function NoServerView({
                               onClick={() => { onRemoveServer(s.id); setConfirmDelete(null); }}
                               onBlur={() => setConfirmDelete(null)}
                               autoFocus
-                              className="px-2 py-1 rounded-lg bg-error/15 text-error text-[10px] font-bold cursor-pointer"
+                              className="px-2 py-1 rounded-lg bg-error/15 text-error text-[11px] font-semibold cursor-pointer"
                             >
-                              Delete?
+                              Confirm remove
                             </button>
                           ) : (
                             <Tooltip content="Remove" position="top">
-                              <button type="button" onClick={() => setConfirmDelete(s.id)} className="p-1.5 rounded-lg text-text-secondary hover:bg-bg-tertiary/60 hover:text-error cursor-pointer">
+                              <button type="button" onClick={() => setConfirmDelete(s.id)} aria-label={`Remove ${s.name}`} className="p-1.5 rounded-lg text-text-secondary hover:bg-bg-tertiary/60 hover:text-error cursor-pointer">
                                 <Trash2 size={13} />
                               </button>
                             </Tooltip>
@@ -460,14 +470,14 @@ export function NoServerView({
 
                       <div className="mt-4 flex items-center justify-between gap-2">
                         <div className="flex items-center gap-1.5">
-                          <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-lg border uppercase tracking-wider ${meta.tone}`}>{meta.short}</span>
-                          {proxyLabel && <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg border border-border/30 text-text-muted uppercase tracking-wider">{proxyLabel}</span>}
+                          <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${meta.tone}`}>{meta.short}</span>
+                          {proxyLabel && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full border border-border/30 text-text-muted">{proxyLabel}</span>}
                         </div>
                         <button
                           type="button"
                           onClick={() => onSelectServer(s)}
                           disabled={connectingTo !== null}
-                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent/10 border border-accent/30 text-accent text-xs font-semibold hover:bg-accent hover:text-white transition-colors disabled:opacity-60 cursor-pointer"
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent text-white text-xs font-semibold hover:bg-accent-hover transition-colors disabled:opacity-60 cursor-pointer"
                         >
                           {connecting ? <Loader2 size={12} className="animate-spin" /> : <LogIn size={12} />}
                           {connecting ? 'Connecting…' : t === 'local' ? 'Open' : 'Connect'}
@@ -482,9 +492,9 @@ export function NoServerView({
             {/* Offline Guide banner */}
             <div className="p-5 rounded-2xl border border-dashed border-border/25 bg-bg-secondary/30 flex flex-col md:flex-row md:items-center justify-between gap-4 select-none">
               <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-text-primary">Offline Feature Documentation</h4>
+                <h4 className="text-sm font-semibold text-text-primary">Feature guides</h4>
                 <p className="text-xs text-text-secondary mt-1 max-w-2xl leading-relaxed">
-                  Learn how SQL tunnels, Git deploy hooks, rollback logs and auto-updates work. Browse the guides anytime, no connection needed.
+                  How SQL tunnels, Git deploys, rollbacks and auto-updates work. They open offline, no connection needed.
                 </p>
               </div>
               <button
@@ -492,36 +502,35 @@ export function NoServerView({
                 onClick={() => onViewGuide?.('database')}
                 className="px-3.5 py-1.5 rounded-xl bg-bg-tertiary/50 hover:bg-bg-tertiary border border-border/30 text-text-primary text-xs font-semibold shrink-0 transition-colors cursor-pointer"
               >
-                Read Feature Guides
+                Open guides
               </button>
             </div>
           </div>
         )}
 
         {activeTab === 'proxy' && (
-          <div className="max-w-xl rounded-xl border border-border/20 bg-bg-secondary/35 p-6 shadow-sm backdrop-blur-sm">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-text-primary mb-1">Global Tor SOCKS proxy</h3>
+          <div className="max-w-xl rounded-xl border border-border/30 bg-bg-secondary/35 p-6">
+            <h3 className="text-sm font-semibold text-text-primary mb-1">SOCKS proxy</h3>
             <p className="text-xs text-text-secondary mb-4 leading-relaxed font-sans">
-              When checked, SSH connections hook through a secure SOCKS5 network layer (e.g., standard local Tor package running at 127.0.0.1:9050). Equivalent to tunneling terminal operations via <code className="text-xs text-text-secondary bg-bg-tertiary px-1 py-0.5 rounded font-mono">torsocks ssh user@host</code>.
+              Send SSH connections through a SOCKS5 proxy, such as Tor running on 127.0.0.1:9050. This is the same as running <code className="text-xs text-text-secondary bg-bg-tertiary px-1 py-0.5 rounded font-mono">torsocks ssh user@host</code>. A server can opt out in its own settings.
             </p>
             <div className="space-y-4 select-text">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <button
-                  type="button"
-                  onClick={() => onProxyChange({ ...proxy, enabled: !proxy.enabled })}
-                  className={`w-4 h-4 rounded-md border flex items-center justify-center transition-all duration-150 cursor-pointer ${
-                    proxy.enabled
-                      ? 'bg-accent border-accent text-white shadow-sm shadow-accent/20'
-                      : 'bg-bg-primary/50 border-border/30 hover:border-accent/40 text-transparent'
-                  }`}
-                >
-                  {proxy.enabled && <Check size={10} strokeWidth={3} className="shrink-0" />}
-                </button>
-                <span className="text-xs font-semibold text-text-primary">Enable proxy route</span>
-              </label>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={proxy.enabled}
+                onClick={() => onProxyChange({ ...proxy, enabled: !proxy.enabled })}
+                className="w-full flex items-center justify-between gap-3 rounded-xl border border-border/30 hover:border-border/60 px-3.5 py-3 text-left cursor-pointer"
+              >
+                <span className="text-xs font-semibold text-text-primary">Use proxy for SSH connections</span>
+                <span className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border transition-colors ${proxy.enabled ? 'bg-accent border-transparent' : 'bg-bg-tertiary border-border/30'}`}>
+                  <span className={`absolute top-[2px] left-[2px] h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${proxy.enabled ? 'translate-x-4' : ''}`} />
+                </span>
+              </button>
               <div>
-                <label className="block text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-1.5 select-none">Proxy host</label>
+                <label htmlFor="proxy-host" className="block text-xs font-semibold text-text-primary mb-1.5">Host</label>
                 <input
+                  id="proxy-host"
                   type="text"
                   value={proxy.host}
                   onChange={(e) => onProxyChange({ ...proxy, host: e.target.value })}
@@ -530,8 +539,9 @@ export function NoServerView({
                 />
               </div>
               <div>
-                <label className="block text-[9px] font-extrabold uppercase tracking-wider text-text-muted mb-1.5 select-none">Proxy port</label>
+                <label htmlFor="proxy-port" className="block text-xs font-semibold text-text-primary mb-1.5">Port</label>
                 <input
+                  id="proxy-port"
                   type="number"
                   value={proxy.port}
                   onChange={(e) => onProxyChange({ ...proxy, port: Number(e.target.value) || 9050 })}
@@ -539,9 +549,7 @@ export function NoServerView({
                   className={inputClass}
                 />
               </div>
-              <p className="text-xs text-text-muted italic leading-relaxed select-none">
-                Default Tor daemon port is 9050. Check individual server profiles to override global proxy settings.
-              </p>
+              <p className="text-xs text-text-muted leading-relaxed">Tor listens on port 9050 by default.</p>
             </div>
           </div>
         )}

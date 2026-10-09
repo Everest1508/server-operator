@@ -53,7 +53,7 @@ export function ActivityBar({
   const { flags } = useFeatureFlags();
 
   return (
-    <div className="flex flex-col w-12 bg-bg-activity/30 border-r border-border/20 shrink-0">
+    <div className="flex flex-col w-14 bg-bg-activity/40 border-r border-border/25 shrink-0">
       <div className="flex flex-col items-center py-3 gap-1.5">
         {items.map(({ id, icon: Icon, label }) => {
           const flagKey = flagMapping[id];
@@ -85,14 +85,16 @@ export function ActivityBar({
               <button
                 type="button"
                 onClick={() => onViewChange(id)}
-                className={`w-10 h-10 flex items-center justify-center rounded-lg transition-all duration-200 relative ${
+                aria-label={label}
+                aria-current={activeView === id ? 'page' : undefined}
+                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-colors duration-150 relative ${
                   activeView === id
-                    ? 'bg-bg-tertiary/60 text-accent'
-                    : 'text-text-secondary hover:bg-bg-tertiary/20 hover:text-text-primary'
+                    ? 'bg-accent/15 text-accent'
+                    : 'text-text-secondary hover:bg-bg-tertiary/50 hover:text-text-primary'
                 }`}
               >
                 {activeView === id && (
-                  <span className="absolute left-0 top-3 bottom-3 w-0.5 rounded-r bg-accent" />
+                  <span className="absolute -left-2 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-accent" />
                 )}
                 <Icon size={20} strokeWidth={1.8} />
               </button>
@@ -116,7 +118,7 @@ export function ActivityBar({
           <button
             type="button"
             onClick={onSidebarToggle}
-            className="w-9 h-9 flex items-center justify-center text-text-secondary hover:bg-bg-tertiary/40 hover:text-text-primary rounded-md transition-colors"
+            className="w-9 h-9 flex items-center justify-center text-text-secondary hover:bg-bg-tertiary/50 hover:text-text-primary rounded-lg transition-colors"
           >
             <PanelLeftClose size={18} />
           </button>
@@ -125,23 +127,25 @@ export function ActivityBar({
           <button
             type="button"
             onClick={onPanelToggle}
-            className="w-9 h-9 flex items-center justify-center text-text-secondary hover:bg-bg-tertiary/40 hover:text-text-primary rounded-md transition-colors"
+            className="w-9 h-9 flex items-center justify-center text-text-secondary hover:bg-bg-tertiary/50 hover:text-text-primary rounded-lg transition-colors"
           >
             <PanelBottomClose size={18} />
           </button>
         </Tooltip>
-        <Tooltip content="Feature Settings" position="right">
+        <Tooltip content="Settings" position="right">
           <button
             type="button"
             onClick={() => onViewChange('settings')}
-            className={`w-10 h-10 flex items-center justify-center rounded-lg transition-all duration-200 relative ${
+            aria-label="Settings"
+            aria-current={activeView === 'settings' ? 'page' : undefined}
+            className={`w-10 h-10 flex items-center justify-center rounded-xl transition-colors duration-150 relative ${
               activeView === 'settings'
-                ? 'bg-bg-tertiary/60 text-accent'
-                : 'text-text-secondary hover:bg-bg-tertiary/20 hover:text-text-primary'
+                ? 'bg-accent/15 text-accent'
+                : 'text-text-secondary hover:bg-bg-tertiary/50 hover:text-text-primary'
             }`}
           >
             {activeView === 'settings' && (
-              <span className="absolute left-0 top-3 bottom-3 w-0.5 rounded-r bg-accent" />
+              <span className="absolute -left-2 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-accent" />
             )}
             <Settings size={18} strokeWidth={1.8} />
           </button>

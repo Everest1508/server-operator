@@ -27,7 +27,7 @@ function UpToDateToast({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl border border-success/20 bg-bg-secondary/95 backdrop-blur-md"
+      className="flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl border border-success/20 popover-surface "
       style={{
         animation: 'slideDown 0.3s cubic-bezier(0.34,1.56,0.64,1)',
       }}
@@ -66,7 +66,7 @@ function UpdateBannerInner({
   };
 
   return (
-    <div className="flex flex-col w-full rounded-2xl shadow-2xl border border-border/40 bg-bg-secondary/95 backdrop-blur-md overflow-hidden font-sans p-1 animate-slide-down">
+    <div className="flex flex-col w-full rounded-2xl shadow-2xl border border-border/40 popover-surface  overflow-hidden font-sans p-1 animate-slide-down">
       {/* Main row */}
       <div className="flex items-start gap-2.5 p-3">
         {/* Icon */}
@@ -80,7 +80,7 @@ function UpdateBannerInner({
             Update Available:{' '}
             <span className="font-bold text-accent">{info.version}</span>
           </p>
-          <p className="text-[10px] mt-0.5 leading-normal text-text-secondary">
+          <p className="text-[11px] mt-0.5 leading-normal text-text-secondary">
             A new release has been published to GitHub.
           </p>
         </div>
@@ -100,7 +100,7 @@ function UpdateBannerInner({
         {info.releaseNotes && (
           <button
             onClick={() => setNotesOpen((o) => !o)}
-            className="flex items-center gap-0.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-colors text-text-secondary hover:text-text-primary hover:bg-bg-tertiary"
+            className="flex items-center gap-0.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors text-text-secondary hover:text-text-primary hover:bg-bg-tertiary"
           >
             Changelog
             {notesOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
@@ -111,7 +111,7 @@ function UpdateBannerInner({
 
         <button
           onClick={handleDownload}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-100 bg-accent hover:bg-accent-hover text-white shadow-md shadow-accent/15"
+          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all duration-100 bg-accent hover:bg-accent-hover text-white shadow-md shadow-accent/15"
         >
           <Download size={11} />
           Download
@@ -123,7 +123,7 @@ function UpdateBannerInner({
         <div
           className="px-3 pb-3 border-t border-border/20 bg-black/10"
         >
-          <pre className="text-[9px] leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto rounded-lg p-2 mt-2 border border-border/30 bg-bg-primary/60 text-text-primary font-mono scrollbar-vs">
+          <pre className="text-[11px] leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto rounded-lg p-2 mt-2 border border-border/30 bg-bg-primary/60 text-text-primary font-mono scrollbar-vs">
             {info.releaseNotes}
           </pre>
         </div>

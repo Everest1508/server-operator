@@ -19,6 +19,7 @@ import type { ServerConnection, FileTreeClipboard } from '../types';
 import { parseLsLine } from '../utils/parseLs';
 import { Tooltip } from './Tooltip';
 import { createPortal } from 'react-dom';
+import { confirmDialog } from '../utils/confirm';
 
 interface RepoFileTreeMenuState {
   kind: 'entry' | 'background';
@@ -252,11 +253,11 @@ export function RepoSidebar({
             {onDeleteEntry && (
               <button
                 type="button"
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.stopPropagation();
                   const fullPath = repoPath === '.' ? pathKey : `${repoPath}/${pathKey}`;
                   const name = pathKey.split('/').pop() || pathKey;
-                  if (window.confirm(`Delete folder "${name}"?\n\nThis cannot be undone.`)) {
+                  if (await confirmDialog(`Delete folder "${name}"?\n\nThis cannot be undone.`, { confirmLabel: 'Delete' })) {
                     onDeleteEntry(fullPath);
                   }
                 }}
@@ -342,9 +343,9 @@ export function RepoSidebar({
                   {onDeleteEntry && (
                     <button
                       type="button"
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation();
-                        if (window.confirm(`Delete file "${name}"?\n\nThis cannot be undone.`)) {
+                        if (await confirmDialog(`Delete file "${name}"?\n\nThis cannot be undone.`, { confirmLabel: 'Delete' })) {
                           onDeleteEntry(fullFilePath);
                         }
                       }}
@@ -705,7 +706,7 @@ export function RepoSidebar({
                   onClick={async () => {
                     const p = fileTreeMenu.path!;
                     const label = p.split('/').pop() || p;
-                    if (!window.confirm(`Delete "${label}"?\n\nThis cannot be undone.`)) {
+                    if (!await confirmDialog(`Delete "${label}"?\n\nThis cannot be undone.`, { confirmLabel: 'Delete' })) {
                       setFileTreeMenu(null);
                       return;
                     }

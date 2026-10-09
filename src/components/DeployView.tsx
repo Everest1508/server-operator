@@ -1,5 +1,5 @@
 import { Fragment, useState, useRef, useEffect } from 'react';
-import { Rocket, Loader2, Key, FileCode, FolderTree, Send, Sparkles, Play, ChevronDown, Server, Copy, Wand2, GitBranch, RefreshCw } from 'lucide-react';
+import { Rocket, TerminalSquare, Loader2, Key, FileCode, FolderTree, Send, Sparkles, Play, ChevronDown, Server, Copy, Wand2, GitBranch, RefreshCw } from 'lucide-react';
 import EyeIcon from './icons/EyeIcon';
 import EyeOffIcon from './icons/EyeOffIcon';
 import { useFeatureFlag } from '../contexts/FeatureFlagContext';
@@ -11,9 +11,10 @@ import { ConfigCreators } from './ConfigCreators';
 import { ProjectTerminal } from './ProjectTerminal';
 import { ServerToolsView } from './ServerToolsView';
 import { Select } from './Select';
+import { GroqModelSelect, loadGroqModel, DEFAULT_GROQ_MODELS } from './GroqModelSelect';
+import { confirmDialog } from '../utils/confirm';
 
 const GROQ_API_KEY_STORAGE = 'server-operator:groq-api-key';
-const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'];
 
 function loadGroqApiKey(): string {
   try {
@@ -196,7 +197,7 @@ function renderAssistantAnswer(text: string) {
           return (
             <div key={`code-${index}`} className="rounded-xl border border-accent/15 bg-bg-primary/35 overflow-hidden">
               <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border/10 bg-bg-primary/30 select-none">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                <span className="text-xs font-semibold text-text-secondary">
                   {language || 'Code'}
                 </span>
               </div>
@@ -350,6 +351,7 @@ function parseSeropShortcuts(content: string): { shortcuts: SeropShortcut[]; war
 
 async function suggestCommandWithGroq(
   apiKey: string,
+  preferredModel: string,
   conversationMessages: Array<{ role: 'user' | 'assistant'; content: string }>,
   serverContext: string,
   extraContext: string
@@ -364,7 +366,8 @@ async function suggestCommandWithGroq(
   ];
   let lastError = 'No response returned';
 
-  for (const model of GROQ_MODELS) {
+  // Chosen model first; on rate limit fall through to the defaults.
+  for (const model of [preferredModel, ...DEFAULT_GROQ_MODELS.filter((m) => m !== preferredModel)]) {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -485,6 +488,7 @@ export function DeployView({
   const [aiSuggesting, setAiSuggesting] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [showGroqKey, setShowGroqKey] = useState(false);
+  const [groqModel, setGroqModel] = useState(loadGroqModel);
 
   // Pipeline form states
   const [pipelineProjDir, setPipelineProjDir] = useState(currentServer?.projectPath || currentServer?.cwd || '');
@@ -547,6 +551,7 @@ export function DeployView({
       const messagesForApi = [...deployChatMessages, newUserMessage];
       const { answer, command: suggested, error } = await suggestCommandWithGroq(
         key,
+        groqModel,
         messagesForApi,
         serverContextSummary,
         deployContextText
@@ -574,6 +579,7 @@ export function DeployView({
 
   const handleStartDeployment = async () => {
     if (!pipelineProjDir.trim() || !window.serverOperator || !terminalShellIdRef.current) return;
+    if (!await confirmDialog(`Deploy branch "${pipelineBranch || 'main'}" to ${currentServer.name}?\n\nThis resets ${pipelineProjDir.trim()} to the remote branch, discarding local changes on the server.`)) return;
 
     setDeploying(true);
     try {
@@ -599,6 +605,7 @@ export function DeployView({
 
   const handleRollback = async (commitHash: string) => {
     if (!pipelineProjDir.trim() || !window.serverOperator || !terminalShellIdRef.current) return;
+    if (!await confirmDialog(`Roll ${currentServer.name} back to commit ${commitHash.slice(0, 7)}?\n\nThe server will check out that commit and restart the service.`)) return;
 
     setDeploying(true);
     try {
@@ -653,9 +660,9 @@ export function DeployView({
   if (!hasServerOperator) {
     return (
       <div className="flex-grow flex flex-col items-center justify-center bg-bg-primary text-text-secondary p-8 text-center min-h-0 select-none">
-        <Rocket size={48} className="mb-4 opacity-50 text-accent animate-pulse" />
-        <p className="font-semibold text-text-primary text-sm">Deployment Modules</p>
-        <p className="text-xs text-text-muted mt-2 max-w-sm">Please launch Server Operator within Electron dev builds to execute secure remote terminal pipeline builds.</p>
+        <Rocket size={40} className="mb-4 text-text-muted opacity-60" />
+        <p className="font-semibold text-text-primary text-sm">Deploy needs the desktop app</p>
+        <p className="text-xs text-text-muted mt-2 max-w-sm">Run Server Operator through Electron to open terminals and deploy to servers.</p>
       </div>
     );
   }
@@ -663,65 +670,33 @@ export function DeployView({
   return (
     <div className="flex-grow flex flex-col bg-bg-primary min-h-0">
       {/* Top Tabs */}
-      <div className="flex bg-bg-secondary/35 border-b border-border/20 px-3 py-1.5 gap-1 shrink-0 select-none">
-        <button
-          type="button"
-          onClick={() => setDeploySubTab('deploy')}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 cursor-pointer ${
-            deploySubTab === 'deploy'
-              ? 'bg-bg-primary border-border/40 text-accent font-semibold shadow-sm'
-              : 'bg-transparent border-transparent text-text-secondary hover:bg-bg-tertiary/20 hover:text-text-primary'
-          }`}
-        >
-          <Rocket size={13} />
-          Terminal Shell
-        </button>
-
-        {isPipelineEnabled && (
-          <button
-            type="button"
-            onClick={() => setDeploySubTab('pipeline')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 cursor-pointer ${
-              deploySubTab === 'pipeline'
-                ? 'bg-bg-primary border-border/40 text-accent font-semibold shadow-sm'
-                : 'bg-transparent border-transparent text-text-secondary hover:bg-bg-tertiary/20 hover:text-text-primary'
-            }`}
-          >
-            <GitBranch size={13} />
-            Git Pipeline
-          </button>
-        )}
-  
-        {isCreatorsEnabled && (
-          <button
-            type="button"
-            onClick={() => setDeploySubTab('creators')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 cursor-pointer ${
-              deploySubTab === 'creators'
-                ? 'bg-bg-primary border-border/40 text-accent font-semibold shadow-sm'
-                : 'bg-transparent border-transparent text-text-secondary hover:bg-bg-tertiary/20 hover:text-text-primary'
-            }`}
-          >
-            <FileCode size={13} />
-            Config Creators
-          </button>
-        )}
-        {isServerEnabled && (
-          <button
-            type="button"
-            onClick={() => setDeploySubTab('server')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 cursor-pointer ${
-              deploySubTab === 'server'
-                ? 'bg-bg-primary border-border/40 text-accent font-semibold shadow-sm'
-                : 'bg-transparent border-transparent text-text-secondary hover:bg-bg-tertiary/20 hover:text-text-primary'
-            }`}
-          >
-            <Server size={13} />
-            Server Admin
-          </button>
-        )}
+      <div role="tablist" className="flex bg-bg-secondary/35 border-b border-border/20 px-3 py-1.5 gap-1 shrink-0 select-none">
+        {([
+          { id: 'deploy', label: 'Terminal', icon: <TerminalSquare size={13} />, show: true },
+          { id: 'pipeline', label: 'Git deploy', icon: <GitBranch size={13} />, show: isPipelineEnabled },
+          { id: 'creators', label: 'Config creators', icon: <FileCode size={13} />, show: isCreatorsEnabled },
+          { id: 'server', label: 'Server admin', icon: <Server size={13} />, show: isServerEnabled },
+        ] as { id: DeploySubTab; label: string; icon: React.ReactNode; show: boolean }[])
+          .filter((t) => t.show)
+          .map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={deploySubTab === t.id}
+              onClick={() => setDeploySubTab(t.id)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                deploySubTab === t.id
+                  ? 'bg-bg-primary text-text-primary shadow-sm'
+                  : 'text-text-secondary hover:bg-bg-tertiary/40 hover:text-text-primary'
+              }`}
+            >
+              {t.icon}
+              {t.label}
+            </button>
+          ))}
       </div>
-  
+
       {/* Content: Config creators when that sub-tab is selected */}
       {deploySubTab === 'creators' && (
         <div className="flex-1 flex flex-col min-h-0">
@@ -750,8 +725,11 @@ export function DeployView({
             className="flex flex-col min-h-0 border-r border-border/20 bg-bg-primary overflow-hidden"
           >
             <div className="shrink-0 px-3.5 py-2 border-b border-border/20 bg-bg-secondary/45 select-none">
-              <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">
-                Active SSH Stream {deploySubTab === 'pipeline' ? (pipelineProjDir ? `· ${pipelineProjDir}` : '') : (runCwd ? `· ${runCwd}` : '')}
+              <span className="text-xs text-text-secondary">
+                {currentServer.connectionType === 'local' ? 'Local terminal' : `Terminal on ${currentServer.name}`}
+                {(deploySubTab === 'pipeline' ? pipelineProjDir : runCwd) && (
+                  <span className="font-mono text-text-muted"> · {deploySubTab === 'pipeline' ? pipelineProjDir : runCwd}</span>
+                )}
               </span>
             </div>
    
@@ -807,51 +785,61 @@ export function DeployView({
               >
                 {isAiEnabled && (
                   <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
-                    <div className="p-4 border-b border-border/20 shrink-0 select-none">
-                      <div className="flex items-center gap-3">
-                        <div className="min-w-0 flex-1 space-y-2">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Chat</p>
-                            <span className="text-[10px] text-text-secondary truncate" title={activeProjectPath}>{activeProjectPath}</span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <Key size={14} className="text-text-secondary shrink-0" />
-                            <div className="relative flex-1 flex items-center min-w-0">
-                              <input
-                                type={showGroqKey ? 'text' : 'password'}
-                                value={groqApiKey}
-                                onChange={(e) => setGroqApiKey(e.target.value)}
-                                onBlur={handleSaveGroqKey}
-                                placeholder="Groq API Key (saved locally)"
-                                className="w-full px-3.5 py-1.5 pr-10 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setShowGroqKey(!showGroqKey)}
-                                className="absolute right-3 text-text-secondary hover:text-text-primary focus:outline-none cursor-pointer"
-                              >
-                                {showGroqKey ? <EyeOffIcon size={14} /> : <EyeIcon size={14} />}
-                              </button>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={handleSaveGroqKey}
-                              className="px-3.5 py-1.5 rounded-xl bg-bg-tertiary border border-border/30 text-xs font-semibold text-text-primary hover:border-accent/50 shrink-0 cursor-pointer"
-                            >
-                              Save
-                            </button>
-                          </div>
+                    <div className="p-4 border-b border-border/20 shrink-0 select-none space-y-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-text-primary">Ask for a command</p>
+                        <span className="text-[11px] text-text-muted truncate font-mono" title={activeProjectPath}>{activeProjectPath}</span>
+                      </div>
+                      {groqApiKey.trim() && !showGroqKey ? (
+                        <div className="flex items-center gap-2 text-xs text-text-secondary">
+                          <Key size={13} className="shrink-0 text-success" />
+                          <span>Groq key saved on this computer</span>
+                          <button type="button" onClick={() => setShowGroqKey(true)} className="text-accent hover:underline cursor-pointer">Change</button>
                         </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="password"
+                            value={groqApiKey}
+                            onChange={(e) => setGroqApiKey(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { handleSaveGroqKey(); setShowGroqKey(false); } }}
+                            placeholder="Paste your Groq API key"
+                            aria-label="Groq API key"
+                            className="flex-1 min-w-0 px-3 py-1.5 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => { handleSaveGroqKey(); setShowGroqKey(false); }}
+                            disabled={!groqApiKey.trim()}
+                            className="px-3.5 py-1.5 rounded-xl bg-bg-tertiary border border-border/30 text-xs font-semibold text-text-primary hover:border-accent/50 disabled:opacity-50 shrink-0 cursor-pointer"
+                          >
+                            Save key
+                          </button>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-text-secondary shrink-0">Model</span>
+                        <div className="flex-1 min-w-0"><GroqModelSelect apiKey={groqApiKey} model={groqModel} onChange={setGroqModel} /></div>
                       </div>
                     </div>
                     <div className="flex-1 min-h-[160px] flex flex-col overflow-hidden bg-bg-primary/10">
                       <div className="flex-1 overflow-auto px-4 py-4 space-y-4 select-text">
                         {deployChatMessages.length === 0 && (
                           <div className="flex flex-col items-center justify-center py-8 text-center select-none">
-                            <Sparkles size={24} className="text-accent/60 mb-2.5 animate-pulse" />
-                            <p className="text-xs text-text-muted max-w-xs">
-                              Request a command structure. Serop will compile prompt tokens into executable terminal lines.
-                            </p>
+                            <Sparkles size={22} className="text-text-muted mb-2.5" />
+                            <p className="text-xs text-text-secondary max-w-xs">Describe what you want done. You get a command to review, then run it in the terminal yourself.</p>
+                            <div className="flex flex-wrap justify-center gap-1.5 mt-4 max-w-sm">
+                              {['Show disk usage', 'Is nginx running?', 'Last 100 lines of syslog', 'What is using port 80?'].map((ex) => (
+                                <button
+                                  key={ex}
+                                  type="button"
+                                  onClick={() => setAiRequest(ex)}
+                                  className="px-2.5 py-1 rounded-full border border-border/40 text-[11px] text-text-secondary hover:text-accent hover:border-accent/50 transition-colors cursor-pointer"
+                                >
+                                  {ex}
+                                </button>
+                              ))}
+                            </div>
                           </div>
                         )}
                         {deployChatMessages.map((m, i) => (
@@ -859,8 +847,8 @@ export function DeployView({
                             <div
                               className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${
                                 m.role === 'user'
-                                  ? 'bg-accent text-white rounded-br-md shadow-sm'
-                                  : 'bg-gradient-to-b from-bg-secondary to-bg-secondary/85 border border-border/20 text-text-primary rounded-bl-md shadow-sm backdrop-blur-sm'
+                                  ? 'bg-accent text-white rounded-br-md'
+                                  : 'bg-bg-secondary border border-border/20 text-text-primary rounded-bl-md'
                               }`}
                             >
                               {m.role === 'user' ? (
@@ -873,17 +861,17 @@ export function DeployView({
                                   {m.command?.trim() && (
                                     <div className="rounded-xl border border-accent/15 bg-bg-primary/30 p-2.5 space-y-2">
                                       <div className="flex items-center justify-between gap-2 select-none">
-                                        <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">Suggested Command</span>
+                                        <span className="text-xs font-semibold text-text-secondary">Suggested command</span>
                                         <button
                                           type="button"
                                           onClick={() => executeInLeftTerminal(m.command)}
-                                          className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-accent/20 text-accent hover:bg-accent/30 transition-colors cursor-pointer"
+                                          className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-accent/20 text-accent hover:bg-accent/30 transition-colors cursor-pointer"
                                         >
                                           <Play size={10} />
-                                          Execute
+                                          Run in terminal
                                         </button>
                                       </div>
-                                      <div className="rounded-lg border border-border/10 bg-bg-primary/35 px-2.5 py-2 text-[10px] font-mono text-text-secondary break-words whitespace-pre-wrap">
+                                      <div className="rounded-lg border border-border/10 bg-bg-primary/35 px-2.5 py-2 text-[11px] font-mono text-text-secondary break-words whitespace-pre-wrap">
                                         {m.command}
                                       </div>
                                     </div>
@@ -897,7 +885,7 @@ export function DeployView({
                           <div className="flex justify-start select-none">
                             <div className="max-w-[85%] rounded-2xl rounded-bl-md px-3.5 py-2.5 text-xs bg-bg-secondary border border-border/20 text-text-muted flex items-center gap-2 shadow-xs">
                               <Loader2 size={13} className="animate-spin text-accent" />
-                              Prompting Groq model…
+                              Asking Groq…
                             </div>
                           </div>
                         )}
@@ -912,7 +900,8 @@ export function DeployView({
                               setAiError(null);
                             }}
                             onKeyDown={(e) => e.key === 'Enter' && sendDeployMessage()}
-                            placeholder="e.g. rebuild compose api service, show nginx active status"
+                            placeholder="e.g. rebuild the api service, or show nginx status"
+                            aria-label="Describe what you want to do"
                             className="w-full px-4 py-2.5 bg-transparent border-0 text-xs text-text-primary placeholder-text-muted focus:outline-none select-text"
                           />
                           <div className="flex justify-end px-2.5 pb-2.5">
@@ -927,7 +916,7 @@ export function DeployView({
                             </button>
                           </div>
                         </div>
-                        {aiError && <p className="mt-2 text-xs text-error font-mono">{aiError}</p>}
+                        {aiError && <p role="alert" className="mt-2 text-xs text-error break-words select-text">{aiError}</p>}
                       </div>
                     </div>
                   </div>
@@ -939,21 +928,21 @@ export function DeployView({
                 className="flex-grow flex flex-col min-h-0 overflow-auto p-4 space-y-4"
                 style={{ display: deploySubTab === 'pipeline' ? 'flex' : 'none' }}
               >
-                <div className="rounded-xl border border-border/20 bg-bg-secondary/35 p-5 space-y-4 shadow-sm backdrop-blur-sm select-none">
+                <div className="rounded-xl border border-border/20 bg-bg-secondary/35 p-5 space-y-4 select-none">
                   <div className="flex items-center gap-2.5">
                     <div className="p-2.5 rounded-xl bg-bg-tertiary text-accent border border-border/10">
                       <GitBranch size={16} />
                     </div>
                     <div>
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-text-primary">Configure deploy hook</h3>
-                      <p className="text-[10px] text-text-muted font-sans mt-0.5">Automate non-interactive git updates, dependency builds, migrations & reloads.</p>
+                      <h3 className="text-sm font-semibold text-text-primary">Deploy from Git</h3>
+                      <p className="text-xs text-text-muted mt-0.5">Pull a branch, install dependencies, run migrations and restart the service.</p>
                     </div>
                   </div>
 
                   <div className="border-t border-border/15 pt-4 space-y-3 select-text">
                     {/* Server Selection */}
                     <div className="flex flex-col gap-1.5 select-none">
-                      <label className="text-[10px] font-extrabold uppercase tracking-wider text-text-muted">Target server</label>
+                      <label className="text-[11px] font-semibold text-text-muted">Server</label>
                       <Select
                         value={currentServer.id}
                         onChange={(val) => {
@@ -972,7 +961,7 @@ export function DeployView({
                     {/* Project Directory */}
                     <div className="flex flex-col gap-1.5">
                       <div className="flex justify-between items-center select-none">
-                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-text-muted font-sans">Project root directory</label>
+                        <label className="text-[11px] font-semibold text-text-muted font-sans">Project folder</label>
                         {projectRepos.length > 0 && (
                           <Select
                             value=""
@@ -995,14 +984,14 @@ export function DeployView({
                         type="text"
                         value={pipelineProjDir}
                         onChange={(e) => setPipelineProjDir(e.target.value)}
-                        placeholder="e.g., /var/www/app"
+                        placeholder="/var/www/app"
                         className="w-full px-3 py-2 border border-border/30 bg-bg-primary/50 rounded-xl text-xs font-mono text-text-primary focus:outline-none focus:border-accent"
                       />
                     </div>
 
                     {/* Git Branch */}
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-extrabold uppercase tracking-wider text-text-muted select-none">Git target branch</label>
+                      <label className="text-[11px] font-semibold text-text-muted select-none">Branch</label>
                       <input
                         type="text"
                         value={pipelineBranch}
@@ -1014,44 +1003,44 @@ export function DeployView({
 
                     {/* Dependency Installer */}
                     <div className="flex flex-col gap-1.5 select-none">
-                      <label className="text-[10px] font-extrabold uppercase tracking-wider text-text-muted">Dependency manager</label>
+                      <label className="text-[11px] font-semibold text-text-muted">Install dependencies with</label>
                       <Select
                         value={pipelineDepType}
                         onChange={(val) => setPipelineDepType(val as any)}
                         options={[
-                          { value: 'auto', label: 'Auto-detect build file profiles' },
-                          { value: 'npm', label: 'npm ci (Node.js environments)' },
+                          { value: 'auto', label: 'Detect automatically' },
+                          { value: 'npm', label: 'npm ci (Node.js)' },
                           { value: 'pip', label: 'pip install -r requirements.txt (Python)' },
-                          { value: 'none', label: 'Bypass packages installation' }
+                          { value: 'none', label: 'Skip' }
                         ]}
                       />
                     </div>
 
                     {/* Database Migrations */}
                     <div className="flex flex-col gap-1.5 select-none">
-                      <label className="text-[10px] font-extrabold uppercase tracking-wider text-text-muted">Database migrations</label>
+                      <label className="text-[11px] font-semibold text-text-muted">Run database migrations with</label>
                       <Select
                         value={pipelineMigType}
                         onChange={(val) => setPipelineMigType(val as any)}
                         options={[
-                          { value: 'auto', label: 'Auto-detect migrations triggers' },
-                          { value: 'npm', label: 'npm run migrate (Prisma / TypeORM)' },
+                          { value: 'auto', label: 'Detect automatically' },
+                          { value: 'npm', label: 'npm run migrate (Prisma, TypeORM)' },
                           { value: 'pip', label: 'python manage.py migrate (Django)' },
-                          { value: 'none', label: 'Bypass migrations execute' }
+                          { value: 'none', label: 'Skip' }
                         ]}
                       />
                     </div>
 
                     {/* Service Restart */}
                     <div className="flex flex-col gap-1.5 select-none">
-                      <label className="text-[10px] font-extrabold uppercase tracking-wider text-text-muted">Graceful process restart</label>
+                      <label className="text-[11px] font-semibold text-text-muted">Restart with</label>
                       <Select
                         value={pipelineRestartType}
                         onChange={(val) => setPipelineRestartType(val as any)}
                         options={[
-                          { value: 'none', label: 'Skip daemon reloads' },
-                          { value: 'pm2', label: 'PM2 Node.js process reloader' },
-                          { value: 'systemd', label: 'systemctl service unit manager' }
+                          { value: 'none', label: 'Don\'t restart anything' },
+                          { value: 'pm2', label: 'PM2' },
+                          { value: 'systemd', label: 'systemd (systemctl)' }
                         ]}
                       />
                     </div>
@@ -1059,7 +1048,7 @@ export function DeployView({
                     {/* Service Name (PM2 / Systemd) */}
                     {pipelineRestartType !== 'none' && (
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-text-muted select-none">Service target identifier</label>
+                        <label className="text-[11px] font-semibold text-text-muted select-none">Service name</label>
                         <input
                           type="text"
                           value={pipelineServiceName}
@@ -1076,28 +1065,28 @@ export function DeployView({
                         type="button"
                         onClick={handleStartDeployment}
                         disabled={deploying || !pipelineProjDir.trim() || !isTerminalReady}
-                        className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all duration-200 cursor-pointer"
+                        className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-semibold text-xs text-white bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                       >
                         {deploying ? (
                           <>
                             <Loader2 size={13} className="animate-spin" />
-                            Executing pipeline hooks…
+                            Deploying…
                           </>
                         ) : (
                           <>
                             <Rocket size={13} />
-                            Deploy Pipeline
+                            Deploy
                           </>
                         )}
                       </button>
                       {!isTerminalReady && (
-                        <p className="mt-2.5 text-center text-[10px] text-warning font-semibold">
-                          Awaiting remote SSH stream establishment…
+                        <p className="mt-2.5 text-center text-[11px] text-warning font-semibold">
+                          Waiting for the terminal to connect…
                         </p>
                       )}
                       {isTerminalReady && !deploying && (
-                        <p className="mt-2.5 text-center text-[9px] text-text-muted">
-                          Stdout & stderr streams will print live in the active terminal layout.
+                        <p className="mt-2.5 text-center text-[11px] text-text-muted">
+                          Output appears live in the terminal on the left.
                         </p>
                       )}
                     </div>
@@ -1105,24 +1094,22 @@ export function DeployView({
                 </div>
 
                 {/* Deployment History Card */}
-                <div className="rounded-xl border border-border/20 bg-bg-secondary/35 p-5 space-y-4 shadow-sm backdrop-blur-sm select-none">
+                <div className="rounded-xl border border-border/20 bg-bg-secondary/35 p-5 space-y-4 select-none">
                   <div className="flex items-center justify-between border-b border-border/10 pb-2.5">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-text-primary">
-                      SQLite Audit logs
-                    </h3>
+                    <h3 className="text-sm font-semibold text-text-primary">Deploy history</h3>
                     <button
                       type="button"
                       onClick={fetchDeployHistory}
                       className="p-1 rounded-md text-text-secondary hover:bg-bg-tertiary cursor-pointer transition-colors"
-                      title="Sync History"
+                      title="Reload history" aria-label="Reload history"
                     >
                       <RefreshCw size={12} />
                     </button>
                   </div>
 
                   {deployHistory.length === 0 ? (
-                    <p className="text-xs text-text-muted text-center py-6 italic select-text">
-                      No build history captured on database ledger.
+                    <p className="text-xs text-text-muted text-center py-6  select-text">
+                      No deploys yet. Your deploys and their output will be listed here.
                     </p>
                   ) : (
                     <div className="divide-y divide-border/10 max-h-96 overflow-y-auto space-y-3 pr-1 select-text">
@@ -1133,18 +1120,18 @@ export function DeployView({
                               <div className="flex items-center gap-2 flex-wrap select-none">
                                 <span
                                   className={`inline-block w-2 h-2 rounded-full shrink-0 ${
-                                    item.status === 'success' ? 'bg-success shadow-[0_0_6px_rgba(78,201,176,0.6)]' : 'bg-error shadow-[0_0_6px_rgba(241,76,76,0.6)]'
+                                    item.status === 'success' ? 'bg-success' : 'bg-error'
                                   }`}
                                   title={item.status === 'success' ? 'Success' : 'Failure'}
                                 />
                                 <span className="font-bold text-text-primary">
-                                  {item.status === 'success' ? 'SUCCESS' : 'FAILURE'}
+                                  {item.status === 'success' ? 'Succeeded' : 'Failed'}
                                 </span>
-                                <span className="text-[10px] font-medium text-text-secondary">
+                                <span className="text-[11px] font-medium text-text-secondary">
                                   {new Date(item.timestamp).toLocaleString()}
                                 </span>
                               </div>
-                              <p className="text-[10px] text-text-secondary font-mono truncate mt-0.5">
+                              <p className="text-[11px] text-text-secondary font-mono truncate mt-0.5">
                                 Branch: <strong className="text-text-primary">{item.branch}</strong>
                                 {item.commitHash && (
                                   <>
@@ -1161,17 +1148,17 @@ export function DeployView({
                               <button
                                 type="button"
                                 onClick={() => setExpandedDeployId(expandedDeployId === item.id ? null : item.id)}
-                                className="px-2.5 py-1 border border-border/30 bg-bg-primary/50 hover:bg-bg-tertiary rounded-lg text-[10px] font-semibold text-text-primary transition-all cursor-pointer shadow-xs"
+                                className="px-2.5 py-1 border border-border/30 bg-bg-primary/50 hover:bg-bg-tertiary rounded-lg text-[11px] font-semibold text-text-primary transition-all cursor-pointer shadow-xs"
                               >
-                                {expandedDeployId === item.id ? 'Hide Logs' : 'View Logs'}
+                                {expandedDeployId === item.id ? 'Hide output' : 'Show output'}
                               </button>
                               {item.status === 'success' && item.commitHash && (
                                 <button
                                   type="button"
                                   onClick={() => handleRollback(item.commitHash)}
                                   disabled={deploying || !isTerminalReady}
-                                  className="px-2.5 py-1 bg-error/15 hover:bg-error hover:text-white border border-error/25 hover:border-transparent rounded-lg text-[10px] text-error font-semibold disabled:opacity-40 transition-all cursor-pointer"
-                                  title="Revert deployment state to this commit"
+                                  className="px-2.5 py-1 bg-error/15 hover:bg-error hover:text-white border border-error/25 hover:border-transparent rounded-lg text-[11px] text-error font-semibold disabled:opacity-40 transition-all cursor-pointer"
+                                  title="Check out this commit again and restart the service"
                                 >
                                   Rollback
                                 </button>
@@ -1181,11 +1168,11 @@ export function DeployView({
 
                           {expandedDeployId === item.id && (
                             <div className="mt-1 flex flex-col gap-1.5">
-                              <div className="bg-bg-primary/80 border border-border/20 rounded-xl p-3 font-mono text-[10px] text-text-primary overflow-auto max-h-48 whitespace-pre-wrap select-text">
+                              <div className="bg-bg-primary/80 border border-border/20 rounded-xl p-3 font-mono text-[11px] text-text-primary overflow-auto max-h-48 whitespace-pre-wrap select-text">
                                 <div className="text-text-muted font-bold border-b border-border/10 pb-1.5 mb-2 font-mono">
                                   Command: {item.triggeredCommand}
                                 </div>
-                                {item.output ? item.output : <span className="text-text-muted italic">No output recorded.</span>}
+                                {item.output ? item.output : <span className="text-text-muted ">No output was recorded.</span>}
                               </div>
                             </div>
                           )}
