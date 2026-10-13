@@ -116,7 +116,7 @@
               <p>2026-10-13</p>
             </div>
             <p style="color: var(--ash); font-size: 15px; margin: 0 0 24px;">
-              Mark your production servers so they show in red and ask you to type their name before anything risky runs. Deploys now really run in the background, with a live panel that follows them on every screen and a system notification when they finish. The server sidebar is reworked too.
+              Mark your production servers so they show in red and ask you to type their name before anything risky runs. Deploys now really run in the background, with a live panel that follows them on every screen and a system notification when they finish. The editor keeps each file's undo history, highlights server files and gains a status bar, and copy and paste work on Mac again. The server sidebar is reworked too.
             </p>
             <div class="release-grid">
               <article class="release-block">
@@ -135,6 +135,18 @@
                   <li>The Git deploy shows in the panel too, so its output is no longer lost when the terminal closes.</li>
                   <li>When a deploy ends while Serop is in the background, you get a system notification. Click it to open that deploy's output.</li>
                   <li>A long deploy no longer loses its SSH connection to the 5-minute idle timeout.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Editor</h4>
+                <ul>
+                  <li>Switching tabs reset the editor, so undo history, the cursor and the scroll position were lost. Each file now keeps them, and undo still works after you leave the Files view and come back.</li>
+                  <li>Highlighting for the files you edit on servers: nginx configs (including sites-available files with no extension), .env files, systemd units, INI and TOML, Dockerfiles, shell dotfiles and many more languages.</li>
+                  <li>Log files are highlighted too: timestamps, errors, warnings and IP addresses each get their own colour.</li>
+                  <li>The editor uses your Serop theme's colours, including custom themes, instead of a fixed dark or light theme.</li>
+                  <li>A status bar under the editor shows the line and column, indentation, line endings and language, with word wrap and minimap toggles. Change any of them from there.</li>
+                  <li>Shell scripts, .env files and similar files with Windows (CRLF) line endings get a warning, because they can break on a Linux server, and a one-click Convert to LF.</li>
+                  <li>On macOS, paste did not work anywhere, and copy, cut, undo and select all were unreliable in the editor and the terminal. They now work in the editor, the terminal and text fields, from the keyboard and from the Edit menu.</li>
                 </ul>
               </article>
               <article class="release-block">

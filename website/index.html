@@ -407,7 +407,7 @@
         <div class="section__inner">
           <h2 class="section__title" id="whats-new-heading">What’s New in 2.6.0</h2>
           <p class="section__subtitle">
-            Mark your production servers so they show in red and ask you to type their name before anything risky runs. Deploys now really run in the background, with a live panel that follows them on every screen and a system notification when they finish. The server sidebar is reworked too.
+            Mark your production servers so they show in red and ask you to type their name before anything risky runs. Deploys now really run in the background, with a live panel that follows them on every screen and a system notification when they finish. The editor keeps each file's undo history, highlights server files and gains a status bar, and copy and paste work on Mac again. The server sidebar is reworked too.
           </p>
           <div class="release-card">
             <div class="release-card__header">
@@ -432,6 +432,14 @@
                   <li>Deploys started from a .serop shortcut still stopped when you switched servers, because the background part of 2.5.1 was not finished. They now run in the background and keep going whatever screen or server you are on.</li>
                   <li>A deploy panel in the bottom-right corner shows every running deploy with its server, a timer and live output, on every screen. Expand it to read the last 300 lines, or cancel a shortcut deploy.</li>
                   <li>The Git deploy shows in the panel too, so its output is no longer lost when the terminal closes.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Editor</h4>
+                <ul>
+                  <li>Switching tabs reset the editor, so undo history, the cursor and the scroll position were lost. Each file now keeps them, and undo still works after you leave the Files view and come back.</li>
+                  <li>Highlighting for the files you edit on servers: nginx configs (including sites-available files with no extension), .env files, systemd units, INI and TOML, Dockerfiles, shell dotfiles and many more languages.</li>
+                  <li>Log files are highlighted too: timestamps, errors, warnings and IP addresses each get their own colour.</li>
                 </ul>
               </article>
               <article class="release-block">

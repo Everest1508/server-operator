@@ -27,7 +27,7 @@ export const CHANGELOG: ChangelogVersion[] = [
     codename: 'Red Ink',
     date: '2026-10-13',
     summary:
-      'Mark your production servers so they show in red and ask you to type their name before anything risky runs. Deploys now really run in the background, with a live panel that follows them on every screen and a system notification when they finish. The server sidebar is reworked too.',
+      'Mark your production servers so they show in red and ask you to type their name before anything risky runs. Deploys now really run in the background, with a live panel that follows them on every screen and a system notification when they finish. The editor keeps each file\'s undo history, highlights server files and gains a status bar, and copy and paste work on Mac again. The server sidebar is reworked too.',
     groups: [
       {
         label: 'Production mode',
@@ -49,6 +49,20 @@ export const CHANGELOG: ChangelogVersion[] = [
           { type: 'feat', text: 'The Git deploy shows in the panel too, so its output is no longer lost when the terminal closes.' },
           { type: 'feat', text: 'When a deploy ends while Serop is in the background, you get a system notification. Click it to open that deploy\'s output.' },
           { type: 'fix', text: 'A long deploy no longer loses its SSH connection to the 5-minute idle timeout.' },
+        ],
+      },
+      {
+        label: 'Editor',
+        icon: Keyboard,
+        color: '#fbbf24',
+        items: [
+          { type: 'fix', text: 'Switching tabs reset the editor, so undo history, the cursor and the scroll position were lost. Each file now keeps them, and undo still works after you leave the Files view and come back.' },
+          { type: 'feat', text: 'Highlighting for the files you edit on servers: nginx configs (including sites-available files with no extension), .env files, systemd units, INI and TOML, Dockerfiles, shell dotfiles and many more languages.' },
+          { type: 'feat', text: 'Log files are highlighted too: timestamps, errors, warnings and IP addresses each get their own colour.' },
+          { type: 'improve', text: 'The editor uses your Serop theme\'s colours, including custom themes, instead of a fixed dark or light theme.' },
+          { type: 'feat', text: 'A status bar under the editor shows the line and column, indentation, line endings and language, with word wrap and minimap toggles. Change any of them from there.' },
+          { type: 'feat', text: 'Shell scripts, .env files and similar files with Windows (CRLF) line endings get a warning, because they can break on a Linux server, and a one-click Convert to LF.' },
+          { type: 'fix', text: 'On macOS, paste did not work anywhere, and copy, cut, undo and select all were unreliable in the editor and the terminal. They now work in the editor, the terminal and text fields, from the keyboard and from the Edit menu.' },
         ],
       },
       {
