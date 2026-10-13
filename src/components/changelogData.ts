@@ -1,4 +1,4 @@
-import { Database, GitBranch, History, TerminalSquare, Sliders, Shield, Sparkles, Keyboard, Layers, ListOrdered } from 'lucide-react';
+import { Database, GitBranch, History, TerminalSquare, Sliders, Shield, Sparkles, Keyboard, Layers, ListOrdered, FolderTree } from 'lucide-react';
 import React from 'react';
 
 export interface ChangeEntry {
@@ -22,6 +22,65 @@ export interface ChangelogVersion {
 }
 
 export const CHANGELOG: ChangelogVersion[] = [
+  {
+    version: '2.7.0',
+    codename: 'Full Spectrum',
+    date: '2026-10-14',
+    summary:
+      'Terminals come in full colour and gain search, clickable links and split view. Jump to any file with Cmd/Ctrl+P, drag files onto the file tree to upload them, and preview images and PDFs. A new Git tab shows what is on the server, the database editor keeps your query history, and a notification centre keeps deploy results.',
+    groups: [
+      {
+        label: 'Terminal',
+        icon: TerminalSquare,
+        color: '#4ec9b0',
+        items: [
+          { type: 'fix', text: 'Terminals on servers had no colours, because Serop opened them as a plain vt100 terminal. They now open as a full 256-colour terminal, with a colour palette that follows your theme.' },
+          { type: 'feat', text: 'When the server\'s prompt has no colours of its own, the session gets a coloured prompt and coloured ls and grep. Custom prompts such as Ubuntu\'s, oh-my-zsh or starship are left alone, and nothing on the server is changed.' },
+          { type: 'fix', text: 'Resizing the terminal panel never reached the server, so long lines and full-screen tools wrapped at 80 columns. The server now always knows the real size.' },
+          { type: 'feat', text: 'Search the terminal with Cmd/Ctrl+F, with a match count, next and previous, and a match-case toggle.' },
+          { type: 'feat', text: 'Links in terminal output open in your browser. Icons from tools like eza and lsd show when a Nerd Font is installed.' },
+          { type: 'feat', text: 'Split view shows two terminals side by side. Rename a terminal tab by double-clicking it or pressing F2.' },
+        ],
+      },
+      {
+        label: 'Files',
+        icon: FolderTree,
+        color: '#fbbf24',
+        items: [
+          { type: 'feat', text: 'Go to any file on the server with Cmd/Ctrl+P (File, Go to File). It matches as you type, skips folders like node_modules, and lists recent files.' },
+          { type: 'feat', text: 'Drag files from Finder or Explorer onto the file tree to upload them into that folder. On a production server you confirm with its name first.' },
+          { type: 'feat', text: 'Images and PDFs open as a preview. A path bar above the editor shows where the file is, reveals its folders in the tree and copies the full path.' },
+          { type: 'fix', text: 'Binary files opened as base64 text, and saving them would have overwritten the real file. They now show a preview or a download button and cannot be saved as text.' },
+        ],
+      },
+      {
+        label: 'Git',
+        icon: GitBranch,
+        color: '#34d399',
+        items: [
+          { type: 'feat', text: 'A Git tab in Deploy shows the server\'s branch, how far it is ahead of or behind upstream, uncommitted changes with their diffs, and recent commits with their patches.' },
+          { type: 'feat', text: 'Fetch, pull (fast-forward only), stash all changes, or discard the changes to one file. Risky actions ask first, and production servers ask for their name.' },
+        ],
+      },
+      {
+        label: 'Database',
+        icon: Database,
+        color: '#93c5fd',
+        items: [
+          { type: 'feat', text: 'Select part of the SQL to run only that part, and run with Cmd/Ctrl+Enter.' },
+          { type: 'feat', text: 'Every query you run is kept in History for that server and database, with row counts, timings and failures. Save queries you use often by name.' },
+        ],
+      },
+      {
+        label: 'Notifications',
+        icon: Sparkles,
+        color: '#f0abfc',
+        items: [
+          { type: 'feat', text: 'A bell in the title bar keeps finished, failed and cancelled deploys and connection problems, even after a restart. Click a deploy to open its output again.' },
+        ],
+      },
+    ],
+  },
   {
     version: '2.6.0',
     codename: 'Red Ink',
