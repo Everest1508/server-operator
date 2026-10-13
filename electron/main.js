@@ -4086,6 +4086,15 @@ ipcMain.handle('window:set-opacity', async (_, opacity) => {
     mainWindow.setOpacity(Math.max(0.6, Math.min(1, opacity)));
   }
 });
+// Native edit commands for the focused element. On macOS there is no native Edit menu (the app draws its own),
+// so Cmd+C/X/V/Z/A come here instead of document.execCommand, which Chromium blocks for paste.
+const EDIT_COMMANDS = new Set(['copy', 'cut', 'paste', 'pasteAndMatchStyle', 'selectAll', 'undo', 'redo']);
+ipcMain.handle('edit:command', (event, command) => {
+  if (!EDIT_COMMANDS.has(command)) return false;
+  event.sender[command]();
+  return true;
+});
+
 ipcMain.handle('app:quit', async () => {
   app.quit();
 });

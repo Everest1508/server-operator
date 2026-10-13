@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Editor from '@monaco-editor/react';
+import type * as Monaco from 'monaco-editor';
 import { FileCode, Save, Loader2, X, Download, ChevronDown, Plus, FolderOpen, Shield, Play, Check, Copy, Keyboard, Terminal, Database, Workflow, History, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
 import type { ServerConnection, ViewId, ProxySettings } from '../types';
-import { useAppTheme, isLightTheme } from '../hooks/useAppTheme';
+import { useThemeKey } from '../hooks/useAppTheme';
+import { languageFromPath, registerServerLanguages, defineSeropTheme, SEROP_EDITOR_THEME } from '../utils/monacoSetup';
+import { EditorStatusBar } from './EditorStatusBar';
 import { DockerView } from './DockerView';
 import { DeployView } from './DeployView';
 import { ServerOverview } from './ServerOverview';
@@ -11,16 +14,17 @@ import { DatabaseView } from './DatabaseView';
 import { FirewallView } from './FirewallView';
 import { FloatingMenu } from './FloatingMenu';
 
-function languageFromPath(path: string): string {
-  if (path.startsWith('notes://')) return 'markdown';
-  const ext = path.split('.').pop()?.toLowerCase() ?? '';
-  const map: Record<string, string> = {
-    js: 'javascript', ts: 'typescript', jsx: 'javascript', tsx: 'typescript',
-    json: 'json', yaml: 'yaml', yml: 'yaml', md: 'markdown', sh: 'shell', bash: 'shell',
-    py: 'python', rb: 'ruby', go: 'go', rs: 'rust', html: 'html', css: 'css', scss: 'scss',
-    sql: 'sql', xml: 'xml', dockerfile: 'dockerfile', env: 'plaintext',
-  };
-  return map[ext] ?? 'plaintext';
+// Cursor and scroll position per open file, kept across tab switches and remounts of the editor.
+const editorViewStates = new Map<string, Monaco.editor.ICodeEditorViewState | null>();
+
+const EDITOR_PREFS_KEY = 'serop-editor-prefs';
+function loadEditorPrefs(): { wordWrap: boolean; minimap: boolean } {
+  try {
+    const raw = JSON.parse(localStorage.getItem(EDITOR_PREFS_KEY) || '{}');
+    return { wordWrap: raw.wordWrap ?? true, minimap: raw.minimap ?? false };
+  } catch {
+    return { wordWrap: true, minimap: false };
+  }
 }
 
 interface EditorAreaProps {
@@ -138,14 +142,49 @@ export function EditorArea({
   const [pathDialogSudo, setPathDialogSudo] = useState(false);
   const [pathInput, setPathInput] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
-  const appTheme = useAppTheme();
-  const monacoTheme = isLightTheme(appTheme) ? 'vs-light' : 'vs-dark';
+  const themeKey = useThemeKey();
+  const monacoRef = useRef<typeof Monaco | null>(null);
+  const [editorInstance, setEditorInstance] = useState<Monaco.editor.IStandaloneCodeEditor | null>(null);
+  const [languageOverrides, setLanguageOverrides] = useState<Record<string, string>>({});
+  const [editorPrefs, setEditorPrefs] = useState(loadEditorPrefs);
+  const updateEditorPrefs = (patch: Partial<{ wordWrap: boolean; minimap: boolean }>) =>
+    setEditorPrefs((prev) => {
+      const next = { ...prev, ...patch };
+      try { localStorage.setItem(EDITOR_PREFS_KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
+      return next;
+    });
 
   const activeContent = activeTabPath ? (contentByPath[activeTabPath] ?? '') : '';
   const activeSaved = activeTabPath ? (savedContentByPath[activeTabPath] ?? '') : '';
   const isDirty = activeTabPath ? activeContent !== activeSaved : false;
   const isLoading = Boolean(loadingPath && activeTabPath === loadingPath);
-  const language = activeTabPath ? languageFromPath(activeTabPath) : 'plaintext';
+  // One Monaco model per server + file, so each tab keeps its own undo history, cursor and scroll.
+  const serverKey = currentServer?.id ?? 'local';
+  const modelPathFor = useCallback((p: string) => `serop://${serverKey}/${encodeURIComponent(p)}`, [serverKey]);
+  const modelPath = activeTabPath ? modelPathFor(activeTabPath) : '';
+  const detectedLanguage = activeTabPath ? languageFromPath(activeTabPath) : 'plaintext';
+  const language = (modelPath && languageOverrides[modelPath]) || detectedLanguage;
+
+  // Follow the app theme, including custom themes.
+  useEffect(() => {
+    const monaco = monacoRef.current;
+    if (!monaco) return;
+    defineSeropTheme(monaco);
+    monaco.editor.setTheme(SEROP_EDITOR_THEME);
+  }, [themeKey]);
+
+  // Free the model (and its undo history) once a file's tab is closed.
+  useEffect(() => {
+    const monaco = monacoRef.current;
+    if (!monaco) return;
+    const keep = new Set(openTabs.map((p) => monaco.Uri.parse(modelPathFor(p)).toString()));
+    monaco.editor.getModels().forEach((m) => {
+      if (m.uri.scheme === 'serop' && !keep.has(m.uri.toString())) {
+        editorViewStates.delete(m.uri.toString());
+        m.dispose();
+      }
+    });
+  }, [openTabs, modelPathFor]);
 
   useEffect(() => {
     setSaveError(null);
@@ -516,14 +555,15 @@ export function EditorArea({
                   </motion.div>
                 ) : activeTabPath ? (
                   <Editor
-                    key={activeTabPath}
                     height="100%"
+                    path={modelPath}
                     language={language}
-                    theme={monacoTheme}
+                    theme={SEROP_EDITOR_THEME}
                     value={activeContent}
+                    keepCurrentModel
                     onChange={(v) => onContentChange?.(activeTabPath, v ?? '')}
                     options={{
-                      minimap: { enabled: false },
+                      minimap: { enabled: editorPrefs.minimap },
                       fontFamily: '"JetBrains Mono", "SF Mono", Menlo, Consolas, monospace',
                       fontSize: 13,
                       lineHeight: 20,
@@ -531,19 +571,70 @@ export function EditorArea({
                       smoothScrolling: true,
                       bracketPairColorization: { enabled: true },
                       lineNumbers: 'on',
-                      wordWrap: 'on',
+                      wordWrap: editorPrefs.wordWrap ? 'on' : 'off',
                       scrollBeyondLastLine: false,
                       padding: { top: 16, bottom: 16 },
                       automaticLayout: true,
                       contextmenu: false,
                     }}
                     loading={null}
+                    beforeMount={(monaco) => {
+                      registerServerLanguages(monaco);
+                      defineSeropTheme(monaco);
+                    }}
                     onMount={(editor, monaco) => {
+                      monacoRef.current = monaco;
+                      setEditorInstance(editor);
                       editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => saveShortcutRef.current());
+                      // Remember cursor and scroll per file, and bring them back when that file is shown again.
+                      // While a different file is being swapped in, its cursor events must not overwrite saved positions.
+                      let switching = false;
+                      const remember = () => {
+                        if (switching) return;
+                        const uri = editor.getModel()?.uri.toString();
+                        if (uri) editorViewStates.set(uri, editor.saveViewState());
+                      };
+                      const restore = () => {
+                        const uri = editor.getModel()?.uri.toString();
+                        const state = uri ? editorViewStates.get(uri) : null;
+                        if (state) editor.restoreViewState(state);
+                      };
+                      restore();
+                      editor.onDidChangeCursorSelection(remember);
+                      editor.onDidScrollChange(remember);
+                      editor.onDidChangeModel(() => {
+                        switching = true;
+                        setTimeout(() => {
+                          restore();
+                          switching = false;
+                        });
+                      });
+                      editor.onDidDispose(() => setEditorInstance((cur) => (cur === editor ? null : cur)));
                     }}
                   />
                 ) : null}
               </div>
+              {activeTabPath && !isLoading && !fileLoadError && (
+                <EditorStatusBar
+                  editor={editorInstance}
+                  monaco={monacoRef.current}
+                  language={language}
+                  detectedLanguage={detectedLanguage}
+                  overridden={!!languageOverrides[modelPath]}
+                  onLanguageChange={(lang) =>
+                    setLanguageOverrides((prev) => {
+                      const next = { ...prev };
+                      if (lang) next[modelPath] = lang;
+                      else delete next[modelPath];
+                      return next;
+                    })
+                  }
+                  wordWrap={editorPrefs.wordWrap}
+                  minimap={editorPrefs.minimap}
+                  onToggleWrap={() => updateEditorPrefs({ wordWrap: !editorPrefs.wordWrap })}
+                  onToggleMinimap={() => updateEditorPrefs({ minimap: !editorPrefs.minimap })}
+                />
+              )}
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center gap-5 select-none px-6">

@@ -123,6 +123,7 @@ contextBridge.exposeInMainWorld('serverOperator', {
   isWindowMaximized: () => ipcRenderer.invoke('window:isMaximized'),
   setWindowOpacity: (opacity) => ipcRenderer.invoke('window:set-opacity', opacity),
   quitApp: () => ipcRenderer.invoke('app:quit'),
+  editCommand: (command) => ipcRenderer.invoke('edit:command', command),
   deployStartBg: (opts) => ipcRenderer.invoke('deploy:start-bg', opts),
   deployReadLog: (opts) => ipcRenderer.invoke('deploy:read-log', opts),
   deployList: () => ipcRenderer.invoke('deploy:list'),

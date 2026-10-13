@@ -6,6 +6,17 @@ import type { ServerConnection, ViewId } from '../types';
 import { MultiServerBar, type ServerTabSession } from './MultiServerBar';
 import { ProfileMenu } from './ProfileMenu';
 
+type EditCommand = 'copy' | 'cut' | 'paste' | 'pasteAndMatchStyle' | 'selectAll' | 'undo' | 'redo';
+
+/**
+ * Run copy/cut/paste/undo/redo/select-all on the focused element. Electron's native commands work everywhere,
+ * including Monaco and the terminal; document.execCommand is only a fallback (Chromium blocks its paste).
+ */
+function runEditCommand(command: EditCommand) {
+  if (window.serverOperator?.editCommand) void window.serverOperator.editCommand(command);
+  else document.execCommand(command === 'pasteAndMatchStyle' ? 'paste' : command);
+}
+
 interface TitleBarProps {
   currentServer: ServerConnection | null;
   serverTabs?: ServerTabSession[];
@@ -89,33 +100,34 @@ export function TitleBar({
           triggerMenuActionRef.current('open-local-folder');
           return;
       }
-      if (inInput) {
-        switch (key) {
-          case 'c':
-            event.preventDefault();
-            document.execCommand('copy');
-            return;
-          case 'x':
-            event.preventDefault();
-            document.execCommand('cut');
-            return;
-          case 'v':
-            event.preventDefault();
-            document.execCommand('paste');
-            return;
-          case 'a':
-            event.preventDefault();
-            document.execCommand('selectAll');
-            return;
-          case 'z':
-            event.preventDefault();
-            document.execCommand(event.shiftKey ? 'redo' : 'undo');
-            return;
-          case 'y':
-            event.preventDefault();
-            document.execCommand('redo');
-            return;
-        }
+      // Monaco and the terminal handle some keys themselves (undo, select all) and mark them handled.
+      if (event.defaultPrevented) return;
+      const run = (command: EditCommand) => {
+        event.preventDefault();
+        runEditCommand(command);
+      };
+      // Copy also works for text selected outside an input (logs, output, tables).
+      if (key === 'c' && !event.shiftKey) {
+        if (inInput || window.getSelection()?.toString()) run('copy');
+        return;
+      }
+      if (!inInput) return;
+      switch (key) {
+        case 'x':
+          run('cut');
+          return;
+        case 'v':
+          run(event.shiftKey && event.altKey ? 'pasteAndMatchStyle' : 'paste');
+          return;
+        case 'a':
+          run('selectAll');
+          return;
+        case 'z':
+          run(event.shiftKey ? 'redo' : 'undo');
+          return;
+        case 'y':
+          run('redo');
+          return;
       }
     }
     window.addEventListener('keydown', handleKeyDown);
@@ -188,19 +200,19 @@ export function TitleBar({
 
       // Edit actions
       case 'undo':
-        document.execCommand('undo');
+        runEditCommand('undo');
         break;
       case 'redo':
-        document.execCommand('redo');
+        runEditCommand('redo');
         break;
       case 'cut':
-        document.execCommand('cut');
+        runEditCommand('cut');
         break;
       case 'copy':
-        document.execCommand('copy');
+        runEditCommand('copy');
         break;
       case 'paste':
-        document.execCommand('paste');
+        runEditCommand('paste');
         break;
 
       // View actions
@@ -303,6 +315,7 @@ export function TitleBar({
                   role="menuitem"
                   aria-haspopup="menu"
                   aria-expanded={open}
+                  onMouseDown={(e) => e.preventDefault()} // keep focus where the cursor is, so Edit actions apply there
                   onClick={() => setActiveMenu(open ? null : menu.id)}
                   // Once a menu is open, hovering a sibling switches to it, like a native menu bar.
                   onMouseEnter={() => activeMenu && setActiveMenu(menu.id)}
@@ -325,6 +338,7 @@ export function TitleBar({
                           key={item.action}
                           type="button"
                           role="menuitem"
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => triggerMenuAction(item.action)}
                           className={`px-2.5 py-1.5 rounded-lg text-left flex justify-between items-center gap-6 w-full transition-colors text-xs ${
                             item.danger ? 'hover:bg-error/15 hover:text-error' : 'hover:bg-accent/12 hover:text-accent'

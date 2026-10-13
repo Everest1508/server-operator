@@ -228,6 +228,8 @@ export interface ServerOperatorAPI {
   isWindowMaximized?: () => Promise<boolean>;
   setWindowOpacity?: (opacity: number) => Promise<void>;
   quitApp?: () => Promise<void>;
+  /** Run a native edit command (copy, cut, paste, selectAll, undo, redo) on the focused element. */
+  editCommand?: (command: 'copy' | 'cut' | 'paste' | 'pasteAndMatchStyle' | 'selectAll' | 'undo' | 'redo') => Promise<boolean>;
   deployStartBg?: (opts: {
     serverId?: string;
     cwd?: string;
