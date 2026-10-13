@@ -23,6 +23,47 @@ export interface ChangelogVersion {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: '2.6.0',
+    codename: 'Red Ink',
+    date: '2026-10-13',
+    summary:
+      'Mark your production servers so they show in red and ask you to type their name before anything risky runs. Deploys now really run in the background, with a live panel that follows them on every screen and a system notification when they finish. The server sidebar is reworked too.',
+    groups: [
+      {
+        label: 'Production mode',
+        icon: Shield,
+        color: '#f87171',
+        items: [
+          { type: 'feat', text: 'Mark any server as production from its settings, or with the shield button on its row in the sidebar. You turn it on and off yourself, and turning it off asks you to type the server name.' },
+          { type: 'feat', text: 'On a production server, risky actions ask you to type its name before they run: deploy, rollback, Docker kill and remove, firewall changes, database wipe and import, deleting rows and files, stopping nginx, and removing the server.' },
+          { type: 'improve', text: 'Production servers are marked in red: a line under the title bar with a Production badge, red server tabs, and red cards on the Servers page and in the deploy panel.' },
+        ],
+      },
+      {
+        label: 'Live deploys',
+        icon: GitBranch,
+        color: '#34d399',
+        items: [
+          { type: 'fix', text: 'Deploys started from a .serop shortcut still stopped when you switched servers, because the background part of 2.5.1 was not finished. They now run in the background and keep going whatever screen or server you are on.' },
+          { type: 'feat', text: 'A deploy panel in the bottom-right corner shows every running deploy with its server, a timer and live output, on every screen. Expand it to read the last 300 lines, or cancel a shortcut deploy.' },
+          { type: 'feat', text: 'The Git deploy shows in the panel too, so its output is no longer lost when the terminal closes.' },
+          { type: 'feat', text: 'When a deploy ends while Serop is in the background, you get a system notification. Click it to open that deploy\'s output.' },
+          { type: 'fix', text: 'A long deploy no longer loses its SSH connection to the 5-minute idle timeout.' },
+        ],
+      },
+      {
+        label: 'Server sidebar',
+        icon: Layers,
+        color: '#93c5fd',
+        items: [
+          { type: 'improve', text: 'Production servers are grouped at the top. Each server shows its connection type, whether it is open in a tab, and a Deploying indicator while a deploy runs on it.' },
+          { type: 'improve', text: 'A search box appears once you have more than five servers, and the row buttons can be reached with the keyboard.' },
+          { type: 'fix', text: 'Removing a server from the sidebar deleted it straight away. It now asks first.' },
+        ],
+      },
+    ],
+  },
+  {
     version: '2.5.1',
     codename: 'Background deploys',
     date: '2026-10-13',
