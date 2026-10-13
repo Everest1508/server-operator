@@ -43,6 +43,9 @@ ipcRenderer.on('deploy:job-cancelled', (_event, payload) => {
 ipcRenderer.on('deploy:job-log', (_event, payload) => {
   window.dispatchEvent(new CustomEvent('deploy:job-log', { detail: payload }));
 });
+ipcRenderer.on('deploy:job-focus', (_event, payload) => {
+  window.dispatchEvent(new CustomEvent('deploy:job-focus', { detail: payload }));
+});
 
 contextBridge.exposeInMainWorld('serverOperator', {
   loadThemeFolders: () => ipcRenderer.invoke('themes:load-folders'),

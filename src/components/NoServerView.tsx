@@ -1,6 +1,6 @@
 import { useId, useMemo, useState } from 'react';
 import {
-  Server, Shield, Plus, Trash2, Edit2, LogIn, Key, Lock, AlertCircle, Check, MonitorCog, FolderOpen, Search, X, Cloud, Loader2,
+  Server, Shield, Plus, Trash2, Edit2, LogIn, Key, Lock, AlertCircle, Check, MonitorCog, FolderOpen, Search, X, Cloud, Loader2, ShieldAlert,
 } from 'lucide-react';
 import EyeIcon from './icons/EyeIcon';
 import EyeOffIcon from './icons/EyeOffIcon';
@@ -53,6 +53,7 @@ interface Draft {
   password: string;
   projectPath: string;
   useProxy: boolean;
+  production: boolean;
 }
 
 function ServerDrawer({
@@ -75,8 +76,9 @@ function ServerDrawer({
           password: '',
           projectPath: server.projectPath ?? '',
           useProxy: !!server.useProxy,
+          production: !!server.production,
         }
-      : { name: '', host: '', username: '', type: 'ec2', cfAuth: 'key', privateKeyPath: '', password: '', projectPath: '', useProxy: false },
+      : { name: '', host: '', username: '', type: 'ec2', cfAuth: 'key', privateKeyPath: '', password: '', projectPath: '', useProxy: false, production: false },
   );
   const [showPwd, setShowPwd] = useState(false);
   const [tried, setTried] = useState(false);
@@ -254,6 +256,29 @@ function ServerDrawer({
               </span>
             </button>
           )}
+
+          <button
+            type="button"
+            role="switch"
+            aria-checked={d.production}
+            onClick={() => set('production', !d.production)}
+            className={`w-full flex items-center justify-between gap-3 rounded-xl border px-3.5 py-3 text-left cursor-pointer transition-colors ${
+              d.production ? 'border-error/50 bg-error/5' : 'border-border/30 hover:border-border/60'
+            }`}
+          >
+            <span className="flex items-start gap-2.5">
+              <ShieldAlert size={15} className={`shrink-0 mt-0.5 ${d.production ? 'text-error' : 'text-text-muted'}`} />
+              <span>
+                <span className="block text-xs font-semibold text-text-primary">Production server</span>
+                <span className="block text-[11px] text-text-muted mt-0.5">
+                  Marks it red everywhere. Deploys, deletes and other risky actions ask you to type its name.
+                </span>
+              </span>
+            </span>
+            <span className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border transition-colors ${d.production ? 'bg-error border-transparent' : 'bg-bg-tertiary border-border/30'}`}>
+              <span className={`absolute top-[2px] left-[2px] h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${d.production ? 'translate-x-4' : ''}`} />
+            </span>
+          </button>
         </div>
 
         <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-t border-border/40">
@@ -323,6 +348,7 @@ export function NoServerView({
       projectPath: d.projectPath.trim() || undefined,
       cwd: d.projectPath.trim() || undefined,
       useProxy: local ? false : d.useProxy,
+      production: d.production,
     };
     if (drawer?.server) {
       const patch: Partial<ServerConnection> = { ...base, privateKeyPath: key ? d.privateKeyPath.trim() : undefined };
@@ -427,7 +453,9 @@ export function NoServerView({
                   return (
                     <div
                       key={s.id}
-                      className="group flex flex-col rounded-xl border border-border/30 bg-bg-secondary/35 hover:border-accent/40 hover:bg-bg-secondary/55 transition-colors p-4"
+                      className={`group flex flex-col rounded-xl border bg-bg-secondary/35 hover:bg-bg-secondary/55 transition-colors p-4 ${
+                        s.production ? 'border-error/40 hover:border-error/60' : 'border-border/30 hover:border-accent/40'
+                      }`}
                     >
                       <div className="flex items-start gap-3">
                         <div className={`p-2 rounded-xl border shrink-0 ${meta.tone}`}><meta.Icon size={16} /></div>
@@ -436,6 +464,11 @@ export function NoServerView({
                           <p className="text-[11px] font-mono text-text-secondary truncate select-text" title={`${s.username}@${s.host}`}>
                             {t === 'local' ? 'This computer' : `${s.username}@${s.host}`}
                           </p>
+                          {s.production && (
+                            <span className="inline-flex items-center gap-1 mt-1.5 px-1.5 py-px rounded-md bg-error/15 text-error text-[10px] font-semibold">
+                              <ShieldAlert size={10} /> Production
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-0.5 opacity-60 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                           <Tooltip content="Edit" position="top">

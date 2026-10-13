@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Minus, Square, Copy, X, ExternalLink } from 'lucide-react';
+import { Minus, Square, Copy, X, ExternalLink, ShieldAlert } from 'lucide-react';
 import packageJson from '../../package.json';
 import { alertDialog } from '../utils/confirm';
 import type { ServerConnection, ViewId } from '../types';
@@ -288,6 +288,8 @@ export function TitleBar({
         isMac ? 'pl-[80px]' : 'pl-3'
       }`}
     >
+      {/* Production server active: a red line across the window, so it is never mistaken for staging. */}
+      {currentServer?.production && <div aria-hidden className="absolute inset-x-0 bottom-[-1px] h-[2px] bg-error pointer-events-none" />}
       {/* Left: logo + menu bar */}
       <div className="flex items-center gap-1 h-full" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties} ref={menuRef}>
         <img src="logo.png" alt="" className="h-5 w-auto object-contain mr-2 shrink-0 pointer-events-none" />
@@ -363,6 +365,15 @@ export function TitleBar({
 
       {/* Right: profile + window controls (Windows/Linux) */}
       <div className="flex items-center h-full" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+        {currentServer?.production && (
+          <span
+            className="mr-2 flex items-center gap-1 px-2 py-0.5 rounded-md bg-error/15 text-error text-[11px] font-semibold"
+            title={`${currentServer.name} is marked as production`}
+          >
+            <ShieldAlert size={12} />
+            Production
+          </span>
+        )}
         <div className="flex items-center h-full pr-2">
           <ProfileMenu onViewChange={onViewChange} />
         </div>

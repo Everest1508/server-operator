@@ -477,7 +477,7 @@ function ModulesView() {
 
   const handleClearLogs = async () => {
     if (!window.serverOperator?.clearLogFile) return;
-    if (!await confirmDialog('Clear the application log file? This cannot be undone.', { confirmLabel: 'Clear log' })) {
+    if (!await confirmDialog('Clear the application log file? This cannot be undone.', { confirmLabel: 'Clear log', server: null })) {
       return;
     }
     try {

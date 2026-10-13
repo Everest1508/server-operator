@@ -154,7 +154,7 @@ export function CloudTeamView({ onConnectServer, connectingToId }: CloudTeamView
 
   const handleRemoveShared = async (server: ApiSharedServer) => {
     if (!canRemoveShared(server)) return;
-    const confirmed = await confirmDialog(`Remove shared access to "${server.name}" for the team?`);
+    const confirmed = await confirmDialog(`Remove shared access to "${server.name}" for the team?`, { server: null });
     if (!confirmed) return;
     setMessage('');
     setError('');

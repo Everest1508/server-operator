@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, X, Server, HardDrive, Shield, Cloud } from 'lucide-react';
+import { Plus, X, Server, HardDrive, Shield, Cloud, ShieldAlert } from 'lucide-react';
 import type { ServerConnection } from '../types';
 
 export interface ServerTabSession {
@@ -69,14 +69,14 @@ export function MultiServerBar({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') onSelectTab(t);
                 }}
-                title={`${s.name} (${s.host})`}
+                title={`${s.name} (${s.host})${s.production ? ' · production' : ''}`}
                 className={`flex items-center gap-2 px-2.5 py-1 rounded-lg cursor-pointer shrink-0 max-w-[180px] min-w-0 group border transition-all duration-150 text-xs ${
                   isActive
-                    ? 'bg-bg-primary border-border/40 text-accent font-semibold shadow-sm'
-                    : 'bg-bg-tertiary/40 border-transparent text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'
+                    ? `bg-bg-primary font-semibold shadow-sm ${s.production ? 'border-error/60 text-error' : 'border-border/40 text-accent'}`
+                    : `bg-bg-tertiary/40 hover:bg-bg-tertiary hover:text-text-primary ${s.production ? 'border-error/30 text-error/80' : 'border-transparent text-text-secondary'}`
                 }`}
               >
-                {getServerIcon(s.connectionType)}
+                {s.production ? <ShieldAlert size={12} className="text-error shrink-0" /> : getServerIcon(s.connectionType)}
                 <span className="truncate min-w-0 flex-1 font-medium">{s.name}</span>
                 <button
                   type="button"
@@ -144,8 +144,9 @@ export function MultiServerBar({
                       <div className="flex items-center gap-2 min-w-0 flex-1">
                         {getServerIcon(s.connectionType)}
                         <div className="min-w-0 flex-1 truncate">
-                          <div className="font-medium text-text-primary group-hover:text-accent truncate">
-                            {s.name}
+                          <div className="flex items-center gap-1.5 font-medium text-text-primary group-hover:text-accent min-w-0">
+                            <span className="truncate">{s.name}</span>
+                            {s.production && <span className="shrink-0 px-1 rounded bg-error/15 text-error text-[10px] font-semibold">Production</span>}
                           </div>
                           <div className="text-[10px] text-text-muted font-mono truncate">
                             {s.host}

@@ -64,6 +64,8 @@ export interface ServerConnection {
   layoutY?: number;
   role?: string;
   links?: string[];
+  /** Set by the user. Marks the server red and makes destructive actions ask you to type its name. */
+  production?: boolean;
 }
 
 /** Clipboard for cut/copy in remote file trees (main Files panel and Projects). */

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, shell, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell, clipboard, Notification } = require('electron');
 const { startUpdateChecker, runUpdateCheck } = require('./updateChecker');
 const path = require('path');
 const fs = require('fs');
@@ -497,6 +497,7 @@ secrets.registerSecretHandlers();
 registerThemeHandlers(log);
 
 app.whenReady().then(() => {
+  if (process.platform === 'win32') app.setAppUserModelId('com.server-operator.app'); // matches build.appId; needed for Windows notifications
   log('started', { logFile: getLogPath() });
 
   // Set macOS Dock icon (works in both dev and packaged)
@@ -2195,6 +2196,228 @@ ipcMain.handle('server:deploy', async (_, { connection, deployCommand, proxy, cw
   }
 });
 
+// ---- Background deploy jobs ----
+// Jobs run in the main process on their own SSH exec channel (or local child process), not inside a terminal
+// shell, so closing a terminal, switching servers or leaving the Deploy screen does not stop them.
+// They end only when the command finishes, the user cancels, or the app quits. Output goes to a log file.
+const deployJobs = new Map(); // id -> job record (with a private _cancel hook)
+const MAX_DEPLOY_JOBS = 50;
+
+function deployLogsDir() {
+  const dir = path.join(app.getPath('userData'), 'deploy-logs');
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function publicDeployJob(job) {
+  // drop private fields (_cancel hook, log buffer, flush timer): they are not serializable over IPC
+  return Object.fromEntries(Object.entries(job).filter(([k]) => !k.startsWith('_')));
+}
+
+function emitDeployJob(channel, job, extra) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(channel, { job: publicDeployJob(job), ...(extra || {}) });
+  }
+}
+
+function createDeployJob({ connection, name, cmd, cwd }) {
+  const id = 'job-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+  const serverName = connection?.name || '';
+  const job = {
+    id,
+    serverId: connection?.id,
+    serverName,
+    production: !!connection?.production,
+    name: serverName ? `${serverName} · ${name || 'deploy'}` : (name || 'deploy'),
+    cmd,
+    cwd,
+    status: 'running',
+    startedAt: Date.now(),
+    exitCode: null,
+    logPath: path.join(deployLogsDir(), id + '.log'),
+  };
+  try { fs.writeFileSync(job.logPath, `$ ${cmd}\n`); } catch (e) { log('deploy job log create failed', { error: String(e) }); }
+  deployJobs.set(id, job);
+  // keep memory bounded: drop the oldest finished jobs (their log files stay on disk)
+  if (deployJobs.size > MAX_DEPLOY_JOBS) {
+    for (const [jid, j] of deployJobs) {
+      if (deployJobs.size <= MAX_DEPLOY_JOBS) break;
+      if (j.status !== 'running') deployJobs.delete(jid);
+    }
+  }
+  emitDeployJob('deploy:job-started', job);
+  return job;
+}
+
+function appendDeployJobLog(job, data) {
+  try { fs.appendFileSync(job.logPath, data); } catch (_) {}
+  // Stream to the UI in ~200ms batches so a chatty build does not flood IPC.
+  job._pending = (job._pending || '') + data;
+  if (!job._flushTimer) job._flushTimer = setTimeout(() => flushDeployJobLog(job), 200);
+}
+
+function flushDeployJobLog(job) {
+  clearTimeout(job._flushTimer);
+  job._flushTimer = null;
+  if (!job._pending) return;
+  const data = job._pending;
+  job._pending = '';
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('deploy:job-log', { jobId: job.id, data });
+  }
+}
+
+// System notification when a job ends while Serop is not the focused window. Clicking it brings the window
+// forward and opens that job's output in the deploy dock.
+function notifyDeployJobDone(job) {
+  if (!mainWindow || mainWindow.isDestroyed() || mainWindow.isFocused() || !Notification.isSupported()) return;
+  const title =
+    job.status === 'cancelled' ? 'Deploy cancelled'
+    : job.status === 'error' ? 'Deploy failed'
+    : job.exitCode === 0 || job.exitCode == null ? 'Deploy finished'
+    : `Deploy exited with code ${job.exitCode}`;
+  const n = new Notification({ title, body: job.status === 'error' && job.error ? `${job.name}\n${job.error}` : job.name });
+  n.on('click', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+    emitDeployJob('deploy:job-focus', job);
+  });
+  n.show();
+}
+
+function finishDeployJob(job, { code, error }) {
+  if (job.status !== 'running') return;
+  job.finishedAt = Date.now();
+  job.exitCode = code ?? null;
+  if (job.cancelRequested) {
+    job.status = 'cancelled';
+    appendDeployJobLog(job, '\n[cancelled]\n');
+    flushDeployJobLog(job);
+    emitDeployJob('deploy:job-cancelled', job);
+  } else if (error) {
+    job.status = 'error';
+    job.error = error;
+    appendDeployJobLog(job, `\n[error] ${error}\n`);
+    flushDeployJobLog(job);
+    emitDeployJob('deploy:job-error', job, { error });
+  } else {
+    job.status = 'finished';
+    appendDeployJobLog(job, `\n[exit ${job.exitCode}]\n`);
+    flushDeployJobLog(job);
+    emitDeployJob('deploy:job-finished', job);
+  }
+  notifyDeployJobDone(job);
+}
+
+// Stop the pooled SSH connection being closed for "idle" while a long command is still running on it.
+function keepPoolConnectionAlive(conn) {
+  const timer = setInterval(() => {
+    const key = findPoolKey(conn);
+    if (key) connectionPool.get(key).lastUsed = Date.now();
+  }, 60000);
+  return () => clearInterval(timer);
+}
+
+function runDeployJobLocal(job, command, cwd) {
+  return new Promise((resolve) => {
+    const shell = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh';
+    const args = process.platform === 'win32' ? ['/d', '/s', '/c', command] : ['-c', command];
+    const proc = spawn(shell, args, { cwd });
+    job._cancel = () => { try { proc.kill(); } catch (_) {} };
+    if (job.cancelRequested) job._cancel();
+    proc.stdout.on('data', (d) => appendDeployJobLog(job, d.toString()));
+    proc.stderr.on('data', (d) => appendDeployJobLog(job, d.toString()));
+    proc.on('close', (code) => resolve({ code: code ?? 0 }));
+    proc.on('error', (err) => resolve({ code: 1, error: err.message }));
+  });
+}
+
+function runDeployJobRemote(job, conn, command, cwd) {
+  return new Promise((resolve) => {
+    const full = cwd ? `cd "${String(cwd).replace(/"/g, '\\"')}" && ${command}` : command;
+    // Own exec channel, deliberately not queued behind other commands on this connection.
+    conn.exec(full, (err, stream) => {
+      if (err) { resolve({ code: 1, error: err.message }); return; }
+      // ponytail: best-effort cancel (TERM then close channel); a server that ignores signals may keep the process.
+      job._cancel = () => {
+        try { stream.signal('TERM'); } catch (_) {}
+        try { stream.close(); } catch (_) {}
+      };
+      if (job.cancelRequested) job._cancel(); // cancelled while still connecting
+      stream.on('data', (d) => appendDeployJobLog(job, d.toString()));
+      stream.stderr.on('data', (d) => appendDeployJobLog(job, d.toString()));
+      stream.on('close', (code) => resolve({ code: code ?? 0 }));
+    });
+  });
+}
+
+async function runDeployJob(job, connection, proxy, cwd, cmd) {
+  let stopKeepAlive = () => {};
+  try {
+    let result;
+    if (isLocalWorkspace(connection)) {
+      const root = ensureLocalWorkspace(connection);
+      const workDir = cwd && cwd.trim() && cwd !== '.' ? resolveDummyPath(connection, cwd) : root;
+      result = await runDeployJobLocal(job, cmd, workDir);
+    } else {
+      const conn = await getOrCreateConnection(connection, proxy);
+      stopKeepAlive = keepPoolConnectionAlive(conn);
+      result = await runDeployJobRemote(job, conn, cmd, cwd);
+    }
+    finishDeployJob(job, { code: result.code, error: result.error });
+  } catch (e) {
+    finishDeployJob(job, { error: errMsg(e) });
+  } finally {
+    stopKeepAlive();
+  }
+}
+
+ipcMain.handle('deploy:start-bg', async (_, { cwd, cmd, name, connection, proxy }) => {
+  if (!connection || !String(cmd || '').trim()) return { ok: false, error: 'A server and a command are required.' };
+  const job = createDeployJob({ connection, name, cmd: String(cmd).trim(), cwd });
+  runDeployJob(job, connection, proxy, cwd, job.cmd); // not awaited: it keeps running in the background
+  return { ok: true, jobId: job.id, logPath: job.logPath };
+});
+
+ipcMain.handle('deploy:list', () => ({
+  ok: true,
+  jobs: [...deployJobs.values()].map(publicDeployJob).sort((a, b) => b.startedAt - a.startedAt),
+}));
+
+ipcMain.handle('deploy:status', (_, { jobId }) => {
+  const job = deployJobs.get(jobId);
+  return job ? { ok: true, job: publicDeployJob(job) } : { ok: false, error: 'Job not found' };
+});
+
+ipcMain.handle('deploy:cancel', (_, { jobId }) => {
+  const job = deployJobs.get(jobId);
+  if (!job) return { ok: false, error: 'Job not found' };
+  if (job.status !== 'running') return { ok: true, alreadyDone: true };
+  if (job.noCancel) return { ok: false, error: 'This job cannot be cancelled from here.' };
+  job.cancelRequested = true;
+  if (job._cancel) job._cancel(); // otherwise it is still connecting; the runner checks cancelRequested
+  return { ok: true };
+});
+
+ipcMain.handle('deploy:read-log', (_, { jobId, logPath, maxBytes, offset }) => {
+  try {
+    const dir = deployLogsDir();
+    const file = path.resolve(jobId && deployJobs.get(jobId) ? deployJobs.get(jobId).logPath : String(logPath || ''));
+    if (!file.startsWith(dir + path.sep)) return { ok: false, error: 'Log not found' }; // only our own log folder
+    const size = fs.statSync(file).size;
+    const start = Math.max(0, Number(offset) || 0);
+    const len = Math.max(0, Math.min(Number(maxBytes) || 200000, size - start));
+    const buf = Buffer.alloc(len);
+    const fd = fs.openSync(file, 'r');
+    try { fs.readSync(fd, buf, 0, len, start); } finally { fs.closeSync(fd); }
+    return { ok: true, content: buf.toString('utf8'), size, offset: start + len, bytesRead: len, truncated: start + len < size };
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
+});
+
 ipcMain.handle('server:run-deploy-pipeline', async (_, { connection, shellId, projectDir, branch, depType, migType, restartType, serviceName, proxy }) => {
   const serverId = connection.id;
   const serverName = connection.name;
@@ -2228,11 +2451,16 @@ ipcMain.handle('server:run-deploy-pipeline', async (_, { connection, shellId, pr
   const fullCommand = cmds.join(' && ');
   const timestamp = new Date().toISOString();
   
+  // Also tracked as a background job, so progress and logs stay visible after the terminal closes or you switch servers.
+  const job = createDeployJob({ connection, name: `Git deploy (${branch || 'main'})`, cmd: fullCommand, cwd: projectDir });
+  job.noCancel = true; // runs through the serialized pipeline path, which has no cancel hook
   const onData = (data) => {
+    appendDeployJobLog(job, data);
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('shell-output', { shellId, data: data.replace(/\r?\n/g, '\r\n') });
     }
   };
+  let stopKeepAlive = () => {};
   
   try {
     let result;
@@ -2244,8 +2472,10 @@ ipcMain.handle('server:run-deploy-pipeline', async (_, { connection, shellId, pr
       result = await execLocalCommandStream(fullCommand, workDir, onData);
     } else {
       const conn = await getOrCreateConnection(connection, proxy);
+      stopKeepAlive = keepPoolConnectionAlive(conn);
       result = await execCommandStream(conn, fullCommand, projectDir, onData);
     }
+    finishDeployJob(job, { code: result.code });
     
     let commitHash = '';
     const status = result.code === 0 ? 'success' : 'failure';
@@ -2282,8 +2512,11 @@ ipcMain.handle('server:run-deploy-pipeline', async (_, { connection, shellId, pr
       return { ok: false, error: `Command chain exited with code ${result.code}`, output: result.output };
     }
   } catch (e) {
+    finishDeployJob(job, { error: errMsg(e) });
     onData(`\r\n❌ Deployment exception: ${errMsg(e)}\r\n`);
     return { ok: false, error: errMsg(e) };
+  } finally {
+    stopKeepAlive();
   }
 });
 

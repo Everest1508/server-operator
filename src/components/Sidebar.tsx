@@ -22,6 +22,13 @@ import {
   CopyPlus,
   Eye,
   EyeOff,
+  HardDrive,
+  Cloud,
+  KeyRound,
+  Lock,
+  ShieldAlert,
+  ShieldOff,
+  Search,
 } from 'lucide-react';
 import type { ServerConnection, ViewId, FileTreeClipboard, ProxySettings, DockerContainer } from '../types';
 import { parseLsLine } from '../utils/parseLs';
@@ -30,6 +37,7 @@ import { NotesSidebar } from './NotesSidebar';
 import { DeploySidebar } from './DeploySidebar';
 import { createPortal } from 'react-dom';
 import { confirmDialog } from '../utils/confirm';
+import { useRunningDeployServers } from './DeployJobsDock';
 
 interface FileTreeMenuState {
   kind: 'entry' | 'background';
@@ -86,6 +94,10 @@ interface SidebarProps {
   connectionError: string | null;
   onSelectServer: (s: ServerConnection | null) => void;
   onRemoveServer: (id: string) => void;
+  /** Turn production mode on or off for a server (manual, from the server row). */
+  onSetProduction?: (server: ServerConnection, on: boolean) => void;
+  /** Servers open in a tab, shown with a dot. */
+  openServerIds?: string[];
   onDismissError: () => void;
   treeListings?: Record<string, string>;
   openFolders?: Set<string>;
@@ -129,6 +141,170 @@ interface SidebarProps {
   deployContextError?: string | null;
 }
 
+function serverTypeIcon(s: ServerConnection) {
+  const t = s.connectionType ?? (s.privateKeyPath ? 'ec2' : 'password');
+  if (t === 'local') return HardDrive;
+  if (t === 'cloudflare') return Cloud;
+  if (t === 'password') return Lock;
+  if (t === 'ec2') return KeyRound;
+  return ServerIcon;
+}
+
+/** Saved servers: search, a Production group, connection-type icons, live deploy spinner, and per-row actions. */
+function ServerList({
+  servers,
+  currentServer,
+  connectingTo,
+  openServerIds,
+  intro,
+  onSelectServer,
+  onRemoveServer,
+  onSetProduction,
+}: {
+  servers: ServerConnection[];
+  currentServer: ServerConnection | null;
+  connectingTo: string | null;
+  openServerIds: string[];
+  intro?: string;
+  onSelectServer: (s: ServerConnection | null) => void;
+  onRemoveServer: (id: string) => void;
+  onSetProduction?: (server: ServerConnection, on: boolean) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const deploying = useRunningDeployServers();
+
+  if (servers.length === 0) {
+    return (
+      <p className="px-6 py-4 text-xs text-text-muted text-center">
+        No servers yet. Use “Open server” in the title bar to add one.
+      </p>
+    );
+  }
+
+  const q = query.trim().toLowerCase();
+  const visible = q
+    ? servers.filter((s) => [s.name, s.host, s.projectPath ?? ''].some((v) => v.toLowerCase().includes(q)))
+    : servers;
+  const prod = visible.filter((s) => s.production);
+  const groups = prod.length
+    ? [
+        { label: 'Production', items: prod, prod: true },
+        { label: 'Other servers', items: visible.filter((s) => !s.production), prod: false },
+      ].filter((g) => g.items.length)
+    : [{ label: '', items: visible, prod: false }];
+
+  const remove = async (s: ServerConnection) => {
+    const ok = await confirmDialog(
+      `Remove "${s.name}" from your saved servers?\n\nThis only removes it from Serop. Nothing on the server changes.`,
+      { title: 'Remove server', confirmLabel: 'Remove', server: { name: s.name, production: s.production } },
+    );
+    if (ok) onRemoveServer(s.id);
+  };
+
+  return (
+    <div className="px-3 pb-4">
+      {intro && <p className="px-3 pb-1.5 text-xs font-semibold text-text-secondary">{intro}</p>}
+      {servers.length > 5 && (
+        <label className="relative flex items-center mb-2">
+          <Search size={12} className="absolute left-2.5 text-text-muted pointer-events-none" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
+            placeholder="Search servers"
+            aria-label="Search servers"
+            className="w-full pl-7 pr-2.5 py-1.5 rounded-lg bg-bg-primary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent/40 focus:ring-1 focus:ring-accent/30"
+          />
+        </label>
+      )}
+      {visible.length === 0 && <p className="px-3 py-3 text-xs text-text-muted">No servers match “{query}”.</p>}
+      {groups.map((g) => (
+        <div key={g.label || 'all'} className="mb-2 last:mb-0">
+          {g.label && (
+            <p className={`flex items-center gap-1.5 px-3 pt-1 pb-1 text-[11px] font-semibold ${g.prod ? 'text-error' : 'text-text-muted'}`}>
+              {g.prod && <ShieldAlert size={11} />}
+              {g.label}
+              <span className="font-normal text-text-muted">{g.items.length}</span>
+            </p>
+          )}
+          <ul className="space-y-0.5">
+            {g.items.map((s) => {
+              const isSelected = currentServer?.id === s.id;
+              const isOpen = openServerIds.includes(s.id);
+              const isDeploying = deploying.has(s.id);
+              const Icon = serverTypeIcon(s);
+              const state = isSelected ? 'Active' : isOpen ? 'Open in a tab' : 'Not connected';
+              return (
+                <li key={s.id} className="group relative rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => onSelectServer(isSelected ? null : s)}
+                    disabled={connectingTo !== null}
+                    aria-current={isSelected ? 'true' : undefined}
+                    className={`relative w-full min-w-0 flex items-center gap-2.5 pl-3 pr-3 py-2 rounded-xl text-left text-xs transition-colors disabled:opacity-60 ${
+                      isSelected ? 'bg-bg-tertiary/75 text-accent font-semibold' : 'text-text-primary hover:bg-bg-tertiary/35'
+                    }`}
+                  >
+                    {s.production && <span aria-hidden className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-error/80" />}
+                    <span className="relative shrink-0 flex items-center justify-center w-6 h-6 rounded-lg bg-bg-primary/40 border border-border/30" title={state}>
+                      <Icon size={12} className={s.production ? 'text-error' : isSelected ? 'text-accent' : 'text-text-secondary'} />
+                      <span
+                        className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-bg-secondary ${
+                          isSelected ? 'bg-success' : isOpen ? 'bg-success/50' : 'bg-text-muted/50'
+                        }`}
+                      />
+                    </span>
+                    <span className="min-w-0 flex-1 flex flex-col">
+                      <span className="truncate">{connectingTo === s.id ? 'Connecting…' : s.name}</span>
+                      <span className="truncate text-[11px] font-normal text-text-muted font-mono">
+                        {s.connectionType === 'local' ? (s.projectPath || s.host) : s.host}
+                      </span>
+                    </span>
+                    {isDeploying && (
+                      <span className="shrink-0 flex items-center gap-1 text-[10px] font-medium text-accent group-hover:opacity-0 group-focus-within:opacity-0 transition-opacity">
+                        <Loader2 size={11} className="animate-spin" />
+                        Deploying
+                      </span>
+                    )}
+                    <span className="sr-only">{`, ${state}${s.production ? ', production' : ''}${isDeploying ? ', deploying' : ''}`}</span>
+                  </button>
+                  <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 pl-6 rounded-r-xl bg-gradient-to-l from-bg-secondary from-60% to-transparent opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+                    {onSetProduction && (
+                      <Tooltip content={s.production ? 'Turn off production mode' : 'Mark as production'} position="top">
+                        <button
+                          type="button"
+                          onClick={() => onSetProduction(s, !s.production)}
+                          aria-pressed={!!s.production}
+                          aria-label={s.production ? `Turn off production mode for ${s.name}` : `Mark ${s.name} as production`}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            s.production ? 'text-error hover:bg-error/15' : 'text-text-muted hover:bg-bg-tertiary hover:text-error'
+                          }`}
+                        >
+                          {s.production ? <ShieldOff size={13} /> : <ShieldAlert size={13} />}
+                        </button>
+                      </Tooltip>
+                    )}
+                    <Tooltip content="Remove server" position="top">
+                      <button
+                        type="button"
+                        onClick={() => remove(s)}
+                        aria-label={`Remove ${s.name}`}
+                        className="p-1.5 rounded-lg text-text-muted hover:bg-error/15 hover:text-error transition-colors"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </Tooltip>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function buildPath(prefix: string, name: string): string {
   const p = (prefix || '.').trim() || '.';
   return p === '.' ? name : `${p}/${name}`;
@@ -144,6 +320,8 @@ export function Sidebar({
   connectionError,
   onSelectServer,
   onRemoveServer,
+  onSetProduction,
+  openServerIds = [],
   onDismissError,
   treeListings = {},
   openFolders = new Set(),
@@ -618,59 +796,16 @@ export function Sidebar({
             )}
             {activeView === 'files' && !currentServer && <NoServerTree />}
             {(activeView === 'servers' || (!currentServer && (activeView === 'files' || activeView === 'docker' || activeView === 'deploy' || activeView === 'database' || activeView === 'firewall'))) && (
-              <ul className="space-y-1 px-3 pb-4">
-                {activeView === 'files' && !currentServer && servers.length > 0 && (
-                  <li className="px-3 pb-1 text-xs font-semibold text-text-secondary">Connect to one</li>
-                )}
-                {servers.length === 0 && (
-                  <li className="px-3 py-4 text-xs text-text-muted text-center">
-                    No servers yet. Use “Open server” in the title bar to add one.
-                  </li>
-                )}
-                {servers.map((s) => {
-                  const isSelected = currentServer?.id === s.id;
-                  const badgeColor = isSelected ? 'bg-success' : 'bg-text-muted/60';
-
-                  return (
-                    <li key={s.id} className="group flex items-center gap-1.5 rounded-xl">
-                      <button
-                         type="button"
-                         onClick={() => onSelectServer(isSelected ? null : s)}
-                         disabled={connectingTo !== null}
-                         className={`flex-1 min-w-0 flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-xs transition-all duration-200 disabled:opacity-60 ${
-                           isSelected
-                             ? 'bg-bg-tertiary/75 text-accent font-semibold shadow-inner'
-                             : 'text-text-primary hover:bg-bg-tertiary/30 hover:text-text-primary'
-                         }`}
-                      >
-                        <div className="relative shrink-0 flex items-center justify-center w-5 h-5 bg-bg-primary/40 rounded-lg border border-border/30">
-                          <ServerIcon size={12} className={isSelected ? 'text-accent' : 'text-text-secondary'} />
-                          <span className={`absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-bg-secondary ${badgeColor}`} />
-                        </div>
-                        <span className="min-w-0 flex flex-col">
-                          <span className="truncate">{connectingTo === s.id ? 'Connecting…' : s.name}</span>
-                          <span className="truncate text-[11px] font-normal text-text-muted">{s.connectionType === 'local' ? (s.projectPath || s.host) : s.host}</span>
-                        </span>
-                        <ChevronRight
-                          size={12}
-                          className={`ml-auto shrink-0 transition-transform text-text-muted/60 ${
-                            isSelected ? 'rotate-90 text-accent/80' : ''
-                          }`}
-                        />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onRemoveServer(s.id)}
-                        className="p-2 rounded-xl text-text-muted hover:bg-error/15 hover:text-error opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all duration-200 shrink-0"
-                        title="Remove server"
-                        aria-label={`Remove ${s.name}`}
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
+              <ServerList
+                servers={servers}
+                currentServer={currentServer}
+                connectingTo={connectingTo}
+                openServerIds={openServerIds}
+                intro={activeView !== 'servers' && !currentServer && servers.length > 0 ? 'Connect to one' : undefined}
+                onSelectServer={onSelectServer}
+                onRemoveServer={onRemoveServer}
+                onSetProduction={onSetProduction}
+              />
             )}
             {showFileBrowser && (
               <div

@@ -157,7 +157,7 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
   // 6. Clear Logs
   const handleClearLogs = async () => {
     if (!window.serverOperator?.clearLogFile) return;
-    if (!await confirmDialog('Clear the application log file? This cannot be undone.', { confirmLabel: 'Clear log' })) {
+    if (!await confirmDialog('Clear the application log file? This cannot be undone.', { confirmLabel: 'Clear log', server: null })) {
       return;
     }
     setLogsLoading(true);

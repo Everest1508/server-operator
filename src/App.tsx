@@ -15,6 +15,7 @@ import { TitleBar } from './components/TitleBar';
 import { CloudTeamView } from './components/CloudTeamView';
 import { CustomContextMenu } from './components/CustomContextMenu';
 import { ServerAlreadyConnectedToast } from './components/ServerAlreadyConnectedToast';
+import { DeployJobsDock } from './components/DeployJobsDock';
 import type { ServerTabSession } from './components/MultiServerBar';
 import type { ServerConnection, ViewId, ProxySettings, DockerContainer, FileTreeClipboard } from './types';
 import { escapeShellSingleQuotes } from './utils/shellQuote';
@@ -22,7 +23,7 @@ import type { ServerSysInfo } from './components/ServerOverview';
 import { parseLsLine } from './utils/parseLs';
 import { resolveRemotePath } from './utils/remotePath';
 import { loadProjectContext } from './utils/loadProjectContext';
-import { confirmDialog } from './utils/confirm';
+import { confirmDialog, setConfirmServer } from './utils/confirm';
 
 const STORAGE_KEY_PROXY = 'server-operator-proxy';
 const STORAGE_KEY_REPOS = 'server-operator:repos';
@@ -1718,10 +1719,32 @@ export default function App() {
     }
   };
   const addServer = (s: ServerConnection) => setServers((prev) => [...prev, s]);
-  const updateServer = (id: string, patch: Partial<ServerConnection>) =>
+  const updateServer = (id: string, patch: Partial<ServerConnection>) => {
     setServers((prev) =>
       prev.map((x) => (x.id === id ? { ...x, ...patch } : x))
     );
+    // Connection details apply on the next connect, but production mode must take effect on open tabs right away.
+    if ('production' in patch) {
+      const production = patch.production;
+      setCurrentServer((cs) => (cs && cs.id === id ? { ...cs, production } : cs));
+      setServerTabs((tabs) => tabs.map((t) => (t.server.id === id ? { ...t, server: { ...t.server, production } } : t)));
+    }
+  };
+  const setServerProduction = async (server: ServerConnection, on: boolean) => {
+    if (!on) {
+      const ok = await confirmDialog(
+        `Turn off production mode for "${server.name}"?\n\nRisky actions on it will stop asking you to type its name.`,
+        { title: 'Turn off production mode', confirmLabel: 'Turn off', server: { name: server.name, production: true } },
+      );
+      if (!ok) return;
+    }
+    updateServer(server.id, { production: on });
+  };
+
+  // Every risky confirm on the active server asks for its name when it is marked as production.
+  useEffect(() => {
+    setConfirmServer(currentServer ? { name: currentServer.name, production: currentServer.production } : null);
+  }, [currentServer?.id, currentServer?.name, currentServer?.production]);
   const removeServer = (id: string) => {
     setServers((prev) => prev.filter((x) => x.id !== id));
     if (currentServer?.id === id) setCurrentServer(null);
@@ -1834,68 +1857,7 @@ export default function App() {
   };
   const dismissToast = (id: string) => setToasts((prev) => prev.filter((x) => x.id !== id));
 
-  useEffect(() => {
-    const onStarted = (e: Event) => {
-      const d = (e as CustomEvent<any>).detail;
-      const job = d?.job;
-      addToast({
-        type: 'info',
-        title: 'Deploy started',
-        message: job?.name || job?.cmd?.slice(0, 60) || 'Background deploy running',
-        timeout: 4000,
-      });
-    };
-    const onFinished = (e: Event) => {
-      const d = (e as CustomEvent<any>).detail;
-      const job = d?.job;
-      const code = job?.exitCode ?? d?.exitCode;
-      addToast({
-        type: code === 0 ? 'success' : 'warning',
-        title: code === 0 ? 'Deploy finished' : `Deploy finished (exit ${code ?? '?'})`,
-        message: job?.name || job?.cmd?.slice(0, 60) || 'Background deploy done',
-        timeout: 7000,
-        actionLabel: 'View logs',
-        onAction: () => {
-          window.dispatchEvent(new CustomEvent('deploy-open-logs', { detail: { jobId: job?.id, logPath: job?.logPath } }));
-        },
-      });
-    };
-    const onError = (e: Event) => {
-      const d = (e as CustomEvent<any>).detail;
-      const job = d?.job;
-      const err = d?.error || job?.error;
-      addToast({
-        type: 'error',
-        title: 'Deploy failed',
-        message: err || job?.name || 'Background deploy error',
-        timeout: 8000,
-        actionLabel: 'View logs',
-        onAction: () => {
-          window.dispatchEvent(new CustomEvent('deploy-open-logs', { detail: { jobId: job?.id, logPath: job?.logPath } }));
-        },
-      });
-    };
-    const onCancelled = (e: Event) => {
-      const d = (e as CustomEvent<any>).detail;
-      const job = d?.job;
-      addToast({
-        type: 'warning',
-        title: 'Deploy cancelled',
-        message: job?.name || 'Background deploy cancelled',
-        timeout: 5000,
-      });
-    };
-    window.addEventListener('deploy:job-started', onStarted as any);
-    window.addEventListener('deploy:job-finished', onFinished as any);
-    window.addEventListener('deploy:job-error', onError as any);
-    window.addEventListener('deploy:job-cancelled', onCancelled as any);
-    return () => {
-      window.removeEventListener('deploy:job-started', onStarted as any);
-      window.removeEventListener('deploy:job-finished', onFinished as any);
-      window.removeEventListener('deploy:job-error', onError as any);
-      window.removeEventListener('deploy:job-cancelled', onCancelled as any);
-    };
-  }, []);
+  // Deploy job progress (started, live output, finished) is shown by <DeployJobsDock />.
 
   return (
     <div className={`flex flex-col h-full bg-bg-primary text-text-primary ${resizeDrag ? 'select-none' : ''}`}>
@@ -1945,6 +1907,8 @@ export default function App() {
           connectionError={connectionError}
           onSelectServer={handleSelectServer}
           onRemoveServer={removeServer}
+          onSetProduction={setServerProduction}
+          openServerIds={serverTabs.map((t) => t.server.id)}
           onDismissError={() => setConnectionError(null)}
           selectedGuideId={selectedGuideId}
           onSelectGuideId={handleSelectGuideId}
@@ -2229,6 +2193,7 @@ export default function App() {
       onDismiss={() => setAlreadyConnectedServerToast(null)}
     />
     <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 items-end pointer-events-none">
+      <DeployJobsDock />
       {toasts.map((toast) => (
         <div
           key={toast.id}
