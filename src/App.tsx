@@ -1810,6 +1810,93 @@ export default function App() {
     setConnectingToServer(null);
   };
 
+  interface ToastItem {
+    id: string;
+    title: string;
+    message?: string;
+    type?: 'info' | 'success' | 'error' | 'warning';
+    actionLabel?: string;
+    onAction?: () => void;
+    timeout?: number;
+  }
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const toastIdRef = useRef(0);
+
+  const addToast = (toast: Omit<ToastItem, 'id'>) => {
+    const id = `toast-${++toastIdRef.current}`;
+    const t: ToastItem = { timeout: 6000, type: 'info', ...toast, id };
+    setToasts((prev) => [...prev, t]);
+    if (t.timeout && t.timeout > 0) {
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((x) => x.id !== id));
+      }, t.timeout);
+    };
+  };
+  const dismissToast = (id: string) => setToasts((prev) => prev.filter((x) => x.id !== id));
+
+  useEffect(() => {
+    const onStarted = (e: Event) => {
+      const d = (e as CustomEvent<any>).detail;
+      const job = d?.job;
+      addToast({
+        type: 'info',
+        title: 'Deploy started',
+        message: job?.name || job?.cmd?.slice(0, 60) || 'Background deploy running',
+        timeout: 4000,
+      });
+    };
+    const onFinished = (e: Event) => {
+      const d = (e as CustomEvent<any>).detail;
+      const job = d?.job;
+      const code = job?.exitCode ?? d?.exitCode;
+      addToast({
+        type: code === 0 ? 'success' : 'warning',
+        title: code === 0 ? 'Deploy finished' : `Deploy finished (exit ${code ?? '?'})`,
+        message: job?.name || job?.cmd?.slice(0, 60) || 'Background deploy done',
+        timeout: 7000,
+        actionLabel: 'View logs',
+        onAction: () => {
+          window.dispatchEvent(new CustomEvent('deploy-open-logs', { detail: { jobId: job?.id, logPath: job?.logPath } }));
+        },
+      });
+    };
+    const onError = (e: Event) => {
+      const d = (e as CustomEvent<any>).detail;
+      const job = d?.job;
+      const err = d?.error || job?.error;
+      addToast({
+        type: 'error',
+        title: 'Deploy failed',
+        message: err || job?.name || 'Background deploy error',
+        timeout: 8000,
+        actionLabel: 'View logs',
+        onAction: () => {
+          window.dispatchEvent(new CustomEvent('deploy-open-logs', { detail: { jobId: job?.id, logPath: job?.logPath } }));
+        },
+      });
+    };
+    const onCancelled = (e: Event) => {
+      const d = (e as CustomEvent<any>).detail;
+      const job = d?.job;
+      addToast({
+        type: 'warning',
+        title: 'Deploy cancelled',
+        message: job?.name || 'Background deploy cancelled',
+        timeout: 5000,
+      });
+    };
+    window.addEventListener('deploy:job-started', onStarted as any);
+    window.addEventListener('deploy:job-finished', onFinished as any);
+    window.addEventListener('deploy:job-error', onError as any);
+    window.addEventListener('deploy:job-cancelled', onCancelled as any);
+    return () => {
+      window.removeEventListener('deploy:job-started', onStarted as any);
+      window.removeEventListener('deploy:job-finished', onFinished as any);
+      window.removeEventListener('deploy:job-error', onError as any);
+      window.removeEventListener('deploy:job-cancelled', onCancelled as any);
+    };
+  }, []);
+
   return (
     <div className={`flex flex-col h-full bg-bg-primary text-text-primary ${resizeDrag ? 'select-none' : ''}`}>
       <TitleBar
@@ -2141,6 +2228,38 @@ export default function App() {
       serverName={alreadyConnectedServerToast}
       onDismiss={() => setAlreadyConnectedServerToast(null)}
     />
+    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 items-end pointer-events-none">
+      {toasts.map((toast) => (
+        <div
+          key={toast.id}
+          className={`pointer-events-auto max-w-sm rounded-xl border shadow-lg backdrop-blur bg-bg-secondary/90 border-border/40 px-4 py-3 text-xs text-text-primary flex items-start gap-3`}
+        >
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-text-primary truncate">{toast.title}</div>
+            {toast.message && <div className="text-text-secondary mt-0.5 break-words">{toast.message}</div>}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {toast.onAction && toast.actionLabel && (
+              <button
+                type="button"
+                onClick={() => { toast.onAction?.(); dismissToast(toast.id); }}
+                className="px-2 py-0.5 rounded-md bg-accent/20 text-accent font-semibold hover:bg-accent/30 cursor-pointer"
+              >
+                {toast.actionLabel}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => dismissToast(toast.id)}
+              className="text-text-muted hover:text-text-primary cursor-pointer"
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
   </div>
   );
 }

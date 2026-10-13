@@ -411,8 +411,8 @@ export function DeploySidebar({
     }
   };
 
-  const runShortcut = (command: string) => {
-    window.dispatchEvent(new CustomEvent('deploy-run-command', { detail: { command } }));
+  const runShortcut = (command: string, name?: string) => {
+    window.dispatchEvent(new CustomEvent('deploy-run-command', { detail: { command, name: name || 'shortcut', cwd: activeProjectPath } }));
   };
 
   const handleRecipeFileReorder = (fromIndex: number, toIndex: number) => {
@@ -504,8 +504,14 @@ export function DeploySidebar({
       setScheduleError('Pick a date and time.');
       return;
     }
+    // datetime-local gives local time string like "2026-10-13T12:34"
     const runAtDate = new Date(scheduleRunAt);
-    if (Number.isNaN(runAtDate.getTime()) || runAtDate.getTime() <= Date.now()) {
+    if (Number.isNaN(runAtDate.getTime())) {
+      setScheduleError('Invalid date/time.');
+      return;
+    }
+    // Give small grace (allow ~1 min past if input lags) but generally enforce future
+    if (runAtDate.getTime() <= Date.now() - 60000) {
       setScheduleError('Pick a date and time in the future.');
       return;
     }
@@ -515,7 +521,7 @@ export function DeploySidebar({
     setScheduleMessage(null);
     try {
       const isWindows = isLocalWorkspaceConnection(currentServer) && window.serverOperator.platform === 'win32';
-      const marker = crypto.randomUUID();
+      const marker = (typeof crypto !== 'undefined' && 'randomUUID' in crypto) ? (crypto as any).randomUUID() : 'serop-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8);
       const installCmd = buildScheduleInstallCommand(command, runAtDate, marker, isWindows);
       const installRes = await window.serverOperator.runCommand({
         connection: currentServer,
@@ -668,7 +674,7 @@ export function DeploySidebar({
                         <ChevronDown size={14} className={`shrink-0 text-text-secondary transition-transform ${isOpen ? 'rotate-0' : '-rotate-90'}`} />
                         <span className="text-xs font-semibold text-text-primary truncate">{shortcut.name}</span>
                       </button>
-                      <Button variant="subtle" size="sm" onClick={() => runShortcut(shortcut.command)} className="shrink-0">
+                      <Button variant="subtle" size="sm" onClick={() => runShortcut(shortcut.command, shortcut.name)} className="shrink-0">
                         <Play size={10} />Run
                       </Button>
                     </div>
@@ -681,7 +687,7 @@ export function DeploySidebar({
                           rows={4}
                         />
                         <div className="flex items-center gap-2 flex-wrap">
-                          <Button variant="solid" size="sm" onClick={() => runShortcut(editedCommand)} disabled={!editedCommand.trim()}>
+                          <Button variant="solid" size="sm" onClick={() => runShortcut(editedCommand, shortcut.name)} disabled={!editedCommand.trim()}>
                             <Play size={10} />Run edited
                           </Button>
                           <button

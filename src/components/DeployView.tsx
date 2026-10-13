@@ -627,14 +627,95 @@ export function DeployView({
     }
   };
 
+  const [logsModal, setLogsModal] = useState<{ open: boolean; jobId?: string; logPath?: string; content?: string; loading?: boolean; offset?: number; size?: number }>({ open: false });
+  const [bgJobs, setBgJobs] = useState<any[]>([]);
+
+  const loadBgJobs = async () => {
+    if (window.serverOperator?.deployList) {
+      const r = await window.serverOperator.deployList();
+      if (r.ok) setBgJobs(r.jobs || []);
+    }
+  };
+
+  const cancelBgJob = async (jobId: string) => {
+    if (window.serverOperator?.deployCancel) {
+      await window.serverOperator.deployCancel({ jobId });
+      await loadBgJobs();
+    }
+  };
+
+  useEffect(() => {
+    loadBgJobs();
+    const iv = setInterval(loadBgJobs, 2000);
+    return () => clearInterval(iv);
+  }, []);
+
+  useEffect(() => {
+    const refresh = () => loadBgJobs();
+    window.addEventListener('deploy:job-started', refresh as any);
+    window.addEventListener('deploy:job-finished', refresh as any);
+    window.addEventListener('deploy:job-error', refresh as any);
+    window.addEventListener('deploy:job-cancelled', refresh as any);
+    return () => {
+      window.removeEventListener('deploy:job-started', refresh as any);
+      window.removeEventListener('deploy:job-finished', refresh as any);
+      window.removeEventListener('deploy:job-error', refresh as any);
+      window.removeEventListener('deploy:job-cancelled', refresh as any);
+    };
+  }, []);
+
   useEffect(() => {
     const handler = (event: Event) => {
-      const detail = (event as CustomEvent<{ command?: string }>).detail;
+      const detail = (event as CustomEvent<{ command?: string; name?: string; cwd?: string }>).detail;
       const toRun = detail?.command?.trim();
-      if (toRun) runCommandInTerminalRef.current?.(toRun);
+      if (!toRun || !window.serverOperator?.deployStartBg) return;
+      window.serverOperator
+        .deployStartBg({
+          serverId: currentServer.id,
+          cwd: detail?.cwd || activeProjectPath || runCwd || currentServer.projectPath || currentServer.cwd,
+          cmd: toRun,
+          name: detail?.name || 'shortcut',
+          connection: currentServer,
+          proxy,
+        })
+        .then(() => {
+          loadBgJobs();
+        })
+        .catch(() => {
+          // fallback to terminal if bg fails
+          runCommandInTerminalRef.current?.(toRun);
+        });
     };
     window.addEventListener('deploy-run-command', handler as EventListener);
     return () => window.removeEventListener('deploy-run-command', handler as EventListener);
+  }, [currentServer, activeProjectPath, runCwd, proxy]);
+
+  const loadLogs = async (jobId?: string, logPath?: string, reset = true) => {
+    if (!window.serverOperator?.deployReadLog) return;
+    const currentOffset = logsModal.offset || 0;
+    setLogsModal((prev) => ({ ...prev, loading: true, jobId, logPath }));
+    const res = await window.serverOperator.deployReadLog({ jobId, logPath, maxBytes: 200000, offset: reset ? 0 : currentOffset });
+    if (res.ok) {
+      setLogsModal((prev) => ({
+        ...prev,
+        loading: false,
+        content: (reset ? res.content || '' : (prev.content || '') + (res.content || '')),
+        offset: (reset ? (res.bytesRead || res.content?.length || 0) : ((prev.offset || 0) + (res.bytesRead || res.content?.length || 0))),
+        size: res.size,
+        open: true,
+      }));
+    } else {
+      setLogsModal((prev) => ({ ...prev, loading: false, content: res.error || 'Failed to read logs' }));
+    }
+  };
+
+  useEffect(() => {
+    const onOpenLogs = (e: Event) => {
+      const d = (e as CustomEvent<any>).detail;
+      loadLogs(d?.jobId, d?.logPath, true);
+    };
+    window.addEventListener('deploy-open-logs', onOpenLogs as any);
+    return () => window.removeEventListener('deploy-open-logs', onOpenLogs as any);
   }, []);
 
   useEffect(() => {
@@ -823,6 +904,41 @@ export function DeployView({
                       </div>
                     </div>
                     <div className="flex-1 min-h-[160px] flex flex-col overflow-hidden bg-bg-primary/10">
+                      {bgJobs.length > 0 && (
+                        <div className="px-4 pt-3 shrink-0 select-none">
+                          <div className="rounded-xl border border-border/20 bg-bg-secondary/40 p-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-semibold text-text-secondary">Background jobs</span>
+                              <button type="button" onClick={loadBgJobs} className="text-[10px] text-text-muted hover:text-text-primary cursor-pointer">Refresh</button>
+                            </div>
+                            <div className="space-y-2 max-h-40 overflow-auto pr-1">
+                              {bgJobs.map((job) => (
+                                <div key={job.id} className="rounded-lg border border-border/15 bg-bg-primary/30 px-2.5 py-2 text-[11px]">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                      <div className="font-semibold text-text-primary truncate">{job.name || 'deploy'}</div>
+                                      <div className="text-text-muted font-mono truncate">{job.cmd}</div>
+                                      <div className="text-text-muted mt-0.5">{new Date(job.startedAt).toLocaleTimeString()}</div>
+                                    </div>
+                                    <span className={`shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
+                                      job.status === 'running' ? 'bg-accent/15 text-accent' :
+                                      job.status === 'finished' ? 'bg-emerald-500/15 text-emerald-400' :
+                                      job.status === 'error' ? 'bg-error/15 text-error' :
+                                      'bg-bg-tertiary text-text-muted'
+                                    }`}>{job.status}{job.exitCode != null ? ` (${job.exitCode})` : ''}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                    <button type="button" onClick={() => loadLogs(job.id, job.logPath, true)} className="px-1.5 py-0.5 rounded-md border border-border/20 text-[10px] text-text-secondary hover:text-text-primary hover:bg-bg-tertiary cursor-pointer">View logs</button>
+                                    {job.status === 'running' && (
+                                      <button type="button" onClick={() => cancelBgJob(job.id)} className="px-1.5 py-0.5 rounded-md border border-border/20 text-[10px] text-text-secondary hover:text-error hover:bg-error/10 cursor-pointer">Cancel</button>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       <div className="flex-1 overflow-auto px-4 py-4 space-y-4 select-text">
                         {deployChatMessages.length === 0 && (
                           <div className="flex flex-col items-center justify-center py-8 text-center select-none">
@@ -1198,6 +1314,34 @@ export function DeployView({
           )}
         </div>
       </div>
+      {logsModal.open && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-bg-primary border border-border/40 rounded-xl shadow-2xl max-w-3xl w-full max-h-[70vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-border/20">
+              <div className="text-xs font-semibold text-text-primary">Deploy logs</div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => loadLogs(logsModal.jobId, logsModal.logPath, true)}
+                  className="px-2 py-0.5 rounded-md text-[11px] text-text-secondary hover:text-text-primary hover:bg-bg-tertiary cursor-pointer"
+                >
+                  Reload
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLogsModal({ open: false })}
+                  className="px-2 py-0.5 rounded-md text-[11px] text-text-secondary hover:text-text-primary hover:bg-bg-tertiary cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto bg-bg-primary/80 p-3 font-mono text-[11px] text-text-primary whitespace-pre-wrap select-text">
+              {logsModal.loading && !logsModal.content ? 'Loading...' : logsModal.content || '(empty)'}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

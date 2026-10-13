@@ -228,6 +228,27 @@ export interface ServerOperatorAPI {
   isWindowMaximized?: () => Promise<boolean>;
   setWindowOpacity?: (opacity: number) => Promise<void>;
   quitApp?: () => Promise<void>;
+  deployStartBg?: (opts: {
+    serverId?: string;
+    cwd?: string;
+    cmd: string;
+    name?: string;
+    env?: Record<string, string>;
+    connection?: ServerConnection;
+    proxy?: ProxySettings;
+  }) => Promise<{ ok: boolean; jobId?: string; logPath?: string; error?: string; exitCode?: number }>;
+  deployReadLog?: (opts: { jobId?: string; logPath?: string; maxBytes?: number; offset?: number }) => Promise<{
+    ok: boolean;
+    content?: string;
+    size?: number;
+    offset?: number;
+    bytesRead?: number;
+    truncated?: boolean;
+    error?: string;
+  }>;
+  deployList?: () => Promise<{ ok: boolean; jobs?: any[]; error?: string }>;
+  deployStatus?: (opts: { jobId: string }) => Promise<{ ok: boolean; job?: any; error?: string }>;
+  deployCancel?: (opts: { jobId: string }) => Promise<{ ok: boolean; alreadyDone?: boolean; error?: string }>;
 }
 
 declare global {

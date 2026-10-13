@@ -28,6 +28,21 @@ ipcRenderer.on('import-progress', (_event, payload) => {
 ipcRenderer.on('open-local-folder', (_event, payload) => {
   window.dispatchEvent(new CustomEvent('open-local-folder', { detail: payload }));
 });
+ipcRenderer.on('deploy:job-started', (_event, payload) => {
+  window.dispatchEvent(new CustomEvent('deploy:job-started', { detail: payload }));
+});
+ipcRenderer.on('deploy:job-finished', (_event, payload) => {
+  window.dispatchEvent(new CustomEvent('deploy:job-finished', { detail: payload }));
+});
+ipcRenderer.on('deploy:job-error', (_event, payload) => {
+  window.dispatchEvent(new CustomEvent('deploy:job-error', { detail: payload }));
+});
+ipcRenderer.on('deploy:job-cancelled', (_event, payload) => {
+  window.dispatchEvent(new CustomEvent('deploy:job-cancelled', { detail: payload }));
+});
+ipcRenderer.on('deploy:job-log', (_event, payload) => {
+  window.dispatchEvent(new CustomEvent('deploy:job-log', { detail: payload }));
+});
 
 contextBridge.exposeInMainWorld('serverOperator', {
   loadThemeFolders: () => ipcRenderer.invoke('themes:load-folders'),
@@ -105,4 +120,9 @@ contextBridge.exposeInMainWorld('serverOperator', {
   isWindowMaximized: () => ipcRenderer.invoke('window:isMaximized'),
   setWindowOpacity: (opacity) => ipcRenderer.invoke('window:set-opacity', opacity),
   quitApp: () => ipcRenderer.invoke('app:quit'),
+  deployStartBg: (opts) => ipcRenderer.invoke('deploy:start-bg', opts),
+  deployReadLog: (opts) => ipcRenderer.invoke('deploy:read-log', opts),
+  deployList: () => ipcRenderer.invoke('deploy:list'),
+  deployStatus: (opts) => ipcRenderer.invoke('deploy:status', opts),
+  deployCancel: (opts) => ipcRenderer.invoke('deploy:cancel', opts),
 });
