@@ -23,6 +23,42 @@ export interface ChangelogVersion {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: '2.5.1',
+    codename: 'Background deploys',
+    date: '2026-10-13',
+    summary:
+      'Deploys and .serop shortcuts now run in the background, so they keep going when you switch screens. A new Background jobs list and pop-up notices show what is running and how it ended.',
+    groups: [
+      {
+        label: 'Background deploys',
+        icon: GitBranch,
+        color: '#34d399',
+        items: [
+          { type: 'fix', text: 'Deploys started from a .serop shortcut now run as background jobs instead of inside the terminal, so navigating to another screen no longer stops them.' },
+          { type: 'improve', text: 'If a background job cannot start, Serop falls back to running the command in the terminal.' },
+        ],
+      },
+      {
+        label: 'Background jobs',
+        icon: ListOrdered,
+        color: '#93c5fd',
+        items: [
+          { type: 'feat', text: 'The Deploy view lists your background jobs, refreshes them automatically, and lets you cancel a running job.' },
+          { type: 'feat', text: 'Open the log of any job to read its output, loading more as it grows.' },
+        ],
+      },
+      {
+        label: 'Notifications',
+        icon: Sparkles,
+        color: '#f0abfc',
+        items: [
+          { type: 'feat', text: 'Pop-up notices appear anywhere in the app when a background deploy starts, finishes, fails or is cancelled.' },
+          { type: 'improve', text: 'Finished and failed notices have a button that opens the job log.' },
+        ],
+      },
+    ],
+  },
+  {
     version: '2.5.0',
     codename: 'Fresh Coat',
     date: '2026-10-09',
