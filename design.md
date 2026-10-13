@@ -121,3 +121,58 @@ Z-index constraints are strictly mapped to ensure overlays sit exactly on the ri
     *   Server Operator relies on standard Lucide React icons. Icon colors match the respective element states (`text-accent` for selected items, `text-success` for connected systems).
 
 ---
+
+## 8. Marketing Website (`website/`)
+
+The public site (`index.html`, `changelog.html`) is separate from the app and follows the **BeForth Design System V2**, not the dark IDE theme above. It is plain HTML, one stylesheet (`styles.css`) and two small scripts, with no build step. Preview it with the `website` entry in `.claude/launch.json` (`python3 -m http.server 4173 -d website`).
+
+### Colour (seven tokens, one accent)
+
+| Token | Hex | Use |
+|---|---|---|
+| `--paper` | `#F2F7F9` | Page canvas |
+| `--bone` | `#D6E7F1` | Alternate section background, flat fills inside drawings |
+| `--ink` | `#231F20` | Body text, dark code panels, line work |
+| `--ash` | `#5F6571` | Secondary text only (AA contrast) |
+| `--signal` | `#1C75BC` | The single accent: primary action, key words, "connected" parts of drawings |
+| `--wave` | `#75BAE6` | Accent on dark surfaces only (code-panel prompts) |
+| `--signal-deep` | `#165B93` | Hover for `signal` |
+
+Separate with `bone` and 1px rules (`ink` at 12%). Cards are `.feature-card`/`.download-card`/`.release-card`: 1px border, white fill, square corners. Pills and avatars are the only rounded elements.
+
+### Type
+**Plus Jakarta Sans** for everything, **JetBrains Mono** for code and doodle labels. A metric-matched `Plus Jakarta Fallback` face stops layout shift while the web font loads. Headings are left aligned: hero `clamp(2rem, 5.6vw, 4.25rem)` / 800, section titles `clamp(1.7rem, 4vw, 3.2rem)` / 700. Buttons are sentence case, 15px, semibold; hover is a colour change.
+
+### Page rules
+Skip link first, exactly one `<main id="main-content">` and one `<h1>` per page, real lists, visible focus. Titles stay at 60 characters or fewer, descriptions at 160 or fewer.
+
+### Doodles
+Inline SVG, `aria-hidden="true"`, hand-drawn wobble from the shared `#sketch` / `#sketch-md` filters (defined once per page in a hidden SVG after `<body>`). Classes: `.l` ink line, `.a` signal line, `.b` bone fill, `.w` white fill, `.k` ink dot, `.s` signal dot, `.t` mono label, `.pkt` travelling packet. No gradients or shadows. Each drawing shows only what its own section says and is never reused.
+
+| Where | Subject |
+|---|---|
+| Hero | Laptop connected over SSH (padlock) to three servers, a container box with a deploy arrow, a "deploy" tick |
+| Feature cards | 12 icons: key, folder, editor, container, log scroll, deploy arrow, terminal, relay hops to a server (Proxy & Tor), assist bubble, config sliders, laptop, microphone |
+| Tech | Stack of React, Electron, Monaco · xterm.js and ssh2 with a connecting arrow |
+| Shortcuts | `.server-operator` folder with `deploy.serop`, `ops.serop`, `custom.serop`, and a pencil |
+| Downloads | Laptop, monitor and terminal window, each with a download arrow |
+| Changelog | A page of ticked entries |
+
+### Motion (overrides the BeForth "static drawings" rule)
+All motion lives in `draw.js` and the end of `styles.css`, and is disabled under `prefers-reduced-motion` (the hero packets are removed).
+
+*   **Draw-in on scroll:** strokes draw one after another (`stroke-dashoffset` with `pathLength="1"`), then fills and labels fade in. Plays once per drawing.
+*   **Live hero:** packets travel the connections (SMIL `animateMotion`), server LEDs and the terminal cursor blink.
+*   **Hero entrance:** heading, lead and buttons rise in with a stagger.
+*   **Scroll reveal:** cards, titles, code panels and pills fade up with a stagger. Elements already on screen at load are left alone.
+*   **Hover:** cards lift with a signal border and a tilting icon, nav links get a sliding underline, buttons press down 1px, tech pills fill with signal.
+*   **Navigation:** a 2px signal progress bar at the top, a scroll-spy highlight on the nav link for the section in view, and a darker nav border once scrolled.
+
+### Honesty
+No invented facts, numbers, clients or reviews. Everything on the page comes from the app, `LICENSE`, `package.json` or the in-app changelog (`src/components/changelogData.ts`, the source for `changelog.html` and "What's New"). The site credits BeForth in the footer and in the structured data.
+
+### Search and answer engines
+`index.html` and `changelog.html` carry a canonical URL on `https://server-operator-zeta.vercel.app`, Open Graph and Twitter tags, and JSON-LD (`WebSite`, `WebPage`, `SoftwareApplication`, `Organization`, `FAQPage` on the home page; `CollectionPage` and `BreadcrumbList` on the changelog). The visible FAQ section must match the `FAQPage` markup, so change them together. Also: `robots.txt`, `sitemap.xml`, `llms.txt` and `logo.png`. **A new page needs a `<link rel="canonical">`, its own JSON-LD and an entry in `sitemap.xml` and `llms.txt`.**
+
+### Releasing
+When a version ships, add its entry to `src/components/changelogData.ts` and to `website/changelog.html`, update "What's New" and the footer badge in `index.html`, and bump `softwareVersion` in the home page JSON-LD. The release workflow takes the codename for the release title from `changelogData.ts`.

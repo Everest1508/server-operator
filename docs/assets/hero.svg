@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-20 0 600 420" width="600" height="420" role="img" aria-label="A laptop connected over SSH to three servers, with a container box and a deploy tick">
+<style>
+  .bg{fill:#F2F7F9}
+  .l{fill:none;stroke:#231F20;stroke-width:2.4}.a{fill:none;stroke:#1C75BC;stroke-width:2.6}
+  .b{fill:#D6E7F1;stroke:#231F20;stroke-width:2.4}.w{fill:#fff;stroke:#231F20;stroke-width:2.4}
+  .k{fill:#231F20}.s{fill:#1C75BC}.pkt{fill:#1C75BC}
+  .t{fill:#231F20;font:600 15px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  g *{stroke-linecap:round;stroke-linejoin:round}
+  @keyframes blink{50%{opacity:.15}} .led{animation:blink 1.6s ease-in-out infinite}.cur{animation:blink 1s steps(1) infinite}
+  @media (prefers-reduced-motion:reduce){.led,.cur{animation:none}.pkt{display:none}}
+</style>
+<defs><filter id="sketch" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="3"/><feDisplacementMap in="SourceGraphic" scale="4"/></filter></defs>
+<rect class="bg" x="-20" width="600" height="420"/>
+<g filter="url(#sketch)">
+<path class="b" d="M10 270H280L268 292H22Z"/><rect class="w" x="30" y="110" width="230" height="160"/>
+<path class="l" d="M50 150l16 10-16 10M50 210h120M50 234h80"/><path class="l cur" d="M76 174h28"/>
+<path class="a" d="M262 190C312 190 330 96 378 90M262 190C316 190 332 166 378 162M262 190C322 204 332 232 378 234"/>
+<rect class="w" x="304" y="168" width="26" height="22"/><path class="l" d="M310 168v-7a7 7 0 0 1 14 0v7"/><circle class="s" cx="317" cy="179" r="3"/>
+<rect class="b" x="380" y="60" width="140" height="58"/><rect class="b" x="380" y="132" width="140" height="58"/><rect class="b" x="380" y="204" width="140" height="58"/>
+<circle class="k" cx="398" cy="89" r="4"/><circle class="s led" cx="414" cy="89" r="4"/><path class="l" d="M440 89h62"/>
+<circle class="k" cx="398" cy="161" r="4"/><circle class="s led" cx="414" cy="161" r="4"/><path class="l" d="M440 161h62"/>
+<circle class="k" cx="398" cy="233" r="4"/><circle class="s led" cx="414" cy="233" r="4"/><path class="l" d="M440 233h62"/>
+<path class="a" d="M450 308V274M442 283l8-9 8 9"/>
+<rect class="b" x="380" y="312" width="140" height="74"/><rect class="w" x="394" y="328" width="26" height="22"/><rect class="w" x="430" y="328" width="26" height="22"/><rect class="w" x="466" y="328" width="26" height="22"/><path class="l" d="M394 370h98"/>
+<circle class="b" cx="90" cy="358" r="24"/><path class="a" d="M78 358l9 9 15-18"/><text class="t" x="128" y="364">deploy</text><circle class="pkt" r="5"><animateMotion dur="2.2s" begin="0.0s" repeatCount="indefinite" path="M262 190C312 190 330 96 378 90"/><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.85;1" dur="2.2s" begin="0.0s" repeatCount="indefinite"/></circle><circle class="pkt" r="5"><animateMotion dur="2.2s" begin="0.7s" repeatCount="indefinite" path="M262 190C316 190 332 166 378 162"/><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.85;1" dur="2.2s" begin="0.7s" repeatCount="indefinite"/></circle><circle class="pkt" r="5"><animateMotion dur="2.2s" begin="1.4s" repeatCount="indefinite" path="M262 190C322 204 332 232 378 234"/><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.85;1" dur="2.2s" begin="1.4s" repeatCount="indefinite"/></circle><circle class="pkt" r="5"><animateMotion dur="1.6s" repeatCount="indefinite" path="M450 308V274"/><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.8;1" dur="1.6s" repeatCount="indefinite"/></circle></g>
+</svg>
