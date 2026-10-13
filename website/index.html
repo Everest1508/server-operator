@@ -3,20 +3,172 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      name="description"
-      content="Server Operator — premium desktop server manager. SSH, Docker, Compose logs, deploy, integrated terminal, VS Code–inspired UI."
-    />
-    <title>Server Operator — Manage servers like an IDE</title>
+    <title>Server Operator: SSH, Docker and deploy desktop app</title>
+    <meta name="description" content="Server Operator is an open source desktop app for managing servers over SSH: remote files, Docker and Compose logs, deploy presets and a terminal." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#F2F7F9" />
+    <link rel="canonical" href="https://server-operator-zeta.vercel.app/" />
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Server Operator" />
+    <meta property="og:title" content="Server Operator: SSH, Docker and deploy desktop app" />
+    <meta property="og:description" content="Server Operator is an open source desktop app for managing servers over SSH: remote files, Docker and Compose logs, deploy presets and a terminal." />
+    <meta property="og:url" content="https://server-operator-zeta.vercel.app/" />
+    <meta property="og:image" content="https://server-operator-zeta.vercel.app/logo.png" />
+    <meta property="og:image:alt" content="Server Operator logo" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Server Operator: SSH, Docker and deploy desktop app" />
+    <meta name="twitter:description" content="Server Operator is an open source desktop app for managing servers over SSH: remote files, Docker and Compose logs, deploy presets and a terminal." />
+    <meta name="twitter:image" content="https://server-operator-zeta.vercel.app/logo.png" />
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://server-operator-zeta.vercel.app/#website",
+      "url": "https://server-operator-zeta.vercel.app/",
+      "name": "Server Operator",
+      "description": "Server Operator is an open source desktop app for managing servers over SSH: remote files, Docker and Compose logs, deploy presets and a terminal.",
+      "inLanguage": "en",
+      "publisher": {
+        "@id": "https://server-operator-zeta.vercel.app/#author"
+      }
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://server-operator-zeta.vercel.app/#webpage",
+      "url": "https://server-operator-zeta.vercel.app/",
+      "name": "Server Operator: SSH, Docker and deploy desktop app",
+      "isPartOf": {
+        "@id": "https://server-operator-zeta.vercel.app/#website"
+      },
+      "about": {
+        "@id": "https://server-operator-zeta.vercel.app/#app"
+      },
+      "description": "Server Operator is an open source desktop app for managing servers over SSH: remote files, Docker and Compose logs, deploy presets and a terminal.",
+      "inLanguage": "en"
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://server-operator-zeta.vercel.app/#app",
+      "name": "Server Operator",
+      "alternateName": "Serop",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "macOS, Windows, Linux",
+      "description": "Open source desktop app, made by BeForth, for managing servers over SSH, with a remote file tree, Monaco editor, Docker and Compose logs, deploy presets and an integrated terminal.",
+      "url": "https://server-operator-zeta.vercel.app/",
+      "downloadUrl": "https://github.com/Everest1508/server-operator/releases/latest",
+      "license": "https://www.apache.org/licenses/LICENSE-2.0",
+      "softwareVersion": "2.5.1",
+      "isAccessibleForFree": true,
+      "image": "https://server-operator-zeta.vercel.app/logo.png",
+      "author": {
+        "@id": "https://server-operator-zeta.vercel.app/#author"
+      },
+      "sameAs": [
+        "https://github.com/Everest1508/server-operator"
+      ],
+      "featureList": [
+        "SSH servers",
+        "Remote file tree",
+        "Monaco editor",
+        "Docker overview",
+        "Compose logs",
+        "Deploy and presets",
+        "Integrated terminal",
+        "Proxy and Tor",
+        "Groq-powered assist",
+        "Config generators",
+        "Local workspace mode",
+        "Voice input"
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://server-operator-zeta.vercel.app/#author",
+      "name": "BeForth",
+      "url": "https://beforth.in"
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://server-operator-zeta.vercel.app/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is Server Operator?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Server Operator is an open source desktop app for managing servers over SSH. It combines a remote file tree with the Monaco editor, Docker and Compose logs, deploy presets and an integrated terminal in one workspace."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Which operating systems does it run on?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Server Operator has builds for macOS (Apple Silicon and Intel), Windows (installer and portable) and Linux (.deb). Builds are published on the GitHub releases page."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How does it connect to a server?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "You add a server with its host and username, then sign in with a private key or a password over SSH. A global SOCKS proxy such as Tor can be switched on, and each server can opt out of it."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I use it without a remote server?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Local workspace mode opens a folder on your own machine, with file browsing, terminal, Docker, compose logs, database tools, deploy commands and .serop shortcuts. No SSH is involved."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Where is my Groq API key stored?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The optional Groq API key is stored locally on your machine and is sent only to the Groq API, to power deploy suggestions and voice input. The app works without it."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What are .serop shortcut files?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "They are project-local command shortcuts kept in .server-operator/*.serop. The initializer scaffolds deploy.serop, ops.serop and custom.serop so people and coding agents share one structure."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is Server Operator free and open source?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "It is open source under the Apache License 2.0, and the source and releases are on GitHub."
+          }
+        }
+      ]
+    }
+  ]
+}
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+      <defs>
+        <filter id="sketch" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="3"/><feDisplacementMap in="SourceGraphic" scale="4"/></filter>
+        <filter id="sketch-md" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="5"/><feDisplacementMap in="SourceGraphic" scale="2.2"/></filter>
+      </defs>
+    </svg>
+    <a class="skip" href="#main-content">Skip to content</a>
     <header class="site-nav">
       <a class="site-nav__brand" href="#">
         <span class="site-nav__logo">SO</span>
@@ -28,6 +180,7 @@
           <li><a href="#stack">Tech</a></li>
           <li><a href="#shortcuts">Shortcuts</a></li>
           <li><a href="#whats-new">What’s New</a></li>
+          <li><a href="#faq">FAQ</a></li>
           <li><a href="changelog.html">Changelog</a></li>
           <li><a href="#downloads">Downloads</a></li>
           <li>
@@ -37,48 +190,33 @@
       </nav>
     </header>
 
-    <main>
+    <main id="main-content">
       <section class="hero" aria-labelledby="hero-heading">
         <div class="hero__inner">
           <div>
-            <p class="hero__eyebrow">Electron · React · TypeScript</p>
-            <h1 id="hero-heading">The server manager that feels like your Editor</h1>
+            <h1 id="hero-heading">Manage your <span class="accent">servers</span> from one desktop app.</h1>
             <p class="hero__lead">
               Connect over SSH, browse remote files with Monaco, inspect Docker and Compose logs, run
-              deploy presets, and open an integrated terminal — all in a VS Code–inspired workspace.
+              deploy presets, and open an integrated terminal — all in one workspace.
             </p>
             <div class="hero__actions">
               <a class="btn btn--primary" href="#downloads">Download</a>
-              <a class="btn btn--secondary" href="#features">Explore features</a>
+              <a class="ulink" href="#features">Explore features</a>
             </div>
             <p class="hero__meta">Open source · macOS, Windows, Linux builds</p>
           </div>
-          <div class="mock-ide" aria-hidden="true">
-            <div class="mock-ide__activity">
-              <div class="mock-ide__activity-icon mock-ide__activity-icon--active" title="Servers">◇</div>
-              <div class="mock-ide__activity-icon">📁</div>
-              <div class="mock-ide__activity-icon">⬡</div>
-              <div class="mock-ide__activity-icon">▸</div>
-            </div>
-            <div class="mock-ide__main">
-              <div class="mock-ide__titlebar">docker-compose.yml — Server Operator</div>
-              <div class="mock-ide__body">
-                <div class="mock-ide__sidebar">
-                  <div class="mock-ide__sidebar-line"></div>
-                  <div class="mock-ide__sidebar-line"></div>
-                  <div class="mock-ide__sidebar-line"></div>
-                  <div class="mock-ide__sidebar-line" style="width: 55%"></div>
-                </div>
-                <div class="mock-ide__editor">
-                  <span class="kw">services</span>:<br />
-                  &nbsp;&nbsp;<span class="str">web</span>:<br />
-                  &nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">image</span>: <span class="str">nginx:alpine</span><br />
-                  &nbsp;&nbsp;&nbsp;&nbsp;<span class="cmt"># Deploy from the panel →</span>
-                </div>
-              </div>
-              <div class="mock-ide__panel">Output · Docker Compose · Terminal</div>
-            </div>
-          </div>
+          <svg class="doodle" viewBox="0 0 560 420" aria-hidden="true" focusable="false">
+<path class="b" d="M10 270H280L268 292H22Z"/><rect class="w" x="30" y="110" width="230" height="160"/>
+<path class="l" d="M50 150l16 10-16 10M76 174h28M50 210h120M50 234h80"/>
+<path class="a" d="M262 190C312 190 330 96 378 90M262 190C316 190 332 166 378 162M262 190C322 204 332 232 378 234"/>
+<rect class="w" x="304" y="168" width="26" height="22"/><path class="l" d="M310 168v-7a7 7 0 0 1 14 0v7"/><circle class="s" cx="317" cy="179" r="3"/>
+<rect class="b" x="380" y="60" width="140" height="58"/><rect class="b" x="380" y="132" width="140" height="58"/><rect class="b" x="380" y="204" width="140" height="58"/>
+<circle class="k" cx="398" cy="89" r="4"/><circle class="s" cx="414" cy="89" r="4"/><path class="l" d="M440 89h62"/>
+<circle class="k" cx="398" cy="161" r="4"/><circle class="s" cx="414" cy="161" r="4"/><path class="l" d="M440 161h62"/>
+<circle class="k" cx="398" cy="233" r="4"/><circle class="s" cx="414" cy="233" r="4"/><path class="l" d="M440 233h62"/>
+<path class="a" d="M450 308V274M442 283l8-9 8 9"/>
+<rect class="b" x="380" y="312" width="140" height="74"/><rect class="w" x="394" y="328" width="26" height="22"/><rect class="w" x="430" y="328" width="26" height="22"/><rect class="w" x="466" y="328" width="26" height="22"/><path class="l" d="M394 370h98"/>
+<circle class="b" cx="90" cy="358" r="24"/><path class="a" d="M78 358l9 9 15-18"/><text class="t" x="128" y="364">deploy</text></svg>
         </div>
       </section>
 
@@ -91,7 +229,7 @@
           </p>
           <div class="feature-grid">
             <article class="feature-card">
-              <div class="feature-card__icon" aria-hidden="true">🔐</div>
+              <div class="feature-card__icon"><svg class="icon" viewBox="0 0 52 52" aria-hidden="true" focusable="false"><circle class="b" cx="16" cy="22" r="9"/><path class="l" d="M25 22H46M38 22v7M44 22v5"/><circle class="a" cx="16" cy="22" r="2.5"/></svg></div>
               <h3>SSH servers</h3>
               <p>
                 Add servers with host, username, and private key or password. Optional project path and
@@ -99,7 +237,7 @@
               </p>
             </article>
             <article class="feature-card">
-              <div class="feature-card__icon" aria-hidden="true">📂</div>
+              <div class="feature-card__icon"><svg class="icon" viewBox="0 0 52 52" aria-hidden="true" focusable="false"><path class="b" d="M6 12H20L24 17H46V42H6Z"/><path class="a" d="M14 28h24M14 34h16"/></svg></div>
               <h3>Remote file tree</h3>
               <p>
                 Browse the server filesystem from the sidebar: open Dockerfiles, compose files, env
@@ -107,7 +245,7 @@
               </p>
             </article>
             <article class="feature-card">
-              <div class="feature-card__icon" aria-hidden="true">✎</div>
+              <div class="feature-card__icon"><svg class="icon" viewBox="0 0 52 52" aria-hidden="true" focusable="false"><rect class="w" x="6" y="8" width="40" height="36"/><path class="l" d="M6 18H46"/><path class="a" d="M20 25l-6 6 6 6M32 25l6 6-6 6"/></svg></div>
               <h3>Monaco editor</h3>
               <p>
                 Same editor engine as VS Code for syntax highlighting and a comfortable editing
@@ -115,7 +253,7 @@
               </p>
             </article>
             <article class="feature-card">
-              <div class="feature-card__icon" aria-hidden="true">⬡</div>
+              <div class="feature-card__icon"><svg class="icon" viewBox="0 0 52 52" aria-hidden="true" focusable="false"><rect class="b" x="8" y="22" width="36" height="16"/><rect class="w" x="13" y="27" width="8" height="8"/><rect class="w" x="24" y="27" width="8" height="8"/><rect class="w" x="13" y="13" width="8" height="8"/><path class="a" d="M4 46q6-4 12 0t12 0 12 0 12 0"/></svg></div>
               <h3>Docker overview</h3>
               <p>
                 List containers from <code class="mono">docker ps -a</code>, inspect status, and jump
@@ -123,7 +261,7 @@
               </p>
             </article>
             <article class="feature-card">
-              <div class="feature-card__icon" aria-hidden="true">📜</div>
+              <div class="feature-card__icon"><svg class="icon" viewBox="0 0 52 52" aria-hidden="true" focusable="false"><rect class="w" x="8" y="6" width="36" height="40"/><path class="l" d="M15 16h22M15 24h16M15 32h20"/><path class="a" d="M15 40h10"/></svg></div>
               <h3>Compose logs</h3>
               <p>
                 Tail Docker Compose logs in the bottom panel with optional service filter and line
@@ -131,7 +269,7 @@
               </p>
             </article>
             <article class="feature-card">
-              <div class="feature-card__icon" aria-hidden="true">🚀</div>
+              <div class="feature-card__icon"><svg class="icon" viewBox="0 0 52 52" aria-hidden="true" focusable="false"><rect class="b" x="10" y="28" width="32" height="16"/><path class="a" d="M26 24V6M18 14l8-8 8 8"/></svg></div>
               <h3>Deploy &amp; presets</h3>
               <p>
                 Run deploy commands such as <code class="mono">git pull &amp;&amp; docker compose up -d --build</code>
@@ -139,7 +277,7 @@
               </p>
             </article>
             <article class="feature-card">
-              <div class="feature-card__icon" aria-hidden="true">⌨</div>
+              <div class="feature-card__icon"><svg class="icon" viewBox="0 0 52 52" aria-hidden="true" focusable="false"><rect class="w" x="5" y="8" width="42" height="36"/><path class="a" d="M13 20l8 6-8 6"/><path class="l" d="M26 34h12"/></svg></div>
               <h3>Integrated terminal</h3>
               <p>
                 Full xterm.js terminal over SSH: resize-aware, fit-to-panel, and ready for interactive
@@ -147,7 +285,7 @@
               </p>
             </article>
             <article class="feature-card">
-              <div class="feature-card__icon" aria-hidden="true">🧅</div>
+              <div class="feature-card__icon"><svg class="icon" viewBox="0 0 52 52" aria-hidden="true" focusable="false"><circle class="w" cx="26" cy="26" r="20"/><circle class="l" cx="26" cy="26" r="13" fill="none"/><circle class="a" cx="26" cy="26" r="6"/></svg></div>
               <h3>Proxy &amp; Tor</h3>
               <p>
                 Optional global SOCKS proxy (e.g. Tor on 9050 or Tor Browser on 9150). Per-server
@@ -155,7 +293,7 @@
               </p>
             </article>
             <article class="feature-card">
-              <div class="feature-card__icon" aria-hidden="true">✨</div>
+              <div class="feature-card__icon"><svg class="icon" viewBox="0 0 52 52" aria-hidden="true" focusable="false"><path class="b" d="M6 10H46V34H24L14 44V34H6Z"/><path class="a" d="M16 22l6 6 12-12"/></svg></div>
               <h3>Groq-powered assist</h3>
               <p>
                 Optional Groq API key (stored locally) for AI-suggested deploy commands and helpers in
@@ -163,7 +301,7 @@
               </p>
             </article>
             <article class="feature-card">
-              <div class="feature-card__icon" aria-hidden="true">⚙</div>
+              <div class="feature-card__icon"><svg class="icon" viewBox="0 0 52 52" aria-hidden="true" focusable="false"><path class="l" d="M8 14H44M8 26H44M8 38H44"/><circle class="b" cx="18" cy="14" r="5"/><circle class="a" cx="34" cy="26" r="5" fill="#fff"/><circle class="b" cx="24" cy="38" r="5"/></svg></div>
               <h3>Config generators</h3>
               <p>
                 Scaffold nginx, Docker Compose snippets, and related config from structured forms —
@@ -171,7 +309,7 @@
               </p>
             </article>
             <article class="feature-card">
-              <div class="feature-card__icon" aria-hidden="true">🖥</div>
+              <div class="feature-card__icon"><svg class="icon" viewBox="0 0 52 52" aria-hidden="true" focusable="false"><rect class="w" x="9" y="10" width="34" height="24"/><path class="b" d="M4 38H48L44 44H8Z"/><path class="a" d="M17 29V19h8l2 3h8v7Z"/></svg></div>
               <h3>Local workspace mode</h3>
               <p>
                 Open a real folder from your own machine and use Server Operator against local files,
@@ -179,7 +317,7 @@
               </p>
             </article>
             <article class="feature-card">
-              <div class="feature-card__icon" aria-hidden="true">🎤</div>
+              <div class="feature-card__icon"><svg class="icon" viewBox="0 0 52 52" aria-hidden="true" focusable="false"><rect class="b" x="19" y="5" width="14" height="24" rx="7"/><path class="l" d="M12 24a14 14 0 0 0 28 0M26 38v8M18 46h16"/><path class="a" d="M45 14v12"/></svg></div>
               <h3>Voice input (optional)</h3>
               <p>
                 Voice-to-text via Groq Whisper where supported — handy for long deploy notes or
@@ -192,10 +330,13 @@
 
       <section class="section section--alt" id="stack" aria-labelledby="stack-heading">
         <div class="section__inner">
-          <h2 class="section__title" id="stack-heading">Built with modern tooling</h2>
+          <div class="section__head"><div><h2 class="section__title" id="stack-heading">Built with modern tooling</h2>
           <p class="section__subtitle">
             The same stack you already use for web apps — packaged as a fast desktop experience.
-          </p>
+          </p></div><svg class="doodle doodle--sm" viewBox="0 0 360 290" aria-hidden="true" focusable="false">
+<rect class="b" x="90" y="30" width="220" height="48"/><rect class="w" x="90" y="92" width="220" height="48"/><rect class="b" x="90" y="154" width="220" height="48"/><rect class="w" x="90" y="216" width="220" height="48"/>
+<text class="t" x="120" y="60">React</text><text class="t" x="120" y="122">Electron</text><text class="t" x="120" y="184">Monaco · xterm.js</text><text class="t" x="120" y="246">ssh2</text>
+<path class="a" d="M52 54V240M44 230l8 10 8-10"/></svg></div>
           <ul class="tech-list">
             <li>Electron 33</li>
             <li>React 18</li>
@@ -211,7 +352,7 @@
           <div class="feature-row" style="margin-top: 48px">
             <div>
               <h3 class="section__title" style="font-size: 20px; margin-bottom: 12px">From the README</h3>
-              <p style="color: var(--text-secondary); font-size: 15px; margin: 0 0 16px">
+              <p style="color: var(--ash); font-size: 15px; margin: 0 0 16px">
                 Clone the repo, install dependencies, and run the desktop shell with Vite hot reload, or
                 open the web UI alone for layout work.
               </p>
@@ -228,16 +369,22 @@
 
       <section class="section" id="shortcuts" aria-labelledby="shortcuts-heading">
         <div class="section__inner">
-          <h2 class="section__title" id="shortcuts-heading">Project shortcuts for AI agents</h2>
+          <div class="section__head"><div><h2 class="section__title" id="shortcuts-heading">Project shortcuts for AI agents</h2>
           <p class="section__subtitle">
             Server Operator supports project-local command shortcuts in
             <code class="mono">.server-operator/*.serop</code>. Use the initializer to scaffold this
             folder, then let coding agents maintain these files in each repository.
-          </p>
+          </p></div><svg class="doodle doodle--sm" viewBox="0 0 360 290" aria-hidden="true" focusable="false">
+<path class="b" d="M30 120V90H178L194 120Z"/><rect class="b" x="30" y="120" width="300" height="156"/>
+<text class="t" x="44" y="109" style="font-size:12px">.server-operator</text>
+<rect class="w" x="50" y="140" width="230" height="30"/><rect class="w" x="50" y="180" width="230" height="30"/><rect class="w" x="50" y="220" width="230" height="30"/>
+<text class="t" x="62" y="161">deploy.serop</text><text class="t" x="62" y="201">ops.serop</text><text class="t" x="62" y="241">custom.serop</text>
+<path class="a" d="M296 148l8 8 14-16"/>
+<path class="b" d="M262 58L300 20L322 42L284 80Z"/><path class="a" d="M262 58L254 88L284 80"/></svg></div>
           <div class="feature-row">
             <div>
               <h3 class="section__title" style="font-size: 20px; margin-bottom: 12px">Initialize a project</h3>
-              <p style="color: var(--text-secondary); font-size: 15px; margin: 0 0 16px">
+              <p style="color: var(--ash); font-size: 15px; margin: 0 0 16px">
                 Creates <code class="mono">deploy.serop</code>, <code class="mono">ops.serop</code>,
                 <code class="mono">custom.serop</code>, and AI context files so humans and agents follow
                 the same structure.
@@ -258,58 +405,76 @@
 
       <section class="section" id="whats-new" aria-labelledby="whats-new-heading">
         <div class="section__inner">
-          <h2 class="section__title" id="whats-new-heading">What’s New in 2.0.1</h2>
+          <h2 class="section__title" id="whats-new-heading">What’s New in 2.5.1</h2>
           <p class="section__subtitle">
-            Glass Harbor focuses on local workflows, richer deploy assistance, and a cleaner operator experience.
+            Deploys and .serop shortcuts now run in the background, so they keep going when you switch screens. A new Background jobs list and pop-up notices show what is running and how it ended.
           </p>
           <div class="release-card">
             <div class="release-card__header">
               <div>
-                <span class="release-badge">v2.0.1</span>
-                <h3>Glass Harbor</h3>
+                <span class="release-badge">v2.5.1</span>
+                <h3>Background deploys</h3>
               </div>
-              <p>2026-06-12</p>
+              <p>2026-10-13</p>
             </div>
             <div class="release-grid">
               <article class="release-block">
-                <h4>Local Workspace Mode</h4>
+                <h4>Background deploys</h4>
                 <ul>
-                  <li>Open a real local folder without SSH.</li>
-                  <li>Use Docker, logs, database tools, terminal, deploy, and `.serop` shortcuts in that folder.</li>
-                  <li>Launch directly into a folder with <code class="mono">serop .</code>.</li>
+                  <li>Deploys started from a .serop shortcut now run as background jobs instead of inside the terminal, so navigating to another screen no longer stops them.</li>
+                  <li>If a background job cannot start, Serop falls back to running the command in the terminal.</li>
                 </ul>
               </article>
               <article class="release-block">
-                <h4>Deploy Assistant</h4>
+                <h4>Background jobs</h4>
                 <ul>
-                  <li>Groq deploy chat now gives explanations plus runnable commands.</li>
-                  <li>Better project-path awareness, command parsing, and fallback handling for rate-limited models.</li>
-                  <li>Cleaner chat cards and sidebar-based project/context/shortcut controls.</li>
+                  <li>The Deploy view lists your background jobs, refreshes them automatically, and lets you cancel a running job.</li>
+                  <li>Open the log of any job to read its output, loading more as it grows.</li>
                 </ul>
               </article>
               <article class="release-block">
-                <h4>Database & Theme</h4>
+                <h4>Notifications</h4>
                 <ul>
-                  <li>Inline SQL table row editing for update, insert, and delete workflows.</li>
-                  <li>New glassy terminal-style theme option inside Settings.</li>
+                  <li>Pop-up notices appear anywhere in the app when a background deploy starts, finishes, fails or is cancelled.</li>
+                  <li>Finished and failed notices have a button that opens the job log.</li>
                 </ul>
               </article>
             </div>
           </div>
-          <p style="margin-top: 24px; text-align: center; font-size: 14px; color: var(--text-secondary);">
+          <p style="margin-top: 24px; font-size: 14px; color: var(--ash);">
             <a href="changelog.html">View full changelog →</a>
           </p>
         </div>
       </section>
 
+      <section class="section" id="faq" aria-labelledby="faq-heading">
+        <div class="section__inner">
+          <h2 class="section__title" id="faq-heading">Frequently asked questions</h2>
+          <p class="section__subtitle">Short answers about what Server Operator does and how it works. More detail is in the <a href="changelog.html">changelog</a> and on <a href="https://github.com/Everest1508/server-operator">GitHub</a>.</p>
+          <div class="feature-grid">
+            <article class="feature-card"><h3>What is Server Operator?</h3><p>Server Operator is an open source desktop app for managing servers over SSH. It combines a remote file tree with the Monaco editor, Docker and Compose logs, deploy presets and an integrated terminal in one workspace.</p></article>
+            <article class="feature-card"><h3>Which operating systems does it run on?</h3><p>Server Operator has builds for macOS (Apple Silicon and Intel), Windows (installer and portable) and Linux (.deb). Builds are published on the GitHub releases page.</p></article>
+            <article class="feature-card"><h3>How does it connect to a server?</h3><p>You add a server with its host and username, then sign in with a private key or a password over SSH. A global SOCKS proxy such as Tor can be switched on, and each server can opt out of it.</p></article>
+            <article class="feature-card"><h3>Can I use it without a remote server?</h3><p>Yes. Local workspace mode opens a folder on your own machine, with file browsing, terminal, Docker, compose logs, database tools, deploy commands and .serop shortcuts. No SSH is involved.</p></article>
+            <article class="feature-card"><h3>Where is my Groq API key stored?</h3><p>The optional Groq API key is stored locally on your machine and is sent only to the Groq API, to power deploy suggestions and voice input. The app works without it.</p></article>
+            <article class="feature-card"><h3>What are .serop shortcut files?</h3><p>They are project-local command shortcuts kept in .server-operator/*.serop. The initializer scaffolds deploy.serop, ops.serop and custom.serop so people and coding agents share one structure.</p></article>
+            <article class="feature-card"><h3>Is Server Operator free and open source?</h3><p>It is open source under the Apache License 2.0, and the source and releases are on GitHub.</p></article>
+          </div>
+        </div>
+      </section>
+
       <section class="section section--alt" id="downloads" aria-labelledby="downloads-heading">
         <div class="section__inner">
-          <h2 class="section__title" id="downloads-heading">Download</h2>
+          <div class="section__head"><div><h2 class="section__title" id="downloads-heading">Download</h2>
           <p class="section__subtitle">
             Grab a build for your platform. Assets are published with each GitHub release (macOS dmg/zip,
             Windows installer + portable, Linux .deb). Version numbers follow
             <code class="mono">package.json</code>.
-          </p>
+          </p></div><svg class="doodle doodle--sm" viewBox="0 0 380 200" aria-hidden="true" focusable="false">
+<rect class="w" x="14" y="76" width="100" height="66"/><path class="b" d="M6 146H122L116 158H12Z"/>
+<rect class="w" x="146" y="56" width="110" height="80"/><path class="l" d="M201 136v20M176 156h50"/>
+<rect class="w" x="284" y="80" width="84" height="64"/><path class="a" d="M296 98l8 6-8 6"/><path class="l" d="M312 118h26"/>
+<path class="a" d="M64 12v44M54 44l10 12 10-12M201 4v34M191 26l10 12 10-12M326 20v40M316 48l10 12 10-12"/></svg></div>
           <div class="download-grid">
             <div class="download-card">
               <span class="download-card__platform">macOS · dmg / zip</span>
@@ -340,12 +505,12 @@
             </div>
           </div>
           <div class="download-note">
-            <strong style="color: var(--text-primary)">macOS "App is damaged" Warning:</strong>
+            <strong style="color: var(--ink)">macOS "App is damaged" Warning:</strong>
             Because the macOS build is currently unsigned, Gatekeeper may flag it as damaged. To fix this, copy the app to your Applications folder, open Terminal, and run:
-            <code style="display: block; margin: 8px 0; padding: 8px; background: rgba(0, 0, 0, 0.3); border-radius: 4px; font-family: monospace; color: #ff79c6;">xattr -cr /Applications/Server\ Operator.app</code>
+            <code class="cmd">xattr -cr /Applications/Server\ Operator.app</code>
           </div>
           <div class="download-note" style="margin-top: 16px;">
-            <strong style="color: var(--text-primary)">Prefer the release page?</strong>
+            <strong style="color: var(--ink)">Prefer the release page?</strong>
             All artifacts and checksums live on
             <a href="https://github.com/everest1508/server-operator/releases/latest">GitHub Releases</a>.
             If a direct link 404s after a version bump, open the latest release and download the matching
@@ -358,7 +523,7 @@
 
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <p>© Ritesh Mahale · Server Operator <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.0.1</span></p>
+        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.5.1</span></p>
         <div class="site-footer__links">
           <a href="https://github.com/everest1508/server-operator">GitHub</a>
           <a href="https://github.com/everest1508/server-operator/issues">Issues</a>
@@ -369,5 +534,6 @@
     </footer>
 
     <script src="app.js" defer></script>
+      <script src="draw.js" defer></script>
   </body>
 </html>

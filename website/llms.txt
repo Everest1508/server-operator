@@ -1,0 +1,11 @@
+# Server Operator
+
+> Open source desktop app for managing servers over SSH: remote file tree with the Monaco editor, Docker and Compose logs, deploy presets, an integrated terminal and a local workspace mode. Builds for macOS, Windows and Linux. Licensed under Apache 2.0. Made by BeForth (https://beforth.in).
+
+## Pages
+- [Home](https://server-operator-zeta.vercel.app/): features, tech stack, project shortcuts, FAQ and downloads
+- [Changelog](https://server-operator-zeta.vercel.app/changelog.html): what changed in every release
+
+## Links
+- [Source and releases](https://github.com/Everest1508/server-operator)
+- [Latest release](https://github.com/Everest1508/server-operator/releases/latest)

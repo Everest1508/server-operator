@@ -3,18 +3,80 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Full release changelog for Server Operator — see what's new in every version." />
-    <title>Changelog — Server Operator</title>
+    <title>Changelog: every Server Operator release</title>
+    <meta name="description" content="The full Server Operator changelog: what changed in every release, from the first launch to the latest update." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#F2F7F9" />
+    <link rel="canonical" href="https://server-operator-zeta.vercel.app/changelog.html" />
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Server Operator" />
+    <meta property="og:title" content="Changelog: every Server Operator release" />
+    <meta property="og:description" content="The full Server Operator changelog: what changed in every release, from the first launch to the latest update." />
+    <meta property="og:url" content="https://server-operator-zeta.vercel.app/changelog.html" />
+    <meta property="og:image" content="https://server-operator-zeta.vercel.app/logo.png" />
+    <meta property="og:image:alt" content="Server Operator logo" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Changelog: every Server Operator release" />
+    <meta name="twitter:description" content="The full Server Operator changelog: what changed in every release, from the first launch to the latest update." />
+    <meta name="twitter:image" content="https://server-operator-zeta.vercel.app/logo.png" />
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "CollectionPage",
+      "@id": "https://server-operator-zeta.vercel.app/changelog.html#webpage",
+      "url": "https://server-operator-zeta.vercel.app/changelog.html",
+      "name": "Changelog: every Server Operator release",
+      "description": "The full Server Operator changelog: what changed in every release, from the first launch to the latest update.",
+      "isPartOf": {
+        "@id": "https://server-operator-zeta.vercel.app/#website"
+      },
+      "about": {
+        "@id": "https://server-operator-zeta.vercel.app/#app"
+      },
+      "inLanguage": "en",
+      "breadcrumb": {
+        "@id": "https://server-operator-zeta.vercel.app/changelog.html#breadcrumb"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://server-operator-zeta.vercel.app/changelog.html#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Server Operator",
+          "item": "https://server-operator-zeta.vercel.app/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Changelog",
+          "item": "https://server-operator-zeta.vercel.app/changelog.html"
+        }
+      ]
+    }
+  ]
+}
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header class="site-nav">
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+      <defs>
+        <filter id="sketch" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="3"/><feDisplacementMap in="SourceGraphic" scale="4"/></filter>
+        <filter id="sketch-md" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="5"/><feDisplacementMap in="SourceGraphic" scale="2.2"/></filter>
+      </defs>
+    </svg>
+    <a class="skip" href="#main-content">Skip to content</a>
+        <header class="site-nav">
       <a class="site-nav__brand" href="index.html">
         <span class="site-nav__logo">SO</span>
         Server Operator
@@ -33,13 +95,274 @@
       </nav>
     </header>
 
-    <main>
+    <main id="main-content">
       <section class="section" aria-labelledby="changelog-heading">
         <div class="section__inner">
-          <h1 class="section__title" id="changelog-heading">Changelog</h1>
+          <div class="section__head"><div><h1 class="section__title" id="changelog-heading">Changelog</h1>
           <p class="section__subtitle">
             Every release of Server Operator, from the initial launch to the latest update.
-          </p>
+          </p></div><svg class="doodle doodle--sm" viewBox="0 0 280 220" aria-hidden="true" focusable="false">
+<rect class="w" x="40" y="16" width="200" height="188"/>
+<path class="a" d="M62 56l8 8 14-16M62 104l8 8 14-16M62 152l8 8 14-16"/>
+<path class="l" d="M104 56h110M104 104h110M104 152h80"/></svg></div>
+
+          <!-- 2.5.1 — Background deploys -->
+          <div class="release-card" style="margin-bottom: 32px;">
+            <div class="release-card__header">
+              <div>
+                <span class="release-badge">v2.5.1</span>
+                <h3>Background deploys</h3>
+              </div>
+              <p>2026-10-13</p>
+            </div>
+            <p style="color: var(--ash); font-size: 15px; margin: 0 0 24px;">
+              Deploys and .serop shortcuts now run in the background, so they keep going when you switch screens. A new Background jobs list and pop-up notices show what is running and how it ended.
+            </p>
+            <div class="release-grid">
+              <article class="release-block">
+                <h4>Background deploys</h4>
+                <ul>
+                  <li>Deploys started from a .serop shortcut now run as background jobs instead of inside the terminal, so navigating to another screen no longer stops them.</li>
+                  <li>If a background job cannot start, Serop falls back to running the command in the terminal.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Background jobs</h4>
+                <ul>
+                  <li>The Deploy view lists your background jobs, refreshes them automatically, and lets you cancel a running job.</li>
+                  <li>Open the log of any job to read its output, loading more as it grows.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Notifications</h4>
+                <ul>
+                  <li>Pop-up notices appear anywhere in the app when a background deploy starts, finishes, fails or is cancelled.</li>
+                  <li>Finished and failed notices have a button that opens the job log.</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+
+          <!-- 2.5.0 — Fresh Coat -->
+          <div class="release-card" style="margin-bottom: 32px;">
+            <div class="release-card__header">
+              <div>
+                <span class="release-badge">v2.5.0</span>
+                <h3>Fresh Coat</h3>
+              </div>
+              <p>2026-10-09</p>
+            </div>
+            <p style="color: var(--ash); font-size: 15px; margin: 0 0 24px;">
+              A clean-up of how Serop looks and reads, plus fixes for Docker and Logs on local folder projects. You can now choose which Groq model powers the AI helpers, and the riskiest database buttons ask before they run.
+            </p>
+            <div class="release-grid">
+              <article class="release-block">
+                <h4>Docker and Logs</h4>
+                <ul>
+                  <li>The Actions menu on containers and services opened but stayed invisible. It now appears where you click, and so do the other drop-down menus that share it.</li>
+                  <li>A folder you add as a project now shows up in Docker and Logs. Serop checks the folder for a compose file and adds it for you. The Logs panel also has a Use project folder button.</li>
+                  <li>Containers and services are rows with Start, Stop, Restart and Logs on the row itself. Pause, Kill, Remove and the shell and database clients are in the more-actions menu.</li>
+                  <li>Kill, Remove and Restart all now ask you to confirm. Log views have a filter box and a Copy button, and the Logs panel can clear a tab.</li>
+                  <li>The Docker sidebar lists the containers on your server with a running, paused or stopped dot. Docker and Deploy no longer repeat your server list once you are connected.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Look and feel</h4>
+                <ul>
+                  <li>The app uses a clean system font for menus and labels. Code, paths, logs and the terminal stay monospace. Keyboard focus is clearly visible, scrollbars are softer, and animations calm down if your system asks for reduced motion.</li>
+                  <li>Title bar menus open on hover once one is open, close with Escape, and show the right shortcuts for your system. Menus and drawers are solid instead of see-through. The About box shows the real version.</li>
+                  <li>Server tabs show the connection type. The sidebar shows each server host or folder, and a green dot for the one you are connected to. The Overview page shows memory and disk as cards and explains why local projects have no stats.</li>
+                  <li>Small all-caps labels, tiny text and pulsing badges were replaced across the app with readable, sentence-case wording. Empty states now say what to do next.</li>
+                  <li>Settings lists the always-on core modules as a quiet list instead of eight greyed-out switches. Section titles are plain text, long theme names wrap instead of being cut off, and a custom theme's Edit and Remove buttons can be reached with the keyboard.</li>
+                  <li>Confirmations and notices are now Serop dialogs instead of the plain system pop-ups. They match your theme, put the safe choice (Cancel) in focus for risky actions, close with Escape, and name the action on the button, like Delete or Turn off.</li>
+                  <li>The Files sidebar has a new look when you are not connected: a terminal that cannot find your files, and a joke.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Files and editor</h4>
+                <ul>
+                  <li>Press Cmd or Ctrl + S to save the open file.</li>
+                  <li>Tabs show a dot when a file has unsaved changes. The file open in the editor is highlighted in the file tree. The toolbar no longer repeats the File menu, and the minimap is off.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Deploy</h4>
+                <ul>
+                  <li>Deploy and Rollback now ask you to confirm. Deploy resets the server folder to the remote branch, and Rollback checks out an older commit. Stopping, disabling or restarting nginx in Server admin asks too.</li>
+                  <li>Tabs are Terminal, Git deploy, Config creators and Server admin. The Git deploy form uses plain wording, the Deploy button matches the rest of the app, and Deploy history shows Succeeded or Failed with a Show output button.</li>
+                  <li>The AI chat asks for your Groq key once and then shows Groq key saved with a Change link. Its empty state offers example prompts you can click. The suggested command button now says Run in terminal.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Firewall</h4>
+                <ul>
+                  <li>Turning the firewall on without an Allow rule for SSH could lock you out of the server. Serop now warns first. Deleting the SSH rule, blocking port 22, or turning the firewall off also asks you to confirm, and presets list the rules they will add.</li>
+                  <li>Deleting a firewall rule uses its number in UFW. Serop now checks that the number still points at the rule you clicked before deleting, and asks you to refresh if the list changed.</li>
+                  <li>Ports, source addresses and subnets are checked before they are used in a command on the server. The tabs are Open ports, Firewall rules, Presets and Port scanner, with plain wording and no all-caps labels.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>AI helpers</h4>
+                <ul>
+                  <li>Choose the Groq model for Deploy chat and Config Creators from a drop-down next to your API key. Serop remembers your choice and loads the models available to your key. Deploy chat still falls back to other models if you hit a rate limit.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Database safety</h4>
+                <ul>
+                  <li>Import Full SQL deletes everything in the database before importing, with no warning. It is now called Wipe and import, and asks you to confirm. Restoring a Cloudinary backup also asks first.</li>
+                  <li>Connection buttons and messages use plain words, such as Connect, Disconnect and Connected via local port. Input fields show a focus outline for keyboard users.</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+
+          <!-- 2.4.0 — Open Canvas -->
+          <div class="release-card" style="margin-bottom: 32px;">
+            <div class="release-card__header">
+              <div>
+                <span class="release-badge">v2.4.0</span>
+                <h3>Open Canvas</h3>
+              </div>
+              <p>2026-10-06</p>
+            </div>
+            <p style="color: var(--ash); font-size: 15px; margin: 0 0 24px;">
+              A redesign of Settings and the Servers page, plus a theme editor so you can build your own look inside Serop. Screens that need a server now explain themselves and let you connect right there.
+            </p>
+            <div class="release-grid">
+              <article class="release-block">
+                <h4>Theme Editor</h4>
+                <ul>
+                  <li>Create theme in Settings opens a drawer with colour pickers for 14 colours. The whole app recolours live as you edit. Save it, edit it later, or export it as a JSON file.</li>
+                  <li>Settings is reorganised into Appearance, General and Feature Modules. Themes are shown as cards with a live preview, and the modules header stays visible while you scroll.</li>
+                  <li>Window opacity now works on Linux. It fades the background layer only, so text stays sharp. Background blur now applies to Tokyo Night and custom themes, not only Glassy.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Servers</h4>
+                <ul>
+                  <li>Servers are now cards with a Connect button instead of a table, and the page uses the full window width.</li>
+                  <li>Adding and editing share one drawer with connection-type cards, fields that match the type, and clear messages under any field that needs fixing. Edits are saved only when you press Save changes.</li>
+                  <li>Files, Docker, Database, Firewall, Deploy and Notes each show what they do and a list of servers to connect to when you are not connected. The Deploy panel no longer shows tools that need a server.</li>
+                  <li>The button that opens General Notes in the editor now works, including with no server connected.</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+
+          <!-- 2.3.0 — Iron Palette -->
+          <div class="release-card" style="margin-bottom: 32px;">
+            <div class="release-card__header">
+              <div>
+                <span class="release-badge">v2.3.0</span>
+                <h3>Iron Palette</h3>
+              </div>
+              <p>2026-10-04</p>
+            </div>
+            <p style="color: var(--ash); font-size: 15px; margin: 0 0 24px;">
+              Tightens security and adds custom themes. Serop now checks SSH server fingerprints, encrypts saved passwords with your system keychain, and keeps secrets out of its log file. Themes can be loaded from JSON files, including files shipped by an installer.
+            </p>
+            <div class="release-grid">
+              <article class="release-block">
+                <h4>Security</h4>
+                <ul>
+                  <li>SSH host key check. The first time you connect to a server, Serop shows its fingerprint and asks you to trust it. Later connections are silent if it matches.</li>
+                  <li>If a server fingerprint changes, Serop stops and shows the old and new fingerprints before you decide. Fingerprints are saved in known_hosts.json in the app data folder.</li>
+                  <li>Saved server passwords and the Cloudinary secret are encrypted with the system keychain (Keychain, Credential Manager, or the Linux keyring). Passwords saved by older versions are encrypted the next time the app saves.</li>
+                  <li>Passwords stay plain text only on Linux systems with no keyring, because Electron has no real protection there.</li>
+                  <li>The log file no longer records passwords, tokens or keys. Password-like text is scrubbed, long command output and SQL are cut to 200 characters, and failed SQL imports no longer log the statement. Old log entries stay until you clear the log.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Custom Themes</h4>
+                <ul>
+                  <li>Import a theme from a JSON file in Settings (name, light or dark base, and colors). Any color you leave out comes from the base theme. A Template button downloads an example file.</li>
+                  <li>Themes can also come from folders: the installer themes folder, the folder in the SEROP_THEMES_DIR environment variable, and a themes folder in the app data folder. Settings has Themes folder and Reload buttons.</li>
+                  <li>Theme files are checked before use. Invalid colors, values like url(...), files over 20 KB, and more than 20 imported themes are refused with a clear message.</li>
+                  <li>The terminal and editor follow custom theme colors.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Housekeeping</h4>
+                <ul>
+                  <li>Removed a stray vite config timestamp file that was committed by mistake and ignored it in git.</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+
+          <!-- 2.2.0 — Steady Slate -->
+          <div class="release-card" style="margin-bottom: 32px;">
+            <div class="release-card__header">
+              <div>
+                <span class="release-badge">v2.2.0</span>
+                <h3>Steady Slate</h3>
+              </div>
+              <p>2026-09-23</p>
+            </div>
+            <p style="color: var(--ash); font-size: 15px; margin: 0 0 24px;">
+              Improves the Serop Commands dropdown with most-recently-used ordering and a way to hide recipe files without touching your server, and lays the first foundation-primitives phase of a broader UI/UX modernization pass — shared Button, Input, Textarea, SectionLabel, Card, and EmptyState components now back several existing screens with no behavior change.
+            </p>
+            <div class="release-grid">
+              <article class="release-block">
+                <h4>Serop Commands Dropdown</h4>
+                <ul>
+                  <li>Selecting a .serop recipe file now promotes it to the top of the dropdown, so the one you used most recently is always closest at hand.</li>
+                  <li>Added a hide/restore control on each recipe file in the dropdown — hiding is stored locally per project and never touches the .serop files on your server.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>UI Foundation &amp; Consistency</h4>
+                <ul>
+                  <li>Introduced shared Button, Input, Textarea, SectionLabel, Card, and EmptyState components to replace hand-rolled, drifted styling across the app.</li>
+                  <li>Standardized corner-radius usage app-wide: small controls now use a tighter radius, containers and text fields a slightly larger one, applied consistently everywhere the new components land.</li>
+                  <li>Fixed a missing hover state on the "Run edited" deploy shortcut button so it matches every other primary action button in the app.</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+
+          <!-- 2.1.0 — Prism Break -->
+          <div class="release-card" style="margin-bottom: 32px;">
+            <div class="release-card__header">
+              <div>
+                <span class="release-badge">v2.1.0</span>
+                <h3>Prism Break</h3>
+              </div>
+              <p>2026-08-07</p>
+            </div>
+            <p style="color: var(--ash); font-size: 15px; margin: 0 0 24px;">
+              Adds Light and Tokyo Night themes with a visual theme picker, keeps terminals and the built-in editor in sync with the active theme, removes the native macOS menu in favor of title-bar shortcuts, surfaces terminal connection status, and makes file and folder creation inline in the file trees.
+            </p>
+            <div class="release-grid">
+              <article class="release-block">
+                <h4>Theming &amp; Appearance</h4>
+                <ul>
+                  <li>Added Light and Tokyo Night themes alongside Default and Glassy Terminal, with a visual swatch-based theme picker in Settings.</li>
+                  <li>Terminals and the built-in editor now follow the active theme background and accent colors.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Title Bar &amp; Shortcuts</h4>
+                <ul>
+                  <li>Removed the native macOS application menu and moved core actions into the app's custom title bar.</li>
+                  <li>Added keyboard shortcuts (Cmd/Ctrl+Q/R/B/O for quit, reload, browser refresh, and open, plus Cmd/Ctrl+C/V/X/A/Z/Y for editing actions) with input-aware handling.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Terminal Reliability</h4>
+                <ul>
+                  <li>Terminal tabs and project terminals now show live connection status with status dots and a "Session ended - Reconnect" banner when a shell drops.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>File Trees</h4>
+                <ul>
+                  <li>New File / New Folder inputs now appear inline inside the target folder in both the file and project trees, and the target folder auto-expands so the input is visible.</li>
+                </ul>
+              </article>
+            </div>
+          </div>
 
           <!-- 2.0.1 — Glass Harbor -->
           <div class="release-card" style="margin-bottom: 32px;">
@@ -50,7 +373,7 @@
               </div>
               <p>2026-06-12</p>
             </div>
-            <p style="color: var(--text-secondary); font-size: 15px; margin: 0 0 24px;">
+            <p style="color: var(--ash); font-size: 15px; margin: 0 0 24px;">
               This release adds real local workspace support, the new <code class="mono">serop</code> folder launcher, inline SQL row editing, a glassy terminal-style appearance option, and a much more capable deploy assistant with cleaner chat rendering and project-aware command suggestions.
             </p>
             <div class="release-grid">
@@ -92,7 +415,7 @@
               </div>
               <p>2026-06-02</p>
             </div>
-            <p style="color: var(--text-secondary); font-size: 15px; margin: 0 0 24px;">
+            <p style="color: var(--ash); font-size: 15px; margin: 0 0 24px;">
               This release introduces critical SSH stability improvements, a connection queuing manager to prevent session exhaustion, custom toggles, password visibility eye toggles, multi-architecture macOS build support, Tailwind CSS v4 styling migration, and significant CPU optimization by removing redundant periodic uptime monitoring loops.
             </p>
             <div class="release-grid">
@@ -134,7 +457,7 @@
               </div>
               <p>2026-05-27</p>
             </div>
-            <p style="color: var(--text-secondary); font-size: 15px; margin: 0 0 24px;">
+            <p style="color: var(--ash); font-size: 15px; margin: 0 0 24px;">
               The first full release of Serop — a desktop server management suite built on Electron, React, and SSH. Cobalt Catalyst introduces an auto-updating notification system, a custom app logo icon, and a default-disabled feature toggling mechanism.
             </p>
             <div class="release-grid">
@@ -223,7 +546,7 @@
 
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <p>© Ritesh Mahale · Server Operator <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.0.1</span></p>
+        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.5.1</span></p>
         <div class="site-footer__links">
           <a href="https://github.com/everest1508/server-operator">GitHub</a>
           <a href="https://github.com/everest1508/server-operator/issues">Issues</a>
@@ -232,5 +555,6 @@
         </div>
       </div>
     </footer>
+      <script src="draw.js" defer></script>
   </body>
 </html>
