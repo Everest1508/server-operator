@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const http = require('http');
 const crypto = require('crypto');
-const { execSync, spawn } = require('child_process');
+const { execSync, spawn, execFile } = require('child_process');
 
 // Fix PATH on macOS and Windows when launched as a GUI app (so it can find cloudflared, docker, etc.)
 if (process.platform === 'darwin') {
@@ -1061,15 +1061,28 @@ function sendShellStatus(shellId, status) {
   }
 }
 
+// Session-only colours for remote shells, sent with the init line (nothing on the server is changed):
+// coloured ls/grep when the server has GNU tools, and a coloured prompt only when the current prompt has no colours
+// of its own, so custom prompts (Ubuntu's colour prompt, oh-my-zsh, starship) are left alone.
+const SHELL_COLOR_INIT = [
+  "export COLORTERM=truecolor CLICOLOR=1",
+  "{ alias ls >/dev/null 2>&1 || { ls --color=auto -d . >/dev/null 2>&1 && alias ls='ls --color=auto'; }; } 2>/dev/null",
+  "{ alias grep >/dev/null 2>&1 || alias grep='grep --color=auto'; } 2>/dev/null",
+  "if [ -n \"$BASH_VERSION\" ]; then case \"$PS1\" in *'\\['*|*'\\e['*|*'\\033'*) ;; *) PS1='\\[\\e[1;36m\\]\\u\\[\\e[0m\\]@\\[\\e[1;33m\\]\\h\\[\\e[0m\\] \\[\\e[1;34m\\]\\w\\[\\e[0m\\] \\[\\e[1;31m\\]\\$\\[\\e[0m\\] ';; esac; fi",
+  "if [ -n \"$ZSH_VERSION\" ]; then case \"$PROMPT\" in *'%F'*|*'%{'*) ;; *) PROMPT='%B%F{cyan}%n%f%b@%B%F{yellow}%m%f%b %B%F{blue}%~%f%b %F{red}%#%f ';; esac; fi",
+].join('; ');
+
 function registerShellHandlers() {
-  ipcMain.handle('server:open-shell', async (_, { connection, proxy }) => {
+  ipcMain.handle('server:open-shell', async (_, { connection, proxy, cols, rows }) => {
     try {
       if (isLocalWorkspace(connection)) {
         const cwd = ensureLocalWorkspace(connection);
         return await new Promise((resolve) => {
           const shellBin = process.platform === 'win32' ? 'cmd.exe' : (process.env.SHELL || '/bin/bash');
           const shellArgs = process.platform === 'win32' ? [] : ['-l'];
-          const proc = spawn(shellBin, shellArgs, { cwd, env: process.env });
+          // No PTY here, so ask tools to colour their output anyway.
+          const env = { ...process.env, TERM: 'xterm-256color', COLORTERM: 'truecolor', CLICOLOR: '1', CLICOLOR_FORCE: '1', FORCE_COLOR: '1' };
+          const proc = spawn(shellBin, shellArgs, { cwd, env });
           const shellId = 'shell-' + Date.now() + '-' + Math.random().toString(36).slice(2);
           shells.set(shellId, { local: true, proc });
           proc.stdout.on('data', (data) => sendShellOutput(shellId, data.toString()));
@@ -1101,7 +1114,9 @@ function registerShellHandlers() {
       });
 
       return new Promise((resolve, reject) => {
-        conn.shell((err, stream) => {
+        // Without a terminal type ssh2 asks for "vt100", so servers turn colours off. Also start at the real panel size.
+        const ptyWindow = { term: 'xterm-256color', cols: Number(cols) > 0 ? Number(cols) : 80, rows: Number(rows) > 0 ? Number(rows) : 24 };
+        conn.shell(ptyWindow, (err, stream) => {
           if (err) {
             conn.end();
             reject(err);
@@ -1139,6 +1154,7 @@ function registerShellHandlers() {
           const parts = [];
           if (cwd) parts.push('cd "' + String(cwd).replace(/"/g, '\\"') + '" 2>/dev/null || true');
           if (dockerAlias) parts.push(dockerAlias);
+          parts.push(SHELL_COLOR_INIT);
           parts.push('clear');
           stream.write(parts.join('; ') + '\n');
           resolve({ ok: true, shellId });
@@ -1147,6 +1163,12 @@ function registerShellHandlers() {
     } catch (e) {
       return { ok: false, error: errMsg(e) };
     }
+  });
+  // Keep the remote terminal size in step with the panel, so full-screen tools and long lines wrap correctly.
+  ipcMain.handle('server:shell-resize', (_, { shellId, cols, rows }) => {
+    const s = shells.get(shellId);
+    if (!s || s.local || !s.stream || !(cols > 0) || !(rows > 0)) return;
+    try { s.stream.setWindow(rows, cols, 0, 0); } catch (_) {}
   });
   ipcMain.handle('server:shell-write', (_, { shellId, data }) => {
     const s = shells.get(shellId);
@@ -1996,6 +2018,41 @@ async function ensureRemoteDirSftp(sftp, dirPath) {
   }
 }
 
+// Copy one local file into remoteDir (relative to the project folder, like the file tree).
+async function uploadLocalFileTo(connection, proxy, remoteDir, localPath) {
+  const baseName = path.basename(localPath);
+  const remoteFile = joinRemoteRelative(remoteDir, baseName);
+  if (!remoteFile) throw new Error('Invalid destination path');
+  if (isLocalWorkspace(connection)) {
+    ensureLocalWorkspace(connection);
+    const resolved = resolveDummyPath(connection, remoteFile);
+    fs.mkdirSync(path.dirname(resolved), { recursive: true });
+    fs.copyFileSync(localPath, resolved);
+    return remoteFile;
+  }
+  const conn = await getOrCreateConnection(connection, proxy);
+  const cwd = connection.cwd || connection.projectPath;
+  const sftp = await openSftp(conn);
+  try {
+    const base = cwd && String(cwd).trim() ? String(cwd).trim() : '.';
+    const remoteTarget = remoteFile.startsWith('/')
+      ? remoteFile
+      : path.posix.join(base, remoteFile);
+    const remoteAbs = await sftpRealpath(sftp, path.posix.dirname(remoteTarget))
+      .then((absParent) => path.posix.join(absParent, path.posix.basename(remoteTarget)))
+      .catch(async () => {
+        const home = await sftpRealpath(sftp, '.').catch(() => '.');
+        const candidate = remoteTarget.startsWith('/') ? remoteTarget : path.posix.join(home, remoteTarget);
+        await ensureRemoteDirSftp(sftp, path.posix.dirname(candidate));
+        return candidate;
+      });
+    await sftpFastPut(sftp, localPath, remoteAbs);
+  } finally {
+    try { sftp.end(); } catch (_) {}
+  }
+  return remoteFile;
+}
+
 ipcMain.handle('server:upload-local-file', async (_, { connection, proxy, remoteDir }) => {
   try {
     const win = BrowserWindow.getFocusedWindow() || mainWindow;
@@ -2006,40 +2063,68 @@ ipcMain.handle('server:upload-local-file', async (_, { connection, proxy, remote
     if (picked.canceled || !picked.filePaths?.[0]) {
       return { ok: true, canceled: true };
     }
-    const localPath = picked.filePaths[0];
-    const baseName = path.basename(localPath);
-    const remoteFile = joinRemoteRelative(remoteDir, baseName);
-    if (!remoteFile) {
-      return { ok: false, error: 'Invalid destination path' };
+    const remotePath = await uploadLocalFileTo(connection, proxy, remoteDir, picked.filePaths[0]);
+    return { ok: true, canceled: false, remotePath };
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
+});
+
+// Files dropped onto the file tree from Finder / Explorer. Folders are skipped (not uploaded) and reported back.
+ipcMain.handle('server:upload-local-paths', async (_, { connection, proxy, remoteDir, localPaths }) => {
+  const uploaded = [];
+  const skipped = [];
+  const failed = [];
+  for (const localPath of Array.isArray(localPaths) ? localPaths : []) {
+    try {
+      const stat = fs.statSync(localPath);
+      if (!stat.isFile()) { skipped.push(path.basename(localPath)); continue; }
+      uploaded.push(await uploadLocalFileTo(connection, proxy, remoteDir, localPath));
+    } catch (e) {
+      failed.push({ name: path.basename(String(localPath)), error: errMsg(e) });
     }
+  }
+  return { ok: failed.length === 0, uploaded, skipped, failed };
+});
+
+// Every file under the project folder, for quick open (Cmd/Ctrl+P). Skips dependency and build folders,
+// stops at a limit so a huge tree cannot stall the app.
+const FIND_SKIP_DIRS = ['node_modules', '.git', 'vendor', 'dist', 'build', '.next', '.nuxt', '__pycache__', '.cache', 'venv', '.venv', 'target', '.terraform'];
+const FIND_LIMIT = 20000;
+ipcMain.handle('server:find-files', async (_, { connection, proxy }) => {
+  try {
     if (isLocalWorkspace(connection)) {
-      ensureLocalWorkspace(connection);
-      const resolved = resolveDummyPath(connection, remoteFile);
-      fs.mkdirSync(path.dirname(resolved), { recursive: true });
-      fs.copyFileSync(localPath, resolved);
-      return { ok: true, canceled: false, remotePath: remoteFile };
+      const root = ensureLocalWorkspace(connection);
+      const files = [];
+      const walk = (dir, rel) => {
+        if (files.length >= FIND_LIMIT) return;
+        let entries = [];
+        try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch (_) { return; }
+        for (const ent of entries) {
+          if (files.length >= FIND_LIMIT) return;
+          const childRel = rel ? `${rel}/${ent.name}` : ent.name;
+          if (ent.isDirectory()) {
+            if (!FIND_SKIP_DIRS.includes(ent.name)) walk(path.join(dir, ent.name), childRel);
+          } else if (ent.isFile()) {
+            files.push(childRel);
+          }
+        }
+      };
+      walk(root, '');
+      return { ok: true, files, truncated: files.length >= FIND_LIMIT };
     }
     const conn = await getOrCreateConnection(connection, proxy);
     const cwd = connection.cwd || connection.projectPath;
-    const sftp = await openSftp(conn);
-    try {
-      const base = cwd && String(cwd).trim() ? String(cwd).trim() : '.';
-      const remoteTarget = remoteFile.startsWith('/')
-        ? remoteFile
-        : path.posix.join(base, remoteFile);
-      const remoteAbs = await sftpRealpath(sftp, path.posix.dirname(remoteTarget))
-        .then((absParent) => path.posix.join(absParent, path.posix.basename(remoteTarget)))
-        .catch(async () => {
-          const home = await sftpRealpath(sftp, '.').catch(() => '.');
-          const candidate = remoteTarget.startsWith('/') ? remoteTarget : path.posix.join(home, remoteTarget);
-          await ensureRemoteDirSftp(sftp, path.posix.dirname(candidate));
-          return candidate;
-        });
-      await sftpFastPut(sftp, localPath, remoteAbs);
-    } finally {
-      try { sftp.end(); } catch (_) {}
-    }
-    return { ok: true, canceled: false, remotePath: remoteFile };
+    const prune = FIND_SKIP_DIRS.map((d) => `-name '${d}'`).join(' -o ');
+    // head stops find early once the limit is reached
+    const cmd = `find . \\( ${prune} \\) -prune -o -type f -print 2>/dev/null | head -n ${FIND_LIMIT + 1}`;
+    const res = await execCommandRaw(conn, cmd, cwd);
+    const files = String(res.stdout || '')
+      .split('\n')
+      .map((l) => l.replace(/^\.\//, '').trim())
+      .filter(Boolean);
+    const truncated = files.length > FIND_LIMIT;
+    return { ok: true, files: truncated ? files.slice(0, FIND_LIMIT) : files, truncated };
   } catch (e) {
     return { ok: false, error: errMsg(e) };
   }
@@ -2413,6 +2498,110 @@ ipcMain.handle('deploy:read-log', (_, { jobId, logPath, maxBytes, offset }) => {
     const fd = fs.openSync(file, 'r');
     try { fs.readSync(fd, buf, 0, len, start); } finally { fs.closeSync(fd); }
     return { ok: true, content: buf.toString('utf8'), size, offset: start + len, bytesRead: len, truncated: start + len < size };
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
+});
+
+// ---- Git panel: read-only status for the server's project folder, plus a few safe actions ----
+const shQuote = (a) => `'${String(a).replace(/'/g, `'\\''`)}'`;
+const GIT_MAX_OUTPUT = 400000; // diffs are cut here so a huge one cannot stall the UI
+
+// Run git with arguments (never a shell string): over SSH with each argument quoted, or locally with execFile.
+async function runGit(connection, proxy, dir, args) {
+  if (isLocalWorkspace(connection)) {
+    const root = ensureLocalWorkspace(connection);
+    const cwd = dir && dir.trim() && dir !== '.' ? resolveDummyPath(connection, dir) : root;
+    return new Promise((resolve) => {
+      execFile('git', args, { cwd, maxBuffer: 20 * 1024 * 1024, timeout: 60000 }, (err, stdout, stderr) => {
+        resolve({ code: err ? (typeof err.code === 'number' ? err.code : 1) : 0, stdout: String(stdout || ''), stderr: String(stderr || (err && !stdout ? err.message : '')) });
+      });
+    });
+  }
+  const conn = await getOrCreateConnection(connection, proxy);
+  const cwd = dir && dir.trim() ? dir.trim() : (connection.cwd || connection.projectPath);
+  // GIT_TERMINAL_PROMPT=0: fail instead of waiting for a password that can never be typed here
+  const res = await execCommandRaw(conn, `GIT_TERMINAL_PROMPT=0 git ${args.map(shQuote).join(' ')}`, cwd);
+  return { code: res.code ?? 0, stdout: String(res.stdout || ''), stderr: String(res.stderr || '') };
+}
+
+ipcMain.handle('git:status', async (_, { connection, proxy, dir }) => {
+  try {
+    const inside = await runGit(connection, proxy, dir, ['rev-parse', '--is-inside-work-tree']);
+    if (inside.code !== 0 || inside.stdout.trim() !== 'true') {
+      const reason = /not found|No such file|command not found/i.test(inside.stderr) ? inside.stderr.trim() : '';
+      return { ok: true, isRepo: false, reason };
+    }
+    const [branch, upstream, counts, status, log, top] = await Promise.all([
+      runGit(connection, proxy, dir, ['rev-parse', '--abbrev-ref', 'HEAD']),
+      runGit(connection, proxy, dir, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}']),
+      runGit(connection, proxy, dir, ['rev-list', '--left-right', '--count', 'HEAD...@{u}']),
+      runGit(connection, proxy, dir, ['status', '--porcelain=v1', '-uall']),
+      runGit(connection, proxy, dir, ['log', '-n', '40', '--pretty=format:%h%x09%an%x09%cr%x09%s']),
+      runGit(connection, proxy, dir, ['rev-parse', '--show-toplevel']),
+    ]);
+    const [ahead, behind] = counts.code === 0 ? counts.stdout.trim().split(/\s+/).map(Number) : [0, 0];
+    const files = status.stdout.split('\n').filter(Boolean).slice(0, 1000).map((line) => {
+      const code = line.slice(0, 2);
+      let file = line.slice(3);
+      if (file.includes(' -> ')) file = file.split(' -> ').pop(); // renames show "old -> new"
+      if (file.startsWith('"') && file.endsWith('"')) { try { file = JSON.parse(file); } catch (_) {} }
+      return { code, path: file, untracked: code === '??' };
+    });
+    const commits = log.stdout.split('\n').filter(Boolean).map((line) => {
+      const [hash, author, when, ...subject] = line.split('\t');
+      return { hash, author, when, subject: subject.join('\t') };
+    });
+    return {
+      ok: true,
+      isRepo: true,
+      branch: branch.stdout.trim(),
+      upstream: upstream.code === 0 ? upstream.stdout.trim() : '',
+      ahead: ahead || 0,
+      behind: behind || 0,
+      root: top.stdout.trim(),
+      files,
+      commits,
+    };
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
+});
+
+// Diff for one changed file, or the full patch of a commit.
+ipcMain.handle('git:diff', async (_, { connection, proxy, dir, file, untracked, commit }) => {
+  try {
+    let res;
+    if (commit) {
+      if (!/^[0-9a-f]{4,40}$/i.test(String(commit))) return { ok: false, error: 'Invalid commit' };
+      res = await runGit(connection, proxy, dir, ['show', '--stat', '--patch', '--no-color', String(commit)]);
+    } else if (untracked) {
+      // a new file has no diff yet: compare it with nothing so its whole content shows as added
+      res = await runGit(connection, proxy, dir, ['diff', '--no-color', '--no-index', '--', '/dev/null', String(file)]);
+      if (res.code === 1) res.code = 0; // --no-index exits 1 when there are differences
+    } else {
+      res = await runGit(connection, proxy, dir, ['diff', '--no-color', 'HEAD', '--', String(file)]);
+    }
+    if (res.code !== 0) return { ok: false, error: res.stderr.trim() || `git exited with code ${res.code}` };
+    const truncated = res.stdout.length > GIT_MAX_OUTPUT;
+    return { ok: true, diff: truncated ? res.stdout.slice(0, GIT_MAX_OUTPUT) : res.stdout, truncated };
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
+});
+
+// The few actions the panel offers. Each is a fixed git command; the renderer confirms the risky ones first.
+ipcMain.handle('git:action', async (_, { connection, proxy, dir, action, file, untracked }) => {
+  try {
+    let args;
+    if (action === 'fetch') args = ['fetch', '--prune'];
+    else if (action === 'pull') args = ['pull', '--ff-only'];
+    else if (action === 'stash') args = ['stash', 'push', '--include-untracked', '-m', `Stashed by Serop ${new Date().toISOString()}`];
+    else if (action === 'discard' && file) args = untracked ? ['clean', '-f', '--', String(file)] : ['checkout', 'HEAD', '--', String(file)];
+    else return { ok: false, error: 'Unknown action' };
+    const res = await runGit(connection, proxy, dir, args);
+    const output = `${res.stdout}${res.stderr}`.trim();
+    return res.code === 0 ? { ok: true, output } : { ok: false, error: output || `git exited with code ${res.code}` };
   } catch (e) {
     return { ok: false, error: errMsg(e) };
   }
@@ -4088,6 +4277,18 @@ ipcMain.handle('window:set-opacity', async (_, opacity) => {
 });
 // Native edit commands for the focused element. On macOS there is no native Edit menu (the app draws its own),
 // so Cmd+C/X/V/Z/A come here instead of document.execCommand, which Chromium blocks for paste.
+// Open a link clicked in a terminal in the system browser. Only web links: the text comes from server output.
+ipcMain.handle('shell:open-url', async (_, url) => {
+  try {
+    const u = new URL(String(url));
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return { ok: false, error: 'Only http and https links can be opened.' };
+    await shell.openExternal(u.toString());
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
+});
+
 const EDIT_COMMANDS = new Set(['copy', 'cut', 'paste', 'pasteAndMatchStyle', 'selectAll', 'undo', 'redo']);
 ipcMain.handle('edit:command', (event, command) => {
   if (!EDIT_COMMANDS.has(command)) return false;

@@ -16,6 +16,8 @@ import { CloudTeamView } from './components/CloudTeamView';
 import { CustomContextMenu } from './components/CustomContextMenu';
 import { ServerAlreadyConnectedToast } from './components/ServerAlreadyConnectedToast';
 import { DeployJobsDock } from './components/DeployJobsDock';
+import { QuickOpen } from './components/QuickOpen';
+import { pushNotification } from './utils/notifications';
 import type { ServerTabSession } from './components/MultiServerBar';
 import type { ServerConnection, ViewId, ProxySettings, DockerContainer, FileTreeClipboard } from './types';
 import { escapeShellSingleQuotes } from './utils/shellQuote';
@@ -1107,6 +1109,22 @@ export default function App() {
     if (!treeListings[pathKey]) loadDir(pathKey, false);
   };
 
+  // Breadcrumb clicks in the editor: open that folder (and its parents) in the file tree.
+  useEffect(() => {
+    const onReveal = (e: Event) => {
+      const target = String((e as CustomEvent<{ path: string }>).detail?.path || '').replace(/\/+$/, '');
+      if (!target || target.startsWith('/') || target.startsWith('~')) return; // the tree only shows the project folder
+      const parts = target === '.' ? [] : target.split('/');
+      const ancestors = parts.map((_, i) => parts.slice(0, i + 1).join('/'));
+      setOpenFolders((prev) => new Set([...prev, '.', ...ancestors]));
+      ancestors.forEach((dir) => { if (!treeListings[dir]) loadDir(dir, false); });
+      setCurrentPath(target || '.');
+      setSidebarOpen(true);
+    };
+    window.addEventListener('serop-reveal-folder', onReveal);
+    return () => window.removeEventListener('serop-reveal-folder', onReveal);
+  });
+
   const isSqliteFile = (path: string) => {
     const ext = path.split('.').pop()?.toLowerCase();
     return ext === 'sqlite3' || ext === 'sqlite' || ext === 'db' || ext === 'db3';
@@ -1174,6 +1192,10 @@ export default function App() {
   };
 
   const tabContentCacheRef = useRef<Map<string, { content: string; isBinary: boolean; mtime: number }>>(new Map());
+  // Open files that are binary (content is base64): shown as a preview, never in the text editor.
+  const [binaryByPath, setBinaryByPath] = useState<Record<string, boolean>>({});
+  const markBinary = (path: string, isBinary: boolean) =>
+    setBinaryByPath((prev) => (!!prev[path] === isBinary ? prev : { ...prev, [path]: isBinary }));
 
   // Load file when a new tab is opened (loadingPath set)
   useEffect(() => {
@@ -1202,6 +1224,7 @@ export default function App() {
     const cached = tabContentCacheRef.current.get(cacheKey);
 
     if (cached) {
+      markBinary(loadingPath, cached.isBinary);
       setContentByPath((prev) => ({ ...prev, [loadingPath]: cached.content }));
       setSavedContentByPath((prev) => ({ ...prev, [loadingPath]: cached.content }));
       setFileLoadError(null);
@@ -1219,6 +1242,7 @@ export default function App() {
                   const updatedContent = readRes.content ?? '';
                   const updatedMtime = readRes.mtime || statRes.mtime || Date.now();
                   tabContentCacheRef.current.set(cacheKey, { content: updatedContent, isBinary: !!readRes.isBinary, mtime: updatedMtime });
+                  markBinary(loadingPath, !!readRes.isBinary);
                   setContentByPath((prev) => ({ ...prev, [loadingPath]: updatedContent }));
                   setSavedContentByPath((prev) => ({ ...prev, [loadingPath]: updatedContent }));
                 }
@@ -1240,6 +1264,7 @@ export default function App() {
             isBinary: !!res.isBinary,
             mtime: res.mtime || Date.now(),
           });
+          markBinary(loadingPath, !!res.isBinary);
           setContentByPath((prev) => ({ ...prev, [loadingPath]: content }));
           setSavedContentByPath((prev) => ({ ...prev, [loadingPath]: content }));
           setFileLoadError(null);
@@ -1416,6 +1441,37 @@ export default function App() {
         return;
       }
       loadDir(currentPath || '.', true);
+    } finally {
+      setFileTransferBusy(false);
+    }
+  };
+
+  // Files dragged in from Finder / Explorer onto the file tree.
+  const handleUploadDroppedFiles = async (targetDir: string, files: File[]) => {
+    if (!currentServer) return;
+    const api = window.serverOperator;
+    if (!api?.uploadLocalPaths || !api.getPathForFile) {
+      setFilesError('Drag and drop upload needs the desktop app.');
+      return;
+    }
+    const localPaths = files.map((f) => api.getPathForFile!(f)).filter(Boolean);
+    if (!localPaths.length) return;
+    const where = targetDir === '.' ? 'the project folder' : targetDir;
+    // Uploading replaces files with the same name. On production that is confirmed (the dialog asks for the name).
+    if (currentServer.production) {
+      const names = files.slice(0, 5).map((f) => f.name).join(', ') + (files.length > 5 ? ` and ${files.length - 5} more` : '');
+      const ok = await confirmDialog(`Upload ${files.length} file${files.length > 1 ? 's' : ''} to ${where} on ${currentServer.name}?\n\n${names}\n\nFiles with the same name are replaced.`, { title: 'Upload files', confirmLabel: 'Upload' });
+      if (!ok) return;
+    }
+    setFilesError(null);
+    setFileTransferBusy(true);
+    try {
+      const res = await api.uploadLocalPaths({ connection: currentServer, proxy, remoteDir: targetDir, localPaths });
+      const notes: string[] = [];
+      if (res.skipped.length) notes.push(`Skipped ${res.skipped.length} folder${res.skipped.length > 1 ? 's' : ''} (${res.skipped.join(', ')}): only files can be dropped for now.`);
+      if (res.failed.length) notes.push(`Could not upload ${res.failed.map((f) => `${f.name} (${f.error})`).join(', ')}.`);
+      if (notes.length) setFilesError(notes.join(' '));
+      loadDir(targetDir, true);
     } finally {
       setFileTransferBusy(false);
     }
@@ -1741,6 +1797,29 @@ export default function App() {
     updateServer(server.id, { production: on });
   };
 
+  // Connection problems also go to the notification centre, so they are still there after the banner is dismissed.
+  useEffect(() => {
+    if (!connectionError) return;
+    const name = connectingToServer?.name || currentServer?.name;
+    pushNotification({ kind: 'error', title: name ? `Couldn't connect to ${name}` : 'Connection problem', message: connectionError });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connectionError]);
+
+  // A file dropped outside a drop zone would make the window navigate to it (replacing the app). Ignore such drops.
+  useEffect(() => {
+    const block = (e: DragEvent) => {
+      if (!e.dataTransfer?.types.includes('Files') || e.defaultPrevented) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'none'; // shows the "can't drop here" cursor
+    };
+    window.addEventListener('dragover', block);
+    window.addEventListener('drop', block);
+    return () => {
+      window.removeEventListener('dragover', block);
+      window.removeEventListener('drop', block);
+    };
+  }, []);
+
   // Every risky confirm on the active server asks for its name when it is marked as production.
   useEffect(() => {
     setConfirmServer(currentServer ? { name: currentServer.name, production: currentServer.production } : null);
@@ -1932,6 +2011,7 @@ export default function App() {
           onAddAsProject={onAddAsProject}
           onAddToLogs={onAddToLogs}
           onUploadLocalFile={handleUploadLocalFile}
+          onUploadDroppedFiles={handleUploadDroppedFiles}
           uploadBusy={fileTransferBusy}
           fileTreeClipboard={fileTreeClipboard}
           onFileTreeCopyPaths={(paths) => {
@@ -2047,6 +2127,7 @@ export default function App() {
                 openTabs={openTabs}
                 activeTabPath={activeTabPath}
                 contentByPath={contentByPath}
+                binaryByPath={binaryByPath}
                 savedContentByPath={savedContentByPath}
                 onContentChange={(path: string, content: string) =>
                   setContentByPath((prev) => ({ ...prev, [path]: content }))
@@ -2188,6 +2269,16 @@ export default function App() {
       </div>
     </div>
     <CustomContextMenu />
+    {currentServer && (
+      <QuickOpen
+        server={currentServer}
+        proxy={proxy}
+        onOpen={(filePath) => {
+          setActiveViewAndRoute('files');
+          openFile(filePath);
+        }}
+      />
+    )}
     <ServerAlreadyConnectedToast
       serverName={alreadyConnectedServerToast}
       onDismiss={() => setAlreadyConnectedServerToast(null)}

@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 ipcRenderer.on('shell-output', (_event, payload) => {
   window.dispatchEvent(new CustomEvent('shell-output', { detail: payload }));
@@ -71,6 +71,13 @@ contextBridge.exposeInMainWorld('serverOperator', {
   mkdir: (opts) => ipcRenderer.invoke('server:mkdir', opts),
   deletePath: (opts) => ipcRenderer.invoke('server:deletePath', opts),
   uploadLocalFile: (opts) => ipcRenderer.invoke('server:upload-local-file', opts),
+  uploadLocalPaths: (opts) => ipcRenderer.invoke('server:upload-local-paths', opts),
+  // Electron 32+ no longer puts .path on dropped File objects
+  getPathForFile: (file) => { try { return webUtils.getPathForFile(file); } catch (_) { return ''; } },
+  findFiles: (opts) => ipcRenderer.invoke('server:find-files', opts),
+  gitStatus: (opts) => ipcRenderer.invoke('git:status', opts),
+  gitDiff: (opts) => ipcRenderer.invoke('git:diff', opts),
+  gitAction: (opts) => ipcRenderer.invoke('git:action', opts),
   downloadRemoteFile: (opts) => ipcRenderer.invoke('server:download-remote-file', opts),
   deploy: (opts) => ipcRenderer.invoke('server:deploy', opts),
   openShell: (opts) => ipcRenderer.invoke('server:open-shell', opts),
@@ -124,6 +131,8 @@ contextBridge.exposeInMainWorld('serverOperator', {
   setWindowOpacity: (opacity) => ipcRenderer.invoke('window:set-opacity', opacity),
   quitApp: () => ipcRenderer.invoke('app:quit'),
   editCommand: (command) => ipcRenderer.invoke('edit:command', command),
+  shellResize: (opts) => ipcRenderer.invoke('server:shell-resize', opts),
+  openUrl: (url) => ipcRenderer.invoke('shell:open-url', url),
   deployStartBg: (opts) => ipcRenderer.invoke('deploy:start-bg', opts),
   deployReadLog: (opts) => ipcRenderer.invoke('deploy:read-log', opts),
   deployList: () => ipcRenderer.invoke('deploy:list'),

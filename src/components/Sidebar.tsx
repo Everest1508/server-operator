@@ -121,6 +121,8 @@ interface SidebarProps {
   onAddToLogs?: (filePath: string) => void;
   /** Pick a local file and upload into the current browse directory (Electron). */
   onUploadLocalFile?: () => void | Promise<void>;
+  /** Files dropped onto the tree from Finder / Explorer, to upload into targetDir. */
+  onUploadDroppedFiles?: (targetDir: string, files: File[]) => void | Promise<void>;
   uploadBusy?: boolean;
   fileTreeClipboard?: FileTreeClipboard | null;
   onFileTreeCopyPaths?: (paths: string[]) => void;
@@ -342,6 +344,7 @@ export function Sidebar({
   onAddAsProject,
   onAddToLogs,
   onUploadLocalFile,
+  onUploadDroppedFiles,
   uploadBusy = false,
   fileTreeClipboard = null,
   onFileTreeCopyPaths,
@@ -369,6 +372,8 @@ export function Sidebar({
   const [fileTreeMenu, setFileTreeMenu] = useState<FileTreeMenuState | null>(null);
   const [contextMenuAction, setContextMenuAction] = useState<string | null>(null);
   const [showDotfiles, setShowDotfiles] = useState(false);
+  // Folder the user is dragging files over (null when not dragging).
+  const [dropDir, setDropDir] = useState<string | null>(null);
   const createInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -491,7 +496,8 @@ export function Sidebar({
         {pathKey === '.' ? null : (
           <div
             data-tree-row
-            className="group flex items-center gap-0 rounded-md min-w-0 w-full"
+            data-drop-dir={pathKey}
+            className={`group flex items-center gap-0 rounded-md min-w-0 w-full ${dropDir === pathKey ? 'bg-accent/15 ring-1 ring-inset ring-accent/50' : ''}`}
             onContextMenu={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -574,6 +580,7 @@ export function Sidebar({
             <div
               key={`${pathKey}-${name}`}
               data-tree-row
+              data-drop-dir={pathKey}
               className={`group flex items-center gap-0 rounded-md min-w-0 w-full ${fullPath === activeFilePath ? 'bg-accent/15' : ''}`}
               onContextMenu={(e) => {
                 e.preventDefault();
@@ -809,7 +816,25 @@ export function Sidebar({
             )}
             {showFileBrowser && (
               <div
-                className="px-3 font-mono text-xs min-h-[120px] pb-4"
+                className={`relative px-3 font-mono text-xs min-h-[120px] pb-4 rounded-lg ${dropDir !== null ? 'outline outline-1 outline-dashed outline-accent/60 bg-accent/5' : ''}`}
+                onDragOver={(e) => {
+                  if (!onUploadDroppedFiles || !e.dataTransfer.types.includes('Files')) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'copy';
+                  const target = (e.target as HTMLElement).closest('[data-drop-dir]')?.getAttribute('data-drop-dir');
+                  const dir = target ?? (currentPath || '.');
+                  if (dir !== dropDir) setDropDir(dir);
+                }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropDir(null);
+                }}
+                onDrop={(e) => {
+                  if (!onUploadDroppedFiles || !e.dataTransfer.files.length) return;
+                  e.preventDefault();
+                  const dir = dropDir ?? (currentPath || '.');
+                  setDropDir(null);
+                  void onUploadDroppedFiles(dir, Array.from(e.dataTransfer.files));
+                }}
                 onContextMenu={(e) => {
                   if ((e.target as HTMLElement).closest('[data-tree-row]')) return;
                   if ((e.target as HTMLElement).closest('button')) return;
@@ -829,6 +854,11 @@ export function Sidebar({
                   if (onCreateFile && !creatingType) startCreate(currentPath || '.', 'file');
                 }}
               >
+            {dropDir !== null && (
+              <div className="sticky top-0 z-10 mb-1 px-2 py-1 rounded-md bg-accent text-white text-[11px] font-sans font-semibold pointer-events-none truncate">
+                Drop to upload to {dropDir === '.' ? 'the project folder' : dropDir}
+              </div>
+            )}
             {filesError ? (
               <p className="text-error p-2 text-xs">{filesError}</p>
             ) : (

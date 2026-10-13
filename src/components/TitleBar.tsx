@@ -5,6 +5,8 @@ import { alertDialog } from '../utils/confirm';
 import type { ServerConnection, ViewId } from '../types';
 import { MultiServerBar, type ServerTabSession } from './MultiServerBar';
 import { ProfileMenu } from './ProfileMenu';
+import { QUICK_OPEN_EVENT } from './QuickOpen';
+import { NotificationCenter } from './NotificationCenter';
 
 type EditCommand = 'copy' | 'cut' | 'paste' | 'pasteAndMatchStyle' | 'selectAll' | 'undo' | 'redo';
 
@@ -188,6 +190,9 @@ export function TitleBar({
         });
         break;
       // File actions
+      case 'quick-open':
+        window.dispatchEvent(new Event(QUICK_OPEN_EVENT));
+        break;
       case 'reload-window':
         window.location.reload();
         break;
@@ -253,6 +258,7 @@ export function TitleBar({
       id: 'file',
       label: 'File',
       items: [
+        { label: 'Go to File…', action: 'quick-open', shortcut: `${mod}P` },
         { label: 'Open Local Folder…', action: 'open-local-folder', shortcut: `${mod}O` },
         'sep',
         { label: 'Reload Window', action: 'reload-window', shortcut: `${mod}R` },
@@ -388,7 +394,8 @@ export function TitleBar({
             Production
           </span>
         )}
-        <div className="flex items-center h-full pr-2">
+        <NotificationCenter />
+        <div className="flex items-center h-full pr-2 pl-1">
           <ProfileMenu onViewChange={onViewChange} />
         </div>
         {!isMac && (

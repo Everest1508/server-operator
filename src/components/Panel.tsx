@@ -1,12 +1,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Terminal as TerminalIcon, FileText, Loader2, RefreshCw, Plus, Trash2, X, Search, Copy, Check, Eraser, FolderOpen } from 'lucide-react';
-import { Terminal } from '@xterm/xterm';
+import { Terminal as TerminalIcon, FileText, Loader2, RefreshCw, Plus, Trash2, X, Search, Copy, Check, Eraser, FolderOpen, Columns2, ChevronUp, ChevronDown, CaseSensitive } from 'lucide-react';
 import { EmptyState } from './ui/EmptyState';
 import { Button } from './ui/Button';
-import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
-import { attachXtermClipboardKeys } from '../utils/xtermClipboardKeys';
-import { useThemeKey, cssVar } from '../hooks/useAppTheme';
+import { createTerminal, xtermThemeFromApp, type TerminalHandle } from '../utils/terminalSetup';
+import { useThemeKey } from '../hooks/useAppTheme';
 import type { ServerConnection, ProxySettings } from '../types';
 
 interface PanelProps {
@@ -35,17 +33,8 @@ interface TerminalTab {
 
 export function Panel({ currentServer, proxy, panelTab, onTabChange, composePaths = [], onAddComposePath, onRemoveComposePath, pendingTerminalCommand = null, pendingTerminalLabel = null, onClearPendingTerminalCommand }: PanelProps) {
   const appTheme = useThemeKey();
-  const xtermTheme = useMemo(() => {
-    const bg = cssVar('--color-bg-primary', '#1e1e1e');
-    const accent = cssVar('--color-accent', '#0078d4');
-    return {
-      background: bg,
-      foreground: cssVar('--color-text-primary', '#cccccc'),
-      cursor: accent,
-      cursorAccent: bg,
-      selectionBackground: 'rgba(0, 120, 212, 0.3)',
-    };
-  }, [appTheme]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const xtermTheme = useMemo(() => xtermThemeFromApp(), [appTheme]);
   const [newComposePath, setNewComposePath] = useState('');
   const [servicesByPath, setServicesByPath] = useState<Record<string, string[]>>({});
   const [loadingServicesForPath, setLoadingServicesForPath] = useState<string | null>(null);
@@ -63,7 +52,14 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
   const [resizingTerminalStrip, setResizingTerminalStrip] = useState(false);
   const terminalStripResizeStart = useRef({ x: 0, w: 0 });
   const terminalContainerRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
-  const xtermByTabIdRef = useRef<Map<string, { term: Terminal; fitAddon: FitAddon; ro: ResizeObserver }>>(new Map());
+  const xtermByTabIdRef = useRef<Map<string, TerminalHandle>>(new Map());
+  // Split view shows a second terminal next to the active one; the focused pane gets search.
+  const [splitTabId, setSplitTabId] = useState<string | null>(null);
+  const [focusedTabId, setFocusedTabId] = useState<string | null>(null);
+  const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [search, setSearch] = useState<{ tabId: string; query: string; caseSensitive: boolean; index: number; count: number } | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const shellIdByTabRef = useRef<Map<string, string>>(new Map());
 
   const TERMINAL_STRIP_MIN = 100;
@@ -74,6 +70,39 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
       term.options.theme = xtermTheme;
     });
   }, [xtermTheme]);
+
+  const openSearch = useCallback((tabId: string) => {
+    setSearch((prev) => (prev && prev.tabId === tabId ? prev : { tabId, query: '', caseSensitive: false, index: -1, count: 0 }));
+    setTimeout(() => searchInputRef.current?.select(), 0);
+  }, []);
+
+  const runSearch = useCallback((direction: 'next' | 'prev', state = search) => {
+    if (!state) return;
+    const entry = xtermByTabIdRef.current.get(state.tabId);
+    if (!entry) return;
+    if (!state.query) {
+      entry.search.clearDecorations();
+      setSearch({ ...state, index: -1, count: 0 });
+      return;
+    }
+    const options = {
+      caseSensitive: state.caseSensitive,
+      decorations: {
+        matchBackground: '#f2cc6040',
+        matchOverviewRuler: '#f2cc60',
+        activeMatchBackground: '#f2cc60aa',
+        activeMatchColorOverviewRuler: '#f2cc60',
+      },
+    };
+    if (direction === 'next') entry.search.findNext(state.query, options);
+    else entry.search.findPrevious(state.query, options);
+  }, [search]);
+
+  const closeSearch = useCallback(() => {
+    if (search) xtermByTabIdRef.current.get(search.tabId)?.search.clearDecorations();
+    setSearch(null);
+    if (search) xtermByTabIdRef.current.get(search.tabId)?.term.focus();
+  }, [search]);
 
   useEffect(() => {
     terminalTabs.forEach((t) => {
@@ -156,39 +185,32 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
       const container = containerMap.get(tab.id);
       if (!container) return;
       if (xtermMap.has(tab.id)) return;
-      const term = new Terminal({
-        theme: xtermTheme,
-        fontSize: 13,
-        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-      });
-      const fitAddon = new FitAddon();
-      term.loadAddon(fitAddon);
-      attachXtermClipboardKeys(term);
-      term.open(container);
-      fitAddon.fit();
       const currentShellId = tab.shellId;
-      term.onData((data) => {
-        const sid = shellIdByTabRef.current.get(tab.id) || currentShellId;
-        if (window.serverOperator && sid) {
-          window.serverOperator.shellWrite({ shellId: sid, data });
-        }
+      const sidFor = () => shellIdByTabRef.current.get(tab.id) || currentShellId;
+      const handle = createTerminal(container, {
+        theme: xtermTheme,
+        onData: (data) => {
+          const sid = sidFor();
+          if (window.serverOperator && sid) window.serverOperator.shellWrite({ shellId: sid, data });
+        },
+        onResize: (cols, rows) => {
+          const sid = sidFor();
+          if (sid) void window.serverOperator?.shellResize?.({ shellId: sid, cols, rows });
+        },
+        onFindShortcut: () => openSearch(tab.id),
       });
-      let rafId: number | null = null;
-      const ro = new ResizeObserver(() => {
-        if (rafId !== null) cancelAnimationFrame(rafId);
-        rafId = requestAnimationFrame(() => {
-          rafId = null;
-          fitAddon.fit();
-        });
-      });
-      ro.observe(container);
-      xtermMap.set(tab.id, { term, fitAddon, ro });
+      handle.search.onDidChangeResults(({ resultIndex, resultCount }) =>
+        setSearch((prev) => (prev && prev.tabId === tab.id ? { ...prev, index: resultIndex, count: resultCount } : prev)),
+      );
+      handle.term.textarea?.addEventListener('focus', () => setFocusedTabId(tab.id));
+      // the shell opened at a default size: tell it the real one
+      void window.serverOperator?.shellResize?.({ shellId: currentShellId, cols: handle.term.cols, rows: handle.term.rows });
+      xtermMap.set(tab.id, handle);
     });
     const tabIds = new Set(terminalTabs.map((t) => t.id));
     xtermMap.forEach((v, tabId) => {
       if (!tabIds.has(tabId)) {
-        v.ro.disconnect();
-        v.term.dispose();
+        v.dispose();
         xtermMap.delete(tabId);
       }
     });
@@ -196,12 +218,12 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
 
   // Fit active tab's xterm when switching or when terminal panel is visible
   useEffect(() => {
-    if (panelTab !== 'terminal' || !activeTerminalTabId) return;
-    const entry = xtermByTabIdRef.current.get(activeTerminalTabId);
-    if (entry) {
-      requestAnimationFrame(() => entry.fitAddon.fit());
-    }
-  }, [panelTab, activeTerminalTabId, terminalTabs]);
+    if (panelTab !== 'terminal') return;
+    [activeTerminalTabId, splitTabId].forEach((id) => {
+      const entry = id ? xtermByTabIdRef.current.get(id) : undefined;
+      if (entry) requestAnimationFrame(() => entry.fit.fit());
+    });
+  }, [panelTab, activeTerminalTabId, splitTabId, terminalTabs]);
 
   // Forward shell output to the correct tab's xterm
   useEffect(() => {
@@ -332,19 +354,31 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
     if (tab?.shellId) window.serverOperator?.closeShell({ shellId: tab.shellId });
     const entry = xtermByTabIdRef.current.get(tabId);
     if (entry) {
-      entry.ro.disconnect();
-      entry.term.dispose();
+      entry.dispose();
       xtermByTabIdRef.current.delete(tabId);
     }
+    if (search?.tabId === tabId) setSearch(null);
+    if (splitTabId === tabId) setSplitTabId(null);
     setTerminalTabs((prev) => {
       const next = prev.filter((t) => t.id !== tabId);
-      if (activeTerminalTabId === tabId && next.length) setActiveTerminalTabId(next[0].id);
-      else if (activeTerminalTabId === tabId) setActiveTerminalTabId(null);
+      if (activeTerminalTabId === tabId) {
+        // the split pane moves over to fill the space
+        const replacement = splitTabId && splitTabId !== tabId ? splitTabId : next[0]?.id ?? null;
+        setActiveTerminalTabId(replacement);
+        if (replacement === splitTabId) setSplitTabId(null);
+      }
       return next;
     });
-  }, [terminalTabs, activeTerminalTabId]);
+  }, [terminalTabs, activeTerminalTabId, splitTabId, search]);
 
-  const addTerminalTab = useCallback(() => {
+  const commitRename = useCallback(() => {
+    const id = renamingTabId;
+    const label = renameValue.trim();
+    if (id && label) setTerminalTabs((prev) => prev.map((t) => (t.id === id ? { ...t, label } : t)));
+    setRenamingTabId(null);
+  }, [renamingTabId, renameValue]);
+
+  const addTerminalTab = useCallback((asSplit = false) => {
     if (!currentServer || !window.serverOperator || panelTab !== 'terminal') return;
     const id = `term-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const tab: TerminalTab = {
@@ -357,7 +391,9 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
       status: 'connecting',
     };
     setTerminalTabs((prev) => [...prev, tab]);
-    setActiveTerminalTabId(id);
+    if (asSplit && activeTerminalTabId) setSplitTabId(id);
+    else setActiveTerminalTabId(id);
+    setFocusedTabId(id);
     window.serverOperator
       .openShell({ connection: currentServer, proxy })
       .then((res) => {
@@ -377,7 +413,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
           prev.map((t) => (t.id === id ? { ...t, connecting: false, status: 'closed', error: msg } : t))
         );
       });
-  }, [currentServer, proxy, panelTab]);
+  }, [currentServer, proxy, panelTab, activeTerminalTabId]);
 
   const addComposePathLocal = () => {
     const path = newComposePath.trim();
@@ -837,7 +873,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
               <>
                 <div className={`flex-1 flex min-h-0 ${resizingTerminalStrip ? 'select-none cursor-col-resize' : ''}`}>
                   {/* Terminal content area - one container per tab, only active visible */}
-                  <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-[#1e1e1e]">
+                  <div className={`flex-1 min-h-0 flex overflow-hidden bg-[#1e1e1e] ${terminalTabs.length ? 'flex-row' : 'flex-col'}`}>
                     {terminalTabs.length === 0 ? (
                       <EmptyState
                         className="bg-bg-primary"
@@ -845,7 +881,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                         title="No terminal open"
                         message="Open one to run commands on this server."
                         action={
-                          <Button variant="outline" onClick={addTerminalTab} className="shadow-sm">
+                          <Button variant="outline" onClick={() => addTerminalTab()} className="shadow-sm">
                             <Plus size={14} />
                             New terminal
                           </Button>
@@ -853,15 +889,73 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                       />
                     ) : (
                       <>
-                        {terminalTabs.map((t) => (
+                        {terminalTabs.map((t) => {
+                          const isLeft = activeTerminalTabId === t.id;
+                          const isRight = splitTabId === t.id && splitTabId !== activeTerminalTabId;
+                          const split = !!splitTabId && splitTabId !== activeTerminalTabId;
+                          return (
                           <div
                             key={t.id}
-                            className="flex-1 min-h-0 flex flex-col p-2"
+                            className={`relative flex-1 min-h-0 min-w-0 flex flex-col p-2 ${isRight ? 'border-l border-border/30' : ''} ${
+                              split && focusedTabId === t.id ? 'ring-1 ring-inset ring-accent/30' : ''
+                            }`}
                             style={{
                               minHeight: 120,
-                              display: activeTerminalTabId === t.id ? 'flex' : 'none',
+                              display: isLeft || isRight ? 'flex' : 'none',
+                              order: isRight ? 1 : 0,
                             }}
+                            onMouseDown={() => setFocusedTabId(t.id)}
                           >
+                            {search?.tabId === t.id && (
+                              <div
+                                className="absolute top-3 right-4 z-10 flex items-center gap-1 pl-2 pr-1 py-1 rounded-lg border border-border/40 popover-surface shadow-xl"
+                                role="search"
+                                onMouseDown={(e) => e.stopPropagation()}
+                              >
+                                <Search size={12} className="text-text-muted shrink-0" />
+                                <input
+                                  ref={searchInputRef}
+                                  value={search.query}
+                                  onChange={(e) => {
+                                    const next = { ...search, query: e.target.value };
+                                    setSearch(next);
+                                    runSearch('next', next);
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') { e.preventDefault(); runSearch(e.shiftKey ? 'prev' : 'next'); }
+                                    else if (e.key === 'Escape') { e.preventDefault(); closeSearch(); }
+                                  }}
+                                  placeholder="Find in terminal"
+                                  aria-label="Find in terminal"
+                                  className="w-40 bg-transparent text-xs text-text-primary placeholder-text-muted focus:outline-none"
+                                />
+                                <span className="text-[10px] text-text-muted tabular-nums min-w-[3.5rem] text-right" aria-live="polite">
+                                  {search.query ? (search.count ? `${search.index + 1} of ${search.count}` : 'No results') : ''}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const next = { ...search, caseSensitive: !search.caseSensitive };
+                                    setSearch(next);
+                                    runSearch('next', next);
+                                  }}
+                                  aria-pressed={search.caseSensitive}
+                                  title="Match case"
+                                  className={`p-1 rounded-md cursor-pointer ${search.caseSensitive ? 'text-accent bg-accent/10' : 'text-text-muted hover:text-text-primary'}`}
+                                >
+                                  <CaseSensitive size={13} />
+                                </button>
+                                <button type="button" onClick={() => runSearch('prev')} title="Previous (Shift+Enter)" aria-label="Previous match" className="p-1 rounded-md text-text-muted hover:text-text-primary cursor-pointer">
+                                  <ChevronUp size={13} />
+                                </button>
+                                <button type="button" onClick={() => runSearch('next')} title="Next (Enter)" aria-label="Next match" className="p-1 rounded-md text-text-muted hover:text-text-primary cursor-pointer">
+                                  <ChevronDown size={13} />
+                                </button>
+                                <button type="button" onClick={closeSearch} title="Close (Esc)" aria-label="Close search" className="p-1 rounded-md text-text-muted hover:text-text-primary cursor-pointer">
+                                  <X size={13} />
+                                </button>
+                              </div>
+                            )}
                             {t.error ? (
                               <div className="p-4 text-error text-xs font-mono">{t.error}</div>
                             ) : t.connecting ? (
@@ -891,7 +985,8 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                               style={{ display: t.shellId ? 'block' : 'none' }}
                             />
                           </div>
-                        ))}
+                          );
+                        })}
                       </>
                     )}
                   </div>
@@ -920,15 +1015,24 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                           key={t.id}
                           role="tab"
                           tabIndex={0}
-                          onClick={() => setActiveTerminalTabId(t.id)}
+                          onClick={() => {
+                            if (t.id !== splitTabId) setActiveTerminalTabId(t.id);
+                            setFocusedTabId(t.id);
+                            xtermByTabIdRef.current.get(t.id)?.term.focus();
+                          }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' || e.key === ' ') {
                               e.preventDefault();
-                              setActiveTerminalTabId(t.id);
+                              if (t.id !== splitTabId) setActiveTerminalTabId(t.id);
+                              setFocusedTabId(t.id);
+                            } else if (e.key === 'F2') {
+                              e.preventDefault();
+                              setRenameValue(t.label);
+                              setRenamingTabId(t.id);
                             }
                           }}
                           className={`flex items-center gap-1.5 w-full min-w-0 px-2.5 py-2 rounded-xl border text-left group transition-all duration-200 cursor-pointer overflow-hidden ${
-                            activeTerminalTabId === t.id
+                            activeTerminalTabId === t.id || splitTabId === t.id
                               ? 'border-accent/35 bg-accent/8 text-accent font-semibold shadow-sm'
                               : 'border-transparent hover:bg-bg-tertiary/40 text-text-secondary hover:text-text-primary'
                           }`}
@@ -944,7 +1048,37 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                                   : 'bg-error'
                             }`}
                           />
-                          <span className="text-xs truncate min-w-0 flex-1 font-sans">{t.label}</span>
+                          {renamingTabId === t.id ? (
+                            <input
+                              autoFocus
+                              value={renameValue}
+                              onChange={(e) => setRenameValue(e.target.value)}
+                              onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => {
+                                e.stopPropagation();
+                                if (e.key === 'Enter') commitRename();
+                                else if (e.key === 'Escape') setRenamingTabId(null);
+                              }}
+                              onBlur={commitRename}
+                              aria-label="Terminal name"
+                              className="text-xs min-w-0 flex-1 font-sans bg-bg-primary/60 border border-accent/40 rounded px-1 py-px text-text-primary focus:outline-none"
+                            />
+                          ) : (
+                            <span
+                              className="text-xs truncate min-w-0 flex-1 font-sans"
+                              onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                setRenameValue(t.label);
+                                setRenamingTabId(t.id);
+                              }}
+                              title="Double-click to rename"
+                            >
+                              {t.label}
+                            </span>
+                          )}
+                          {splitTabId === t.id && splitTabId !== activeTerminalTabId && (
+                            <Columns2 size={11} className="shrink-0 text-text-muted" aria-label="Shown in split view" />
+                          )}
                           <button
                             type="button"
                             className="shrink-0 flex items-center justify-center w-5 h-5 opacity-0 group-hover:opacity-100 rounded-lg hover:bg-bg-tertiary transition-all cursor-pointer text-text-muted hover:text-text-primary"
@@ -958,14 +1092,43 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                           </button>
                         </div>
                       ))}
-                      <button
-                        type="button"
-                        onClick={addTerminalTab}
-                        className="flex items-center justify-center w-full py-2.5 rounded-xl border border-dashed border-border/30 text-text-muted hover:border-accent/40 hover:text-accent transition-colors cursor-pointer"
-                        title="New terminal"
-                      >
-                        <Plus size={14} />
-                      </button>
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => addTerminalTab()}
+                          className="flex-1 flex items-center justify-center py-2.5 rounded-xl border border-dashed border-border/30 text-text-muted hover:border-accent/40 hover:text-accent transition-colors cursor-pointer"
+                          title="New terminal"
+                          aria-label="New terminal"
+                        >
+                          <Plus size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => (splitTabId && splitTabId !== activeTerminalTabId ? setSplitTabId(null) : addTerminalTab(true))}
+                          aria-pressed={!!splitTabId && splitTabId !== activeTerminalTabId}
+                          className={`flex items-center justify-center px-2.5 py-2.5 rounded-xl border border-dashed transition-colors cursor-pointer ${
+                            splitTabId && splitTabId !== activeTerminalTabId
+                              ? 'border-accent/40 text-accent bg-accent/8'
+                              : 'border-border/30 text-text-muted hover:border-accent/40 hover:text-accent'
+                          }`}
+                          title={splitTabId && splitTabId !== activeTerminalTabId ? 'Close split view' : 'Split: open a terminal beside this one'}
+                          aria-label={splitTabId && splitTabId !== activeTerminalTabId ? 'Close split view' : 'Split terminal'}
+                        >
+                          <Columns2 size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const id = focusedTabId && (focusedTabId === activeTerminalTabId || focusedTabId === splitTabId) ? focusedTabId : activeTerminalTabId;
+                            if (id) openSearch(id);
+                          }}
+                          className="flex items-center justify-center px-2.5 py-2.5 rounded-xl border border-dashed border-border/30 text-text-muted hover:border-accent/40 hover:text-accent transition-colors cursor-pointer"
+                          title={`Find in terminal (${window.serverOperator?.platform === 'darwin' ? '⌘' : 'Ctrl+'}F)`}
+                          aria-label="Find in terminal"
+                        >
+                          <Search size={14} />
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

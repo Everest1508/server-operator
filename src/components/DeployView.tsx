@@ -1,10 +1,11 @@
 import { Fragment, useState, useRef, useEffect } from 'react';
-import { Rocket, TerminalSquare, Loader2, Key, FileCode, FolderTree, Send, Sparkles, Play, ChevronDown, Server, Copy, Wand2, GitBranch, RefreshCw } from 'lucide-react';
+import { Rocket, TerminalSquare, Loader2, Key, FileCode, FolderTree, Send, Sparkles, Play, ChevronDown, Server, Copy, Wand2, GitBranch, RefreshCw, GitCommitHorizontal } from 'lucide-react';
 import EyeIcon from './icons/EyeIcon';
 import EyeOffIcon from './icons/EyeOffIcon';
 import { useFeatureFlag } from '../contexts/FeatureFlagContext';
 import type { ServerConnection, ProxySettings } from '../types';
 import { loadProjectContext } from '../utils/loadProjectContext';
+import { GitPanel } from './GitPanel';
 import { parseLsLine } from '../utils/parseLs';
 import { joinRemotePath, resolveRemotePath } from '../utils/remotePath';
 import { ConfigCreators } from './ConfigCreators';
@@ -437,7 +438,7 @@ interface DeployViewProps {
 
 const hasServerOperator = typeof window !== 'undefined' && typeof window.serverOperator?.deploy === 'function';
 
-type DeploySubTab = 'deploy' | 'creators' | 'server' | 'pipeline';
+type DeploySubTab = 'deploy' | 'creators' | 'server' | 'pipeline' | 'git';
 
 export function DeployView({
   currentServer,
@@ -755,6 +756,7 @@ export function DeployView({
         {([
           { id: 'deploy', label: 'Terminal', icon: <TerminalSquare size={13} />, show: true },
           { id: 'pipeline', label: 'Git deploy', icon: <GitBranch size={13} />, show: isPipelineEnabled },
+          { id: 'git', label: 'Git', icon: <GitCommitHorizontal size={13} />, show: true },
           { id: 'creators', label: 'Config creators', icon: <FileCode size={13} />, show: isCreatorsEnabled },
           { id: 'server', label: 'Server admin', icon: <Server size={13} />, show: isServerEnabled },
         ] as { id: DeploySubTab; label: string; icon: React.ReactNode; show: boolean }[])
@@ -779,6 +781,14 @@ export function DeployView({
       </div>
 
       {/* Content: Config creators when that sub-tab is selected */}
+      {deploySubTab === 'git' && (
+        <GitPanel
+          currentServer={currentServer}
+          proxy={proxy}
+          defaultDir={pipelineProjDir || activeProjectPath || currentServer.projectPath || currentServer.cwd || ''}
+        />
+      )}
+
       {deploySubTab === 'creators' && (
         <div className="flex-1 flex flex-col min-h-0">
           <ConfigCreators

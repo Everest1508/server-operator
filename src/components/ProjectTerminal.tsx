@@ -1,10 +1,9 @@
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
-import { useThemeKey, cssVar } from '../hooks/useAppTheme';
-import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
+import { useThemeKey } from '../hooks/useAppTheme';
+import type { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import { Loader2 } from 'lucide-react';
-import { attachXtermClipboardKeys } from '../utils/xtermClipboardKeys';
+import { createTerminal, xtermThemeFromApp } from '../utils/terminalSetup';
 import type { ServerConnection, ProxySettings } from '../types';
 
 export interface ProjectTerminalProps {
@@ -24,17 +23,8 @@ export function ProjectTerminal({ currentServer, proxy, projectPath, onReady, on
   const shellIdRef = useRef<string | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const appTheme = useThemeKey();
-  const xtermTheme = useMemo(() => {
-    const bg = cssVar('--color-bg-primary', '#1e1e1e');
-    const accent = cssVar('--color-accent', '#0078d4');
-    return {
-      background: bg,
-      foreground: cssVar('--color-text-primary', '#cccccc'),
-      cursor: accent,
-      cursorAccent: bg,
-      selectionBackground: 'rgba(0, 120, 212, 0.3)',
-    };
-  }, [appTheme]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const xtermTheme = useMemo(() => xtermThemeFromApp(), [appTheme]);
   const [shellId, setShellId] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,41 +95,26 @@ export function ProjectTerminal({ currentServer, proxy, projectPath, onReady, on
   useEffect(() => {
     if (!containerRef.current || !shellId) return;
     const container = containerRef.current;
-    const term = new Terminal({
-      theme: xtermTheme,
-      fontSize: 13,
-      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-    });
-    termRef.current = term;
-    const fitAddon = new FitAddon();
-    term.loadAddon(fitAddon);
-    attachXtermClipboardKeys(term);
-    term.open(container);
-    fitAddon.fit();
     const sid = shellId;
-    term.onData((data) => {
-      if (window.serverOperator && sid && !disabled) {
-        window.serverOperator.shellWrite({ shellId: sid, data });
-      }
+    const handle = createTerminal(container, {
+      theme: xtermTheme,
+      onData: (data) => {
+        if (window.serverOperator && sid && !disabled) window.serverOperator.shellWrite({ shellId: sid, data });
+      },
+      onResize: (cols, rows) => void window.serverOperator?.shellResize?.({ shellId: sid, cols, rows }),
     });
-    let rafId: number | null = null;
-    const ro = new ResizeObserver(() => {
-      if (rafId !== null) cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        rafId = null;
-        fitAddon.fit();
-      });
-    });
-    ro.observe(container);
+    const term = handle.term;
+    termRef.current = term;
+    // the shell opened at a default size: tell it the real one
+    void window.serverOperator?.shellResize?.({ shellId: sid, cols: term.cols, rows: term.rows });
     const handler = (e: CustomEvent<{ shellId: string; data: string }>) => {
       if (e.detail.shellId === sid) term.write(e.detail.data);
     };
     window.addEventListener('shell-output', handler as EventListener);
     return () => {
-      ro.disconnect();
       window.removeEventListener('shell-output', handler as EventListener);
       termRef.current = null;
-      term.dispose();
+      handle.dispose();
     };
   }, [shellId]);
 

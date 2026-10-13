@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import type * as Monaco from 'monaco-editor';
-import { FileCode, Save, Loader2, X, Download, ChevronDown, Plus, FolderOpen, Shield, Play, Check, Copy, Keyboard, Terminal, Database, Workflow, History, Sparkles } from 'lucide-react';
+import { FileCode, Save, Loader2, X, Download, ChevronDown, ChevronRight, Plus, FolderOpen, Shield, Play, Check, Copy, Keyboard, Terminal, Database, Workflow, History, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
 import type { ServerConnection, ViewId, ProxySettings } from '../types';
 import { useThemeKey } from '../hooks/useAppTheme';
 import { languageFromPath, registerServerLanguages, defineSeropTheme, SEROP_EDITOR_THEME } from '../utils/monacoSetup';
 import { EditorStatusBar } from './EditorStatusBar';
+import { FilePreview } from './FilePreview';
+import { resolveRemotePath } from '../utils/remotePath';
 import { DockerView } from './DockerView';
 import { DeployView } from './DeployView';
 import { ServerOverview } from './ServerOverview';
@@ -16,6 +18,67 @@ import { FloatingMenu } from './FloatingMenu';
 
 // Cursor and scroll position per open file, kept across tab switches and remounts of the editor.
 const editorViewStates = new Map<string, Monaco.editor.ICodeEditorViewState | null>();
+
+/** The open file's folders; clicking one reveals it in the file tree. Copies the full path on the server. */
+function FileBreadcrumb({ filePath, basePath }: { filePath: string; basePath: string }) {
+  const [copied, setCopied] = useState(false);
+  const relative = !filePath.startsWith('/') && !filePath.startsWith('~');
+  const parts = filePath.split('/').filter(Boolean);
+  const fullPath = relative ? resolveRemotePath(basePath, filePath) : filePath;
+  const copy = () => {
+    void navigator.clipboard.writeText(fullPath).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1400);
+    });
+  };
+  return (
+    <nav aria-label="File path" className="flex items-center gap-1 px-4 py-1 border-b border-border/20 text-[11px] text-text-muted min-w-0 select-none">
+      <div className="flex items-center gap-0.5 min-w-0 overflow-hidden">
+        {relative && (
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent('serop-reveal-folder', { detail: { path: '.' } }))}
+            className="shrink-0 px-1 rounded hover:text-text-primary hover:bg-bg-tertiary/60 cursor-pointer"
+            title={basePath === '.' ? 'Project folder' : basePath}
+          >
+            {basePath === '.' ? 'project' : basePath.split('/').filter(Boolean).pop() || basePath}
+          </button>
+        )}
+        {parts.map((part, i) => {
+          const last = i === parts.length - 1;
+          const dir = parts.slice(0, i + 1).join('/');
+          return (
+            <span key={dir} className="flex items-center gap-0.5 min-w-0">
+              {(relative || i > 0) && <ChevronRight size={11} className="shrink-0 opacity-60" />}
+              {last || !relative ? (
+                <span className={`truncate ${last ? 'text-text-secondary font-medium' : ''}`}>{part}</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent('serop-reveal-folder', { detail: { path: dir } }))}
+                  className="truncate px-1 rounded hover:text-text-primary hover:bg-bg-tertiary/60 cursor-pointer"
+                  title={`Show ${dir} in the file tree`}
+                >
+                  {part}
+                </button>
+              )}
+            </span>
+          );
+        })}
+      </div>
+      <button
+        type="button"
+        onClick={copy}
+        className="ml-auto shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded hover:text-text-primary hover:bg-bg-tertiary/60 cursor-pointer"
+        title={`Copy ${fullPath}`}
+        aria-label="Copy full path"
+      >
+        {copied ? <Check size={11} className="text-success" /> : <Copy size={11} />}
+        {copied ? 'Copied' : 'Copy path'}
+      </button>
+    </nav>
+  );
+}
 
 const EDITOR_PREFS_KEY = 'serop-editor-prefs';
 function loadEditorPrefs(): { wordWrap: boolean; minimap: boolean } {
@@ -50,6 +113,8 @@ interface EditorAreaProps {
   openTabs?: string[];
   activeTabPath?: string | null;
   contentByPath?: Record<string, string>;
+  /** Open files that are binary (content is base64): previewed, not edited. */
+  binaryByPath?: Record<string, boolean>;
   savedContentByPath?: Record<string, string>;
   onContentChange?: (path: string, content: string) => void;
   loadingPath?: string | null;
@@ -107,6 +172,7 @@ export function EditorArea({
   openTabs = [],
   activeTabPath = null,
   contentByPath = {},
+  binaryByPath = {},
   savedContentByPath = {},
   onContentChange,
   loadingPath = null,
@@ -158,6 +224,7 @@ export function EditorArea({
   const activeSaved = activeTabPath ? (savedContentByPath[activeTabPath] ?? '') : '';
   const isDirty = activeTabPath ? activeContent !== activeSaved : false;
   const isLoading = Boolean(loadingPath && activeTabPath === loadingPath);
+  const isBinary = !!(activeTabPath && binaryByPath[activeTabPath]);
   // One Monaco model per server + file, so each tab keeps its own undo history, cursor and scroll.
   const serverKey = currentServer?.id ?? 'local';
   const modelPathFor = useCallback((p: string) => `serop://${serverKey}/${encodeURIComponent(p)}`, [serverKey]);
@@ -488,7 +555,7 @@ export function EditorArea({
                               </button>
                             </>
                           )}
-                          {activeTabPath && onSaveFile && (
+                          {activeTabPath && onSaveFile && !isBinary && (
                             <>
                               <div className="border-t border-border/20 my-1" />
                               <button type="button" onClick={handleSaveAsSudo} className="flex items-center gap-2 w-full px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-accent/10 hover:text-accent rounded-lg transition-colors cursor-pointer">
@@ -501,7 +568,7 @@ export function EditorArea({
                       )}
                     </div>
                   )}
-                  {activeTabPath && onSaveFile && (
+                  {activeTabPath && onSaveFile && !isBinary && (
                     <button
                       type="button"
                       onClick={handleSave}
@@ -515,6 +582,9 @@ export function EditorArea({
                   )}
                 </div>
               </div>
+              {activeTabPath && !activeTabPath.includes('://') && (
+                <FileBreadcrumb filePath={activeTabPath} basePath={_basePath || '.'} />
+              )}
               {(saveError || downloadError) && (
                 <div className="px-4 py-2 bg-error/10 border-b border-error/20 text-error text-xs shrink-0 select-text" role="alert">
                   {saveError || downloadError}
@@ -553,6 +623,13 @@ export function EditorArea({
                       </button>
                     </div>
                   </motion.div>
+                ) : activeTabPath && isBinary ? (
+                  <FilePreview
+                    filePath={activeTabPath}
+                    base64={activeContent}
+                    onDownload={onDownloadRemoteFile ? handleDownload : undefined}
+                    downloading={downloading}
+                  />
                 ) : activeTabPath ? (
                   <Editor
                     height="100%"
@@ -614,7 +691,7 @@ export function EditorArea({
                   />
                 ) : null}
               </div>
-              {activeTabPath && !isLoading && !fileLoadError && (
+              {activeTabPath && !isLoading && !fileLoadError && !isBinary && (
                 <EditorStatusBar
                   editor={editorInstance}
                   monaco={monacoRef.current}

@@ -28,6 +28,8 @@ import { useAppTheme, isLightTheme } from '../hooks/useAppTheme';
 import Editor, { useMonaco } from '@monaco-editor/react';
 import { Select } from './Select';
 import { confirmDialog } from '../utils/confirm';
+import { QueryLibrary, recordQueryHistory } from './QueryLibrary';
+import type * as Monaco from 'monaco-editor';
 
 type DbType = 'mysql' | 'postgres' | 'redis' | 'sqlite';
 type ExportMode = 'schema' | 'data' | 'full';
@@ -108,6 +110,9 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
 
   // Query Workspace
   const [queryText, setQueryText] = useState('');
+  // The SQL editor, so "run" can use just the selected text, and whether anything is selected.
+  const sqlEditorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
+  const [hasSqlSelection, setHasSqlSelection] = useState(false);
   const [queryError, setQueryError] = useState<string | null>(null);
   const [queryResult, setQueryResult] = useState<any[] | null>(null);
   const [resultsSearch, setResultsSearch] = useState('');
@@ -536,9 +541,29 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
     setStatus('disconnected');
   };
 
+  const historyScope = `${currentServer?.id ?? 'none'}:${dbType}:${database || 'default'}`;
   const handleRunQuery = async () => {
-    await runSqlQuery(queryText);
+    // With text selected in the SQL editor, only that part runs.
+    const editor = dbType === 'redis' ? null : sqlEditorRef.current;
+    const selection = editor?.getSelection();
+    const selected = selection && !selection.isEmpty() ? editor?.getModel()?.getValueInRange(selection) ?? '' : '';
+    const toRun = selected.trim() ? selected : queryText;
+    if (!toRun.trim()) return;
+    const started = performance.now();
+    const res = await runSqlQuery(toRun, { keepEditorText: !!selected.trim() });
+    if (currentServer) {
+      recordQueryHistory(historyScope, {
+        query: toRun,
+        at: Date.now(),
+        ok: !!res?.ok,
+        rows: res && 'rows' in res && Array.isArray(res.rows) ? res.rows.length : undefined,
+        ms: Math.round(performance.now() - started),
+        error: res && !res.ok && 'error' in res ? res.error : undefined,
+      });
+    }
   };
+  const runQueryRef = useRef(handleRunQuery);
+  runQueryRef.current = handleRunQuery;
 
   const handleMetadataItemClick = (item: string) => {
     if (dbType === 'redis') {
@@ -1324,6 +1349,7 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
                         Redis Console
                       </h3>
                       <div className="flex items-center gap-2">
+                        <QueryLibrary scope={historyScope} currentQuery={queryText} onLoad={setQueryText} />
                         <button
                           type="button"
                           onClick={() => setQueryText('')}
@@ -1353,9 +1379,12 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
                 ) : (
                   <>
                     <div className="flex flex-wrap justify-between items-center gap-2 select-none">
-                      <h3 className="text-xs font-semibold text-text-secondary">
-                        SQL editor
-                      </h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xs font-semibold text-text-secondary">
+                          SQL editor
+                        </h3>
+                        <QueryLibrary scope={historyScope} currentQuery={queryText} onLoad={setQueryText} />
+                      </div>
                       {dbType !== 'sqlite' && (
                         <div className="flex flex-wrap items-center gap-2">
                           <input
@@ -1449,6 +1478,12 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
                           theme={monacoTheme}
                           value={queryText}
                           onChange={(val) => setQueryText(val || '')}
+                          onMount={(editor, monaco) => {
+                            sqlEditorRef.current = editor;
+                            editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => void runQueryRef.current());
+                            editor.onDidChangeCursorSelection(() => setHasSqlSelection(!(editor.getSelection()?.isEmpty() ?? true)));
+                            editor.onDidDispose(() => { if (sqlEditorRef.current === editor) sqlEditorRef.current = null; });
+                          }}
                           options={{
                             minimap: { enabled: false },
                             contextmenu: false,
@@ -1493,10 +1528,11 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
                             type="button"
                             onClick={handleRunQuery}
                             disabled={queryLoading || !queryText.trim()}
+                            title={`${hasSqlSelection ? 'Run only the selected text' : 'Run the query'} (${window.serverOperator?.platform === 'darwin' ? '⌘' : 'Ctrl+'}Enter)`}
                             className="flex items-center gap-1.5 px-3.5 py-1.5 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-xl disabled:opacity-40 cursor-pointer shadow-sm transition-all whitespace-nowrap"
                           >
                             {queryLoading ? <RefreshCw size={12} className="animate-spin" /> : <Play size={12} />}
-                            Run Query
+                            {hasSqlSelection ? 'Run selection' : 'Run Query'}
                           </button>
                         </div>
                       </div>

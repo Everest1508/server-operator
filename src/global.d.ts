@@ -92,6 +92,32 @@ export interface ServerOperatorAPI {
     /** Relative directory on the server (same as file tree), e.g. "." or "src/config". */
     remoteDir: string;
   }) => Promise<{ ok: boolean; canceled?: boolean; error?: string; remotePath?: string }>;
+  /** Upload files dropped from Finder / Explorer into remoteDir. Folders are skipped. */
+  uploadLocalPaths?: (opts: { connection: ServerConnection; proxy?: ProxySettings; remoteDir: string; localPaths: string[] }) => Promise<{
+    ok: boolean;
+    uploaded: string[];
+    skipped: string[];
+    failed: { name: string; error: string }[];
+  }>;
+  /** Local path of a dropped File (Electron 32+ no longer sets File.path). */
+  getPathForFile?: (file: File) => string;
+  gitStatus?: (opts: { connection: ServerConnection; proxy?: ProxySettings; dir?: string }) => Promise<{
+    ok: boolean;
+    error?: string;
+    isRepo?: boolean;
+    reason?: string;
+    branch?: string;
+    upstream?: string;
+    ahead?: number;
+    behind?: number;
+    root?: string;
+    files?: { code: string; path: string; untracked: boolean }[];
+    commits?: { hash: string; author: string; when: string; subject: string }[];
+  }>;
+  gitDiff?: (opts: { connection: ServerConnection; proxy?: ProxySettings; dir?: string; file?: string; untracked?: boolean; commit?: string }) => Promise<{ ok: boolean; diff?: string; truncated?: boolean; error?: string }>;
+  gitAction?: (opts: { connection: ServerConnection; proxy?: ProxySettings; dir?: string; action: 'fetch' | 'pull' | 'stash' | 'discard'; file?: string; untracked?: boolean }) => Promise<{ ok: boolean; output?: string; error?: string }>;
+  /** Every file under the project folder (relative paths), for quick open. */
+  findFiles?: (opts: { connection: ServerConnection; proxy?: ProxySettings }) => Promise<{ ok: boolean; files?: string[]; truncated?: boolean; error?: string }>;
   downloadRemoteFile: (opts: {
     connection: ServerConnection;
     proxy?: ProxySettings;
@@ -104,7 +130,7 @@ export interface ServerOperatorAPI {
     code?: number;
     error?: string;
   }>;
-  openShell: (opts: { connection: ServerConnection; proxy?: ProxySettings }) => Promise<{ ok: boolean; shellId?: string; error?: string }>;
+  openShell: (opts: { connection: ServerConnection; proxy?: ProxySettings; cols?: number; rows?: number }) => Promise<{ ok: boolean; shellId?: string; error?: string }>;
   closeShell: (opts: { shellId: string }) => Promise<void>;
   shellWrite: (opts: { shellId: string; data: string }) => Promise<void>;
   loadThemeFolders: () => Promise<{ file: string; source: 'installer' | 'admin' | 'user'; text?: string; error?: string }[]>;
@@ -228,6 +254,10 @@ export interface ServerOperatorAPI {
   isWindowMaximized?: () => Promise<boolean>;
   setWindowOpacity?: (opacity: number) => Promise<void>;
   quitApp?: () => Promise<void>;
+  /** Tell the remote terminal its new size (columns and rows) after the panel resizes. */
+  shellResize?: (opts: { shellId: string; cols: number; rows: number }) => Promise<void>;
+  /** Open an http(s) link in the system browser. */
+  openUrl?: (url: string) => Promise<{ ok: boolean; error?: string }>;
   /** Run a native edit command (copy, cut, paste, selectAll, undo, redo) on the focused element. */
   editCommand?: (command: 'copy' | 'cut' | 'paste' | 'pasteAndMatchStyle' | 'selectAll' | 'undo' | 'redo') => Promise<boolean>;
   deployStartBg?: (opts: {

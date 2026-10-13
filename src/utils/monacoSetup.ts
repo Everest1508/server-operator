@@ -190,7 +190,7 @@ export function registerServerLanguages(monaco: MonacoApi) {
 // ---------------------------------------------------------------------------
 
 /** CSS colour (#rgb, #rrggbb, #rrggbbaa, rgb(), rgba()) to #rrggbb or #rrggbbaa. */
-function toHex(color: string, fallback: string): string {
+export function toHex(color: string, fallback: string): string {
   const s = color.trim();
   if (/^#[0-9a-f]{3}$/i.test(s)) return '#' + s.slice(1).split('').map((c) => c + c).join('');
   if (/^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(s)) return s;
@@ -204,7 +204,7 @@ function toHex(color: string, fallback: string): string {
 const solid = (hex: string) => hex.slice(0, 7);
 const alpha = (hex: string, aa: string) => solid(hex) + aa;
 
-function luminance(hex: string): number {
+export function luminance(hex: string): number {
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
