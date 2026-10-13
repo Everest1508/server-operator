@@ -71,8 +71,8 @@
   <body>
     <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
       <defs>
-        <filter id="sketch" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="3"/><feDisplacementMap in="SourceGraphic" scale="4"/></filter>
-        <filter id="sketch-md" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="5"/><feDisplacementMap in="SourceGraphic" scale="2.2"/></filter>
+        <filter id="sketch" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="1" seed="3"/><feDisplacementMap in="SourceGraphic" scale="4"/></filter>
+        <filter id="sketch-md" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="1" seed="5"/><feDisplacementMap in="SourceGraphic" scale="2.2"/></filter>
       </defs>
     </svg>
     <a class="skip" href="#main-content">Skip to content</a>
@@ -101,10 +101,52 @@
           <div class="section__head"><div><h1 class="section__title" id="changelog-heading">Changelog</h1>
           <p class="section__subtitle">
             Every release of Server Operator, from the initial launch to the latest update.
-          </p></div><svg class="doodle doodle--sm" viewBox="0 0 280 220" aria-hidden="true" focusable="false">
+          </p></div><svg class="doodle doodle--sm" viewBox="0 0 280 220" aria-hidden="true" focusable="false"><g class="wob">
 <rect class="w" x="40" y="16" width="200" height="188"/>
 <path class="a" d="M62 56l8 8 14-16M62 104l8 8 14-16M62 152l8 8 14-16"/>
-<path class="l" d="M104 56h110M104 104h110M104 152h80"/></svg></div>
+<path class="l" d="M104 56h110M104 104h110M104 152h80"/></g></svg></div>
+
+          <!-- 2.6.0 — Red Ink -->
+          <div class="release-card" style="margin-bottom: 32px;">
+            <div class="release-card__header">
+              <div>
+                <span class="release-badge">v2.6.0</span>
+                <h3>Red Ink</h3>
+              </div>
+              <p>2026-10-13</p>
+            </div>
+            <p style="color: var(--ash); font-size: 15px; margin: 0 0 24px;">
+              Mark your production servers so they show in red and ask you to type their name before anything risky runs. Deploys now really run in the background, with a live panel that follows them on every screen and a system notification when they finish. The server sidebar is reworked too.
+            </p>
+            <div class="release-grid">
+              <article class="release-block">
+                <h4>Production mode</h4>
+                <ul>
+                  <li>Mark any server as production from its settings, or with the shield button on its row in the sidebar. You turn it on and off yourself, and turning it off asks you to type the server name.</li>
+                  <li>On a production server, risky actions ask you to type its name before they run: deploy, rollback, Docker kill and remove, firewall changes, database wipe and import, deleting rows and files, stopping nginx, and removing the server.</li>
+                  <li>Production servers are marked in red: a line under the title bar with a Production badge, red server tabs, and red cards on the Servers page and in the deploy panel.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Live deploys</h4>
+                <ul>
+                  <li>Deploys started from a .serop shortcut still stopped when you switched servers, because the background part of 2.5.1 was not finished. They now run in the background and keep going whatever screen or server you are on.</li>
+                  <li>A deploy panel in the bottom-right corner shows every running deploy with its server, a timer and live output, on every screen. Expand it to read the last 300 lines, or cancel a shortcut deploy.</li>
+                  <li>The Git deploy shows in the panel too, so its output is no longer lost when the terminal closes.</li>
+                  <li>When a deploy ends while Serop is in the background, you get a system notification. Click it to open that deploy's output.</li>
+                  <li>A long deploy no longer loses its SSH connection to the 5-minute idle timeout.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Server sidebar</h4>
+                <ul>
+                  <li>Production servers are grouped at the top. Each server shows its connection type, whether it is open in a tab, and a Deploying indicator while a deploy runs on it.</li>
+                  <li>A search box appears once you have more than five servers, and the row buttons can be reached with the keyboard.</li>
+                  <li>Removing a server from the sidebar deleted it straight away. It now asks first.</li>
+                </ul>
+              </article>
+            </div>
+          </div>
 
           <!-- 2.5.1 — Background deploys -->
           <div class="release-card" style="margin-bottom: 32px;">
@@ -546,7 +588,7 @@
 
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.5.1</span></p>
+        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.6.0</span></p>
         <div class="site-footer__links">
           <a href="https://github.com/everest1508/server-operator">GitHub</a>
           <a href="https://github.com/everest1508/server-operator/issues">Issues</a>

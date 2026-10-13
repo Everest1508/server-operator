@@ -227,8 +227,8 @@ code, .mono { font-family: var(--font-mono); font-size: 0.9em; }
 .site-footer__links a:hover { color: var(--signal); }
 
 /* Doodle filters are defined once per page (see the hidden SVG after <body>). */
-.doodle { filter: url(#sketch); }
-.icon { filter: url(#sketch-md); }
+.doodle .wob { filter: url(#sketch); }
+.icon .wob { filter: url(#sketch-md); }
 .ulink { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; font-weight: 600; font-size: 15px; align-self: center; }
 .ulink:hover { color: var(--signal); }
 .doodle--sm { max-width: 320px; }
@@ -270,8 +270,8 @@ code, .mono { font-family: var(--font-mono); font-size: 0.9em; }
   /* hover micro-interactions */
   .feature-card, .download-card { transition: border-color 0.2s, transform 0.25s var(--ease), opacity 0.6s var(--ease) var(--rd, 0s); }
   .feature-card:hover, .download-card:hover { border-color: var(--signal); transform: translateY(-3px); }
-  .feature-card .icon { transition: transform 0.35s var(--ease); transform-origin: 30% 70%; }
-  .feature-card:hover .icon { transform: rotate(-6deg) scale(1.08); }
+  .feature-card__icon { transition: transform 0.35s var(--ease); transform-origin: 30% 70%; }
+  .feature-card:hover .feature-card__icon { transform: rotate(-6deg) scale(1.08); }
   .btn { transition: background-color 0.15s, color 0.15s, border-color 0.15s, transform 0.15s; }
   .btn:active { transform: translateY(1px); }
   .site-nav__links a:not(.btn) { background: linear-gradient(var(--signal), var(--signal)) 12px calc(100% - 6px) / 0 2px no-repeat; transition: background-size 0.25s var(--ease), color 0.15s; }
@@ -282,3 +282,8 @@ code, .mono { font-family: var(--font-mono); font-size: 0.9em; }
 .site-nav__links a.active { color: var(--signal); }
 .site-nav.scrolled { border-bottom-color: rgba(35, 31, 32, 0.28); }
 #progress { position: fixed; top: 0; left: 0; height: 2px; width: 100%; background: var(--signal); transform: scaleX(0); transform-origin: 0 0; z-index: 300; pointer-events: none; }
+
+/* Performance: skip rendering of off-screen sections, promote the hover-tilted icon wrapper, pause live animation off-screen. */
+.section, .site-footer { content-visibility: auto; contain-intrinsic-size: auto 700px; }
+.feature-card__icon { will-change: transform; }
+.paused .led, .paused .cur { animation-play-state: paused; }

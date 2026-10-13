@@ -26,10 +26,16 @@
   bar.id = 'progress';
   bar.setAttribute('aria-hidden', 'true');
   document.body.appendChild(bar);
+  let queued = false;
   const onScroll = () => {
-    const h = document.documentElement.scrollHeight - innerHeight;
-    bar.style.transform = 'scaleX(' + (h > 0 ? scrollY / h : 0) + ')';
-    if (nav) nav.classList.toggle('scrolled', scrollY > 8);
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      const h = document.documentElement.scrollHeight - innerHeight;
+      bar.style.transform = 'scaleX(' + (h > 0 ? scrollY / h : 0) + ')';
+      if (nav) nav.classList.toggle('scrolled', scrollY > 8);
+    });
   };
   addEventListener('scroll', onScroll, { passive: true });
   onScroll();
@@ -58,4 +64,19 @@
     el.classList.add('reveal');
     io.observe(el);
   });
+})();
+
+/* Pause live hero animation (SMIL packets, CSS blinks) while it is off-screen. */
+(function () {
+  if (!('IntersectionObserver' in window)) return;
+  const live = document.querySelectorAll('svg.doodle');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e) => {
+      const svg = e.target;
+      if (!svg.querySelector('.pkt, .led, .cur')) return;
+      svg.classList.toggle('paused', !e.isIntersecting);
+      if (svg.pauseAnimations) e.isIntersecting ? svg.unpauseAnimations() : svg.pauseAnimations();
+    });
+  });
+  live.forEach((s) => io.observe(s));
 })();
