@@ -1,5 +1,6 @@
 /* Draw doodles on first scroll into view; skipped under reduced motion. */
 (function () {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) document.querySelectorAll('.pkt').forEach((p) => p.remove());
   if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const io = new IntersectionObserver((entries) => {
     entries.forEach((e) => {
@@ -15,5 +16,46 @@
     });
     svg.classList.add('draw');
     io.observe(svg);
+  });
+})();
+
+/* Motion layer: reveal on scroll, scroll progress bar, nav scroll-spy. */
+(function () {
+  const nav = document.querySelector('.site-nav');
+  const bar = document.createElement('div');
+  bar.id = 'progress';
+  bar.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(bar);
+  const onScroll = () => {
+    const h = document.documentElement.scrollHeight - innerHeight;
+    bar.style.transform = 'scaleX(' + (h > 0 ? scrollY / h : 0) + ')';
+    if (nav) nav.classList.toggle('scrolled', scrollY > 8);
+  };
+  addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // scroll-spy: highlight the nav link of the section in view
+  const links = [...document.querySelectorAll('.site-nav__links a[href^="#"]')];
+  if (links.length && 'IntersectionObserver' in window) {
+    const spy = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (!e.isIntersecting) return;
+        links.forEach((a) => a.classList.toggle('active', a.getAttribute('href') === '#' + e.target.id));
+      });
+    }, { rootMargin: '-45% 0px -50% 0px' });
+    links.forEach((a) => { const t = document.getElementById(a.getAttribute('href').slice(1)); if (t) spy.observe(t); });
+  }
+
+  if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  const sel = '.section__title, .section__subtitle, .feature-card, .download-card, .release-card, .code-block, .tech-list li, .download-note';
+  document.querySelectorAll(sel).forEach((el) => {
+    if (el.getBoundingClientRect().top < innerHeight) return; // already on screen: no flash
+    const sib = [...el.parentElement.children].indexOf(el);
+    el.style.setProperty('--rd', Math.min(sib * 0.06, 0.4) + 's');
+    el.classList.add('reveal');
+    io.observe(el);
   });
 })();

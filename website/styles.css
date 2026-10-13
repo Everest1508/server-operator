@@ -243,3 +243,42 @@ code, .mono { font-family: var(--font-mono); font-size: 0.9em; }
 .draw.in .l, .draw.in .a, .draw.in .b, .draw.in .w { stroke-dashoffset: 0; stroke-opacity: 1; }
 .draw.in .b, .draw.in .w { fill-opacity: 1; }
 .draw.in .k, .draw.in .s, .draw.in .t { opacity: 1; }
+
+/* ---- Motion layer (all gated on no-preference; classes below are added by draw.js) ---- */
+.doodle .pkt { fill: var(--signal); stroke: none; }
+.draw:not(.in) .pkt { visibility: hidden; }
+@media (prefers-reduced-motion: no-preference) {
+  :root { --ease: cubic-bezier(0.22, 1, 0.36, 1); }
+
+  /* hero entrance */
+  @keyframes rise { from { opacity: 0; transform: translateY(16px); } }
+  .hero__inner > div > * { animation: rise 0.7s var(--ease) backwards; }
+  .hero__inner > div > :nth-child(2) { animation-delay: 0.08s; }
+  .hero__inner > div > :nth-child(3) { animation-delay: 0.16s; }
+  .hero__inner > div > :nth-child(4) { animation-delay: 0.24s; }
+
+  /* live hero: packets, blinking LEDs, cursor */
+  @keyframes blink { 50% { opacity: 0.15; } }
+  .draw.in .led { animation: blink 1.6s ease-in-out 2s infinite; }
+  .draw.in .led:nth-of-type(odd) { animation-delay: 2.6s; }
+  .draw.in .cur { animation: blink 1s steps(1) 2s infinite; }
+
+  /* scroll reveal */
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.6s var(--ease) var(--rd, 0s), transform 0.6s var(--ease) var(--rd, 0s); }
+  .reveal.in { opacity: 1; transform: none; }
+
+  /* hover micro-interactions */
+  .feature-card, .download-card { transition: border-color 0.2s, transform 0.25s var(--ease), opacity 0.6s var(--ease) var(--rd, 0s); }
+  .feature-card:hover, .download-card:hover { border-color: var(--signal); transform: translateY(-3px); }
+  .feature-card .icon { transition: transform 0.35s var(--ease); transform-origin: 30% 70%; }
+  .feature-card:hover .icon { transform: rotate(-6deg) scale(1.08); }
+  .btn { transition: background-color 0.15s, color 0.15s, border-color 0.15s, transform 0.15s; }
+  .btn:active { transform: translateY(1px); }
+  .site-nav__links a:not(.btn) { background: linear-gradient(var(--signal), var(--signal)) 12px calc(100% - 6px) / 0 2px no-repeat; transition: background-size 0.25s var(--ease), color 0.15s; }
+  .site-nav__links a:not(.btn):hover, .site-nav__links a.active { background-size: calc(100% - 24px) 2px; }
+  .tech-list li { transition: background-color 0.15s, color 0.15s, border-color 0.15s; }
+  .tech-list li:hover { background: var(--signal); border-color: var(--signal); color: #fff; }
+}
+.site-nav__links a.active { color: var(--signal); }
+.site-nav.scrolled { border-bottom-color: rgba(35, 31, 32, 0.28); }
+#progress { position: fixed; top: 0; left: 0; height: 2px; width: 100%; background: var(--signal); transform: scaleX(0); transform-origin: 0 0; z-index: 300; pointer-events: none; }
