@@ -670,8 +670,9 @@ export function DeployView({
       const detail = (event as CustomEvent<{ command?: string; name?: string; cwd?: string }>).detail;
       const toRun = detail?.command?.trim();
       if (!toRun || !window.serverOperator?.deployStartBg) return;
-      window.serverOperator
-        .deployStartBg({
+      // A lone run belongs in the terminal; only overlapping runs go to the background dock.
+      const runBg = () => window.serverOperator!
+        .deployStartBg!({
           serverId: currentServer.id,
           cwd: detail?.cwd || activeProjectPath || runCwd || currentServer.projectPath || currentServer.cwd,
           cmd: toRun,
@@ -686,6 +687,11 @@ export function DeployView({
           // fallback to terminal if bg fails
           runCommandInTerminalRef.current?.(toRun);
         });
+      if (!runCommandInTerminalRef.current) { runBg(); return; }
+      window.serverOperator.deployList?.().then((r) => {
+        const busy = r.ok && (r.jobs || []).some((j: any) => j.status === 'running');
+        if (busy) runBg(); else runCommandInTerminalRef.current?.(toRun);
+      }).catch(() => runCommandInTerminalRef.current?.(toRun));
     };
     window.addEventListener('deploy-run-command', handler as EventListener);
     return () => window.removeEventListener('deploy-run-command', handler as EventListener);
