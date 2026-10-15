@@ -24,7 +24,7 @@ type ScheduledCommand = {
   command: string;
   runAt: string;
   marker: string;
-  status: 'scheduled' | 'ran' | 'cancelled' | 'error';
+  status: 'scheduled' | 'running' | 'ran' | 'cancelled' | 'error';
   logPath: string | null;
   createdAt: string;
 };
@@ -35,7 +35,7 @@ function isLocalWorkspaceConnection(server: ServerConnection): boolean {
 
 function formatScheduledTime(iso: string): string {
   try {
-    return new Date(iso).toLocaleString();
+    return new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
   } catch {
     return iso;
   }
@@ -474,7 +474,7 @@ export function DeploySidebar({
   }, [loadScheduledCommands]);
 
   // While a job is pending, re-check every 30s so its notification lands soon after it fires
-  const hasPendingSchedule = scheduledCommands.some((r) => r.status === 'scheduled');
+  const hasPendingSchedule = scheduledCommands.some((r) => r.status === 'scheduled' || r.status === 'running');
   useEffect(() => {
     if (!hasPendingSchedule) return;
     const t = setInterval(() => void loadScheduledCommands(), 30000);
@@ -766,6 +766,8 @@ export function DeploySidebar({
                         className={`text-[11px] font-medium capitalize px-1.5 py-0.5 rounded-full ${
                           row.status === 'scheduled'
                             ? 'bg-accent/15 text-accent'
+                            : row.status === 'running'
+                              ? 'bg-amber-500/15 text-amber-400'
                             : row.status === 'ran'
                               ? 'bg-emerald-500/15 text-emerald-400'
                               : row.status === 'error'

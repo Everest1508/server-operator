@@ -221,7 +221,7 @@ export interface ServerOperatorAPI {
     command: string;
     runAt: string;
     marker: string;
-    status: 'scheduled' | 'ran' | 'cancelled' | 'error';
+    status: 'scheduled' | 'running' | 'ran' | 'cancelled' | 'error';
     logPath: string | null;
     createdAt: string;
   }>>;
@@ -233,7 +233,7 @@ export interface ServerOperatorAPI {
     marker: string;
     logPath?: string;
   }) => Promise<{ ok: boolean; id?: number; error?: string }>;
-  scheduleUpdateStatus: (opts: { id: number; status: 'scheduled' | 'ran' | 'cancelled' | 'error' }) => Promise<{ ok: boolean; error?: string }>;
+  scheduleUpdateStatus: (opts: { id: number; status: 'scheduled' | 'running' | 'ran' | 'cancelled' | 'error' }) => Promise<{ ok: boolean; error?: string }>;
   scheduleDelete: (opts: { id: number }) => Promise<{ ok: boolean; error?: string }>;
   loadFeaturesConfig: () => Promise<any>;
   saveFeaturesConfig: (config: any) => Promise<{ ok: boolean; error?: string }>;

@@ -18,6 +18,9 @@ function pad2(n: number): string {
   return String(n).padStart(2, '0');
 }
 
+/** The job's last log line, e.g. "[serop-exit:0]"; read back to learn the exit code. */
+export const EXIT_TAG = '[serop-exit:';
+
 export function scheduleLogPath(marker: string, isWindows: boolean): string {
   return isWindows ? `%TEMP%\\serop-scheduled-${marker}.log` : `~/.serop-scheduled/${marker}.log`;
 }
@@ -43,9 +46,11 @@ export function buildScheduleInstallCommand(command: string, runAt: Date, marker
   const cd = cwd ? `cd '${escapeShellSingleQuotes(cwd)}' || exit 1\n` : '';
   const script = `export PATH=$PATH:/usr/local/bin:/opt/homebrew/bin:$HOME/.local/bin\n${cd}${command}\n`;
   const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(script)));
+  // No % anywhere in the entry (cron would turn it into a newline). The entry removes itself
+  // first, so "marker gone" means "started"; the script then writes its exit code to the log.
   const tail =
-    ` * mkdir -p ~/.serop-scheduled; ( printf %s ${b64} | base64 -d | sh ) >> ${logPath} 2>&1 ; ` +
-    `(crontab -l 2>/dev/null | grep -v '${marker}' | crontab -) # serop:${marker}`;
+    ` * (crontab -l 2>/dev/null | grep -v '${marker}' | crontab -); mkdir -p ~/.serop-scheduled; ` +
+    `( echo ${b64} | base64 -d | sh; echo "${EXIT_TAG}$?]" ) >> ${logPath} 2>&1 # serop:${marker}`;
   return (
     `T=$(date -d @${epoch} '+%-M %-H %-d %-m' 2>/dev/null || date -r ${epoch} '+%-M %-H %-d %-m') && ` +
     `[ -n "$T" ] && (crontab -l 2>/dev/null; printf '%s\\n' "$T"'${escapeShellSingleQuotes(tail)}') | crontab -`
