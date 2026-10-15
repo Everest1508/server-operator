@@ -120,7 +120,7 @@ export function DateTimePicker({ value, onChange, ariaLabel }: Props) {
       {open && createPortal(
         <div
           ref={popRef}
-          className="fixed z-[99999] w-[260px] rounded-xl border border-border/40 bg-bg-tertiary shadow-2xl p-3 font-sans text-xs text-text-primary"
+          className="fixed z-[99999] w-[260px] rounded-xl border border-border/40 popover-surface shadow-2xl p-3 font-sans text-xs text-text-primary"
           style={{ top: pos?.top ?? 0, left: pos?.left ?? 0, opacity: pos ? 1 : 0 }}
         >
           <div className="flex items-center justify-between mb-2">

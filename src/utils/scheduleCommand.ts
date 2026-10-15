@@ -37,12 +37,14 @@ export function buildScheduleInstallCommand(command: string, runAt: Date, marker
   // cron fires on the target's clock/timezone (a VPS is usually UTC), so let the
   // target turn the absolute moment into its own "min hour day month" fields.
   const epoch = Math.floor(runAt.getTime() / 1000);
-  // cron starts in $HOME with a bare PATH, so cd into the project, widen PATH,
-  // and escape % (cron treats an unescaped % as a newline).
-  const cd = cwd ? `cd '${escapeShellSingleQuotes(cwd)}' && ` : '';
-  const body = `export PATH=$PATH:/usr/local/bin:/opt/homebrew/bin:$HOME/.local/bin; ${cd}${command}`.replace(/%/g, '\\%');
+  // cron starts in $HOME with a bare PATH, so cd into the project and widen PATH.
+  // The script travels base64-encoded: a crontab entry is one line and treats % as a
+  // newline, so multi-line shortcuts, quotes and % would otherwise corrupt it.
+  const cd = cwd ? `cd '${escapeShellSingleQuotes(cwd)}' || exit 1\n` : '';
+  const script = `export PATH=$PATH:/usr/local/bin:/opt/homebrew/bin:$HOME/.local/bin\n${cd}${command}\n`;
+  const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(script)));
   const tail =
-    ` * mkdir -p ~/.serop-scheduled; ( ${body} ) >> ${logPath} 2>&1 ; ` +
+    ` * mkdir -p ~/.serop-scheduled; ( printf %s ${b64} | base64 -d | sh ) >> ${logPath} 2>&1 ; ` +
     `(crontab -l 2>/dev/null | grep -v '${marker}' | crontab -) # serop:${marker}`;
   return (
     `T=$(date -d @${epoch} '+%-M %-H %-d %-m' 2>/dev/null || date -r ${epoch} '+%-M %-H %-d %-m') && ` +
