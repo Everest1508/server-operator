@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarClock, ChevronDown, Copy, FolderTree, Loader2, Play, Trash2, Wand2, X } from 'lucide-react';
 import type { ProxySettings, ServerConnection } from '../types';
 import { joinRemotePath } from '../utils/remotePath';
+import { pushNotification } from '../utils/notifications';
 import { DateTimePicker } from './DateTimePicker';
 import { buildScheduleCancelCommand, buildScheduleCheckCommand, buildScheduleInstallCommand } from '../utils/scheduleCommand';
 import { Select } from './Select';
@@ -482,6 +483,12 @@ export function DeploySidebar({
           if (check.ok && (check.stdout || '').includes('NONE')) {
             await window.serverOperator.scheduleUpdateStatus({ id: row.id, status: 'ran' });
             row.status = 'ran';
+            pushNotification({
+              id: `sched-${row.id}`,
+              kind: 'success',
+              title: 'Scheduled command finished',
+              message: `${row.serverName || currentServer.name}: ${row.command}`,
+            });
           }
         })
     );
@@ -491,6 +498,14 @@ export function DeploySidebar({
   useEffect(() => {
     void loadScheduledCommands();
   }, [loadScheduledCommands]);
+
+  // While a job is pending, re-check every 30s so its notification lands soon after it fires
+  const hasPendingSchedule = scheduledCommands.some((r) => r.status === 'scheduled');
+  useEffect(() => {
+    if (!hasPendingSchedule) return;
+    const t = setInterval(() => void loadScheduledCommands(), 30000);
+    return () => clearInterval(t);
+  }, [hasPendingSchedule, loadScheduledCommands]);
 
   const handleScheduleCommand = async () => {
     if (!window.serverOperator || !currentServer) return;
