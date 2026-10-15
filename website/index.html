@@ -61,7 +61,7 @@
       "url": "https://server-operator-zeta.vercel.app/",
       "downloadUrl": "https://github.com/Everest1508/server-operator/releases/latest",
       "license": "https://www.apache.org/licenses/LICENSE-2.0",
-      "softwareVersion": "2.7.1",
+      "softwareVersion": "2.7.2",
       "isAccessibleForFree": true,
       "image": "https://server-operator-zeta.vercel.app/logo.png",
       "author": {
@@ -405,15 +405,15 @@
 
       <section class="section" id="whats-new" aria-labelledby="whats-new-heading">
         <div class="section__inner">
-          <h2 class="section__title" id="whats-new-heading">What’s New in 2.7.1</h2>
+          <h2 class="section__title" id="whats-new-heading">What’s New in 2.7.2</h2>
           <p class="section__subtitle">
-            Scheduled commands now really run: they start in your project folder with a full PATH, and the date and time picker matches the app theme. A single deploy shortcut runs in the deploy terminal.
+            Scheduled commands now fire at the time you picked even when the server is in another timezone, and Serop shows the real error when the job could not be installed.
           </p>
           <div class="release-card">
             <div class="release-card__header">
               <div>
-                <span class="release-badge">v2.7.1</span>
-                <h3>Right on Time</h3>
+                <span class="release-badge">v2.7.2</span>
+                <h3>Clockwork</h3>
               </div>
               <p>2026-10-15</p>
             </div>
@@ -421,14 +421,8 @@
               <article class="release-block">
                 <h4>Scheduled commands</h4>
                 <ul>
-                  <li>Scheduled commands ran from the home folder with a bare PATH, so project commands such as docker compose or ./deploy.sh failed without any message. They now start in your project folder with the usual tool folders on PATH, and a % in a command no longer cuts it short. Schedule existing jobs again to get the fix.</li>
-                  <li>A built-in date and time picker replaces the white browser one, with a calendar, hour and minute buttons and AM/PM, in the app theme.</li>
-                </ul>
-              </article>
-              <article class="release-block">
-                <h4>Deploy</h4>
-                <ul>
-                  <li>Running a single shortcut now shows in the deploy terminal. The deploy panel in the corner only appears when runs overlap.</li>
+                  <li>Cron runs on the server's clock, so on a server in UTC a time picked in your timezone fired hours late. The server now converts the exact moment you picked into its own time. Cancel and schedule existing jobs again to get the fix.</li>
+                  <li>A failed crontab install still showed Scheduled. It now shows the error, for example when crontab is missing on the server.</li>
                 </ul>
               </article>
             </div>
@@ -515,7 +509,7 @@
 
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.7.1</span></p>
+        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.7.2</span></p>
         <div class="site-footer__links">
           <a href="https://github.com/everest1508/server-operator">GitHub</a>
           <a href="https://github.com/everest1508/server-operator/issues">Issues</a>

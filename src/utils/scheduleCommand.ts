@@ -34,20 +34,20 @@ export function buildScheduleInstallCommand(command: string, runAt: Date, marker
     return `schtasks /create /tn "${taskName}" /sc once /sd ${sd} /st ${st} /f /tr "${inner.replace(/"/g, '\\"')}"`;
   }
 
-  const minute = runAt.getMinutes();
-  const hour = runAt.getHours();
-  const day = runAt.getDate();
-  const month = runAt.getMonth() + 1;
+  // cron fires on the target's clock/timezone (a VPS is usually UTC), so let the
+  // target turn the absolute moment into its own "min hour day month" fields.
+  const epoch = Math.floor(runAt.getTime() / 1000);
   // cron starts in $HOME with a bare PATH, so cd into the project, widen PATH,
   // and escape % (cron treats an unescaped % as a newline).
   const cd = cwd ? `cd '${escapeShellSingleQuotes(cwd)}' && ` : '';
   const body = `export PATH=$PATH:/usr/local/bin:/opt/homebrew/bin:$HOME/.local/bin; ${cd}${command}`.replace(/%/g, '\\%');
-  const cronLine =
-    `${minute} ${hour} ${day} ${month} * ` +
-    `mkdir -p ~/.serop-scheduled; ( ${body} ) >> ${logPath} 2>&1 ; ` +
+  const tail =
+    ` * mkdir -p ~/.serop-scheduled; ( ${body} ) >> ${logPath} 2>&1 ; ` +
     `(crontab -l 2>/dev/null | grep -v '${marker}' | crontab -) # serop:${marker}`;
-  const escaped = escapeShellSingleQuotes(cronLine);
-  return `(crontab -l 2>/dev/null; echo '${escaped}') | crontab -`;
+  return (
+    `T=$(date -d @${epoch} '+%-M %-H %-d %-m' 2>/dev/null || date -r ${epoch} '+%-M %-H %-d %-m') && ` +
+    `[ -n "$T" ] && (crontab -l 2>/dev/null; printf '%s\\n' "$T"'${escapeShellSingleQuotes(tail)}') | crontab -`
+  );
 }
 
 export function buildScheduleCancelCommand(marker: string, isWindows: boolean): string {

@@ -23,6 +23,24 @@ export interface ChangelogVersion {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: '2.7.2',
+    codename: 'Clockwork',
+    date: '2026-10-15',
+    summary:
+      'Scheduled commands now fire at the time you picked even when the server is in another timezone, and Serop shows the real error when the job could not be installed.',
+    groups: [
+      {
+        label: 'Scheduled commands',
+        icon: History,
+        color: '#f0abfc',
+        items: [
+          { type: 'fix', text: 'Cron runs on the server\'s clock, so on a server in UTC a time picked in your timezone fired hours late. The server now converts the exact moment you picked into its own time. Cancel and schedule existing jobs again to get the fix.' },
+          { type: 'fix', text: 'A failed crontab install still showed Scheduled. It now shows the error, for example when crontab is missing on the server.' },
+        ],
+      },
+    ],
+  },
+  {
     version: '2.7.1',
     codename: 'Right on Time',
     date: '2026-10-15',

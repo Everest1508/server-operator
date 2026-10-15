@@ -106,6 +106,29 @@
 <path class="a" d="M62 56l8 8 14-16M62 104l8 8 14-16M62 152l8 8 14-16"/>
 <path class="l" d="M104 56h110M104 104h110M104 152h80"/></g></svg></div>
 
+          <!-- 2.7.2 — Clockwork -->
+          <div class="release-card" style="margin-bottom: 32px;">
+            <div class="release-card__header">
+              <div>
+                <span class="release-badge">v2.7.2</span>
+                <h3>Clockwork</h3>
+              </div>
+              <p>2026-10-15</p>
+            </div>
+            <p style="color: var(--ash); font-size: 15px; margin: 0 0 24px;">
+              Scheduled commands now fire at the time you picked even when the server is in another timezone, and Serop shows the real error when the job could not be installed.
+            </p>
+            <div class="release-grid">
+              <article class="release-block">
+                <h4>Scheduled commands</h4>
+                <ul>
+                  <li>Cron runs on the server's clock, so on a server in UTC a time picked in your timezone fired hours late. The server now converts the exact moment you picked into its own time. Cancel and schedule existing jobs again to get the fix.</li>
+                  <li>A failed crontab install still showed Scheduled. It now shows the error, for example when crontab is missing on the server.</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+
           <!-- 2.7.1 — Right on Time -->
           <div class="release-card" style="margin-bottom: 32px;">
             <div class="release-card__header">
@@ -685,7 +708,7 @@
 
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.7.1</span></p>
+        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.7.2</span></p>
         <div class="site-footer__links">
           <a href="https://github.com/everest1508/server-operator">GitHub</a>
           <a href="https://github.com/everest1508/server-operator/issues">Issues</a>

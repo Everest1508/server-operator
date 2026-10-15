@@ -529,7 +529,7 @@ export function DeploySidebar({
         command: installCmd,
         proxy: proxy.enabled ? proxy : undefined,
       });
-      if (!installRes.ok) {
+      if (!installRes.ok || (installRes.code ?? 0) !== 0) {
         setScheduleError(installRes.error || installRes.stderr || 'Failed to install the scheduled job (is crontab available on the target?).');
         return;
       }
