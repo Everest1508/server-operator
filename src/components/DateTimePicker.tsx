@@ -22,6 +22,33 @@ function format(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/** Two-digit number box: type freely, commits when the draft is a valid in-range number; arrow keys step. */
+function TimeField({ value, min, max, onCommit }: { value: number; min: number; max: number; onCommit: (n: number) => void }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const commit = (raw: string) => {
+    const n = parseInt(raw, 10);
+    if (!Number.isNaN(n) && n >= min && n <= max) onCommit(n);
+  };
+  return (
+    <input
+      inputMode="numeric"
+      maxLength={2}
+      value={draft ?? pad(value)}
+      onFocus={(e) => e.currentTarget.select()}
+      onChange={(e) => { const v = e.target.value.replace(/\D/g, ''); setDraft(v); commit(v); }}
+      onBlur={() => setDraft(null)}
+      onKeyDown={(e) => {
+        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+        e.preventDefault();
+        const n = value + (e.key === 'ArrowUp' ? 1 : -1);
+        onCommit(n > max ? min : n < min ? max : n);
+        setDraft(null);
+      }}
+      className="w-9 h-7 rounded-md bg-bg-primary/50 border border-border/30 text-center text-[12px] focus:outline-none focus:border-accent/60"
+    />
+  );
+}
+
 export function DateTimePicker({ value, onChange, ariaLabel }: Props) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
@@ -78,9 +105,6 @@ export function DateTimePicker({ value, onChange, ariaLabel }: Props) {
     ? `${pad(sel.getDate())} ${MONTHS[sel.getMonth()].slice(0, 3)} ${sel.getFullYear()}, ${pad(h12)}:${pad(sel.getMinutes())} ${pm ? 'PM' : 'AM'}`
     : 'Pick date & time';
 
-  const chip = (active: boolean) =>
-    `h-6 rounded-md text-[11px] transition-colors ${active ? 'bg-accent text-white' : 'text-text-secondary hover:bg-bg-primary/60'}`;
-
   return (
     <div className="w-full">
       <button
@@ -96,7 +120,7 @@ export function DateTimePicker({ value, onChange, ariaLabel }: Props) {
       {open && createPortal(
         <div
           ref={popRef}
-          className="fixed z-[99999] w-[260px] rounded-xl border border-border/40 bg-bg-tertiary/95 shadow-2xl backdrop-blur-md p-3 font-sans text-xs text-text-primary"
+          className="fixed z-[99999] w-[260px] rounded-xl border border-border/40 bg-bg-tertiary shadow-2xl p-3 font-sans text-xs text-text-primary"
           style={{ top: pos?.top ?? 0, left: pos?.left ?? 0, opacity: pos ? 1 : 0 }}
         >
           <div className="flex items-center justify-between mb-2">
@@ -125,22 +149,14 @@ export function DateTimePicker({ value, onChange, ariaLabel }: Props) {
               );
             })}
           </div>
-          <div className="mt-3 pt-3 border-t border-border/30 flex gap-1.5">
-            <div className="grid grid-cols-6 gap-0.5 flex-1">
-              {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
-                <button key={h} type="button" className={chip(sel !== null && h === h12)} onClick={() => setTime(h, base.getMinutes(), pm)}>{pad(h)}</button>
-              ))}
-            </div>
-          </div>
-          <div className="mt-1.5 flex gap-1.5">
-            <div className="grid grid-cols-6 gap-0.5 flex-1">
-              {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => (
-                <button key={m} type="button" className={chip(sel !== null && Math.floor(base.getMinutes() / 5) * 5 === m)} onClick={() => setTime(h12, m, pm)}>{pad(m)}</button>
-              ))}
-            </div>
-            <div className="flex flex-col gap-0.5 w-9">
-              <button type="button" className={chip(sel !== null && !pm)} onClick={() => setTime(h12, base.getMinutes(), false)}>AM</button>
-              <button type="button" className={chip(sel !== null && pm)} onClick={() => setTime(h12, base.getMinutes(), true)}>PM</button>
+          <div className="mt-3 pt-3 border-t border-border/30 flex items-center gap-2">
+            <span className="text-text-secondary mr-auto">Time</span>
+            <TimeField value={h12} min={1} max={12} onCommit={(h) => setTime(h, base.getMinutes(), pm)} />
+            <span className="text-text-secondary">:</span>
+            <TimeField value={base.getMinutes()} min={0} max={59} onCommit={(m) => setTime(h12, m, pm)} />
+            <div className="flex rounded-md overflow-hidden border border-border/30">
+              <button type="button" className={`px-2 h-7 text-[11px] ${!pm ? 'bg-accent text-white' : 'text-text-secondary hover:bg-bg-primary/60'}`} onClick={() => setTime(h12, base.getMinutes(), false)}>AM</button>
+              <button type="button" className={`px-2 h-7 text-[11px] ${pm ? 'bg-accent text-white' : 'text-text-secondary hover:bg-bg-primary/60'}`} onClick={() => setTime(h12, base.getMinutes(), true)}>PM</button>
             </div>
           </div>
           <div className="mt-2 flex justify-between">
