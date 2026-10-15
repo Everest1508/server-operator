@@ -61,7 +61,7 @@
       "url": "https://server-operator-zeta.vercel.app/",
       "downloadUrl": "https://github.com/Everest1508/server-operator/releases/latest",
       "license": "https://www.apache.org/licenses/LICENSE-2.0",
-      "softwareVersion": "2.7.0",
+      "softwareVersion": "2.7.1",
       "isAccessibleForFree": true,
       "image": "https://server-operator-zeta.vercel.app/logo.png",
       "author": {
@@ -405,53 +405,30 @@
 
       <section class="section" id="whats-new" aria-labelledby="whats-new-heading">
         <div class="section__inner">
-          <h2 class="section__title" id="whats-new-heading">What’s New in 2.7.0</h2>
+          <h2 class="section__title" id="whats-new-heading">What’s New in 2.7.1</h2>
           <p class="section__subtitle">
-            Terminals come in full colour and gain search, clickable links and split view. Jump to any file with Cmd/Ctrl+P, drag files onto the file tree to upload them, and preview images and PDFs. A new Git tab shows what is on the server, the database editor keeps your query history, and a notification centre keeps deploy results.
+            Scheduled commands now really run: they start in your project folder with a full PATH, and the date and time picker matches the app theme. A single deploy shortcut runs in the deploy terminal.
           </p>
           <div class="release-card">
             <div class="release-card__header">
               <div>
-                <span class="release-badge">v2.7.0</span>
-                <h3>Full Spectrum</h3>
+                <span class="release-badge">v2.7.1</span>
+                <h3>Right on Time</h3>
               </div>
-              <p>2026-10-14</p>
+              <p>2026-10-15</p>
             </div>
             <div class="release-grid">
               <article class="release-block">
-                <h4>Terminal</h4>
+                <h4>Scheduled commands</h4>
                 <ul>
-                  <li>Terminals on servers had no colours, because Serop opened them as a plain vt100 terminal. They now open as a full 256-colour terminal, with a colour palette that follows your theme.</li>
-                  <li>When the server's prompt has no colours of its own, the session gets a coloured prompt and coloured ls and grep. Custom prompts such as Ubuntu's, oh-my-zsh or starship are left alone, and nothing on the server is changed.</li>
-                  <li>Resizing the terminal panel never reached the server, so long lines and full-screen tools wrapped at 80 columns. The server now always knows the real size.</li>
+                  <li>Scheduled commands ran from the home folder with a bare PATH, so project commands such as docker compose or ./deploy.sh failed without any message. They now start in your project folder with the usual tool folders on PATH, and a % in a command no longer cuts it short. Schedule existing jobs again to get the fix.</li>
+                  <li>A built-in date and time picker replaces the white browser one, with a calendar, hour and minute buttons and AM/PM, in the app theme.</li>
                 </ul>
               </article>
               <article class="release-block">
-                <h4>Files</h4>
+                <h4>Deploy</h4>
                 <ul>
-                  <li>Go to any file on the server with Cmd/Ctrl+P (File, Go to File). It matches as you type, skips folders like node_modules, and lists recent files.</li>
-                  <li>Drag files from Finder or Explorer onto the file tree to upload them into that folder. On a production server you confirm with its name first.</li>
-                  <li>Images and PDFs open as a preview. A path bar above the editor shows where the file is, reveals its folders in the tree and copies the full path.</li>
-                </ul>
-              </article>
-              <article class="release-block">
-                <h4>Git</h4>
-                <ul>
-                  <li>A Git tab in Deploy shows the server's branch, how far it is ahead of or behind upstream, uncommitted changes with their diffs, and recent commits with their patches.</li>
-                  <li>Fetch, pull (fast-forward only), stash all changes, or discard the changes to one file. Risky actions ask first, and production servers ask for their name.</li>
-                </ul>
-              </article>
-              <article class="release-block">
-                <h4>Database</h4>
-                <ul>
-                  <li>Select part of the SQL to run only that part, and run with Cmd/Ctrl+Enter.</li>
-                  <li>Every query you run is kept in History for that server and database, with row counts, timings and failures. Save queries you use often by name.</li>
-                </ul>
-              </article>
-              <article class="release-block">
-                <h4>Notifications</h4>
-                <ul>
-                  <li>A bell in the title bar keeps finished, failed and cancelled deploys and connection problems, even after a restart. Click a deploy to open its output again.</li>
+                  <li>Running a single shortcut now shows in the deploy terminal. The deploy panel in the corner only appears when runs overlap.</li>
                 </ul>
               </article>
             </div>
@@ -538,7 +515,7 @@
 
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.7.0</span></p>
+        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.7.1</span></p>
         <div class="site-footer__links">
           <a href="https://github.com/everest1508/server-operator">GitHub</a>
           <a href="https://github.com/everest1508/server-operator/issues">Issues</a>

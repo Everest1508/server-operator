@@ -23,6 +23,32 @@ export interface ChangelogVersion {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: '2.7.1',
+    codename: 'Right on Time',
+    date: '2026-10-15',
+    summary:
+      'Scheduled commands now really run: they start in your project folder with a full PATH, and the date and time picker matches the app theme. A single deploy shortcut runs in the deploy terminal.',
+    groups: [
+      {
+        label: 'Scheduled commands',
+        icon: History,
+        color: '#f0abfc',
+        items: [
+          { type: 'fix', text: 'Scheduled commands ran from the home folder with a bare PATH, so project commands such as docker compose or ./deploy.sh failed without any message. They now start in your project folder with the usual tool folders on PATH, and a % in a command no longer cuts it short. Schedule existing jobs again to get the fix.' },
+          { type: 'feat', text: 'A built-in date and time picker replaces the white browser one, with a calendar, hour and minute buttons and AM/PM, in the app theme.' },
+        ],
+      },
+      {
+        label: 'Deploy',
+        icon: GitBranch,
+        color: '#4ec9b0',
+        items: [
+          { type: 'improve', text: 'Running a single shortcut now shows in the deploy terminal. The deploy panel in the corner only appears when runs overlap.' },
+        ],
+      },
+    ],
+  },
+  {
     version: '2.7.0',
     codename: 'Full Spectrum',
     date: '2026-10-14',

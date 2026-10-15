@@ -22,14 +22,15 @@ export function scheduleLogPath(marker: string, isWindows: boolean): string {
   return isWindows ? `%TEMP%\\serop-scheduled-${marker}.log` : `~/.serop-scheduled/${marker}.log`;
 }
 
-export function buildScheduleInstallCommand(command: string, runAt: Date, marker: string, isWindows: boolean): string {
+export function buildScheduleInstallCommand(command: string, runAt: Date, marker: string, isWindows: boolean, cwd?: string): string {
   const logPath = scheduleLogPath(marker, isWindows);
 
   if (isWindows) {
     const taskName = `Serop_${marker}`;
     const sd = `${pad2(runAt.getMonth() + 1)}/${pad2(runAt.getDate())}/${runAt.getFullYear()}`;
     const st = `${pad2(runAt.getHours())}:${pad2(runAt.getMinutes())}`;
-    const inner = `cmd /c (${command}) >> "${logPath}" 2>&1 & schtasks /delete /tn "${taskName}" /f`;
+    const run = cwd ? `cd /d \"${cwd}\" && ${command}` : command;
+    const inner = `cmd /c (${run}) >> "${logPath}" 2>&1 & schtasks /delete /tn "${taskName}" /f`;
     return `schtasks /create /tn "${taskName}" /sc once /sd ${sd} /st ${st} /f /tr "${inner.replace(/"/g, '\\"')}"`;
   }
 
@@ -37,9 +38,13 @@ export function buildScheduleInstallCommand(command: string, runAt: Date, marker
   const hour = runAt.getHours();
   const day = runAt.getDate();
   const month = runAt.getMonth() + 1;
+  // cron starts in $HOME with a bare PATH, so cd into the project, widen PATH,
+  // and escape % (cron treats an unescaped % as a newline).
+  const cd = cwd ? `cd '${escapeShellSingleQuotes(cwd)}' && ` : '';
+  const body = `export PATH=$PATH:/usr/local/bin:/opt/homebrew/bin:$HOME/.local/bin; ${cd}${command}`.replace(/%/g, '\\%');
   const cronLine =
     `${minute} ${hour} ${day} ${month} * ` +
-    `mkdir -p ~/.serop-scheduled; ( ${command} ) >> ${logPath} 2>&1 ; ` +
+    `mkdir -p ~/.serop-scheduled; ( ${body} ) >> ${logPath} 2>&1 ; ` +
     `(crontab -l 2>/dev/null | grep -v '${marker}' | crontab -) # serop:${marker}`;
   const escaped = escapeShellSingleQuotes(cronLine);
   return `(crontab -l 2>/dev/null; echo '${escaped}') | crontab -`;

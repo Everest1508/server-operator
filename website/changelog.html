@@ -106,6 +106,35 @@
 <path class="a" d="M62 56l8 8 14-16M62 104l8 8 14-16M62 152l8 8 14-16"/>
 <path class="l" d="M104 56h110M104 104h110M104 152h80"/></g></svg></div>
 
+          <!-- 2.7.1 — Right on Time -->
+          <div class="release-card" style="margin-bottom: 32px;">
+            <div class="release-card__header">
+              <div>
+                <span class="release-badge">v2.7.1</span>
+                <h3>Right on Time</h3>
+              </div>
+              <p>2026-10-15</p>
+            </div>
+            <p style="color: var(--ash); font-size: 15px; margin: 0 0 24px;">
+              Scheduled commands now really run: they start in your project folder with a full PATH, and the date and time picker matches the app theme. A single deploy shortcut runs in the deploy terminal.
+            </p>
+            <div class="release-grid">
+              <article class="release-block">
+                <h4>Scheduled commands</h4>
+                <ul>
+                  <li>Scheduled commands ran from the home folder with a bare PATH, so project commands such as docker compose or ./deploy.sh failed without any message. They now start in your project folder with the usual tool folders on PATH, and a % in a command no longer cuts it short. Schedule existing jobs again to get the fix.</li>
+                  <li>A built-in date and time picker replaces the white browser one, with a calendar, hour and minute buttons and AM/PM, in the app theme.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Deploy</h4>
+                <ul>
+                  <li>Running a single shortcut now shows in the deploy terminal. The deploy panel in the corner only appears when runs overlap.</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+
           <!-- 2.7.0 — Full Spectrum -->
           <div class="release-card" style="margin-bottom: 32px;">
             <div class="release-card__header">
@@ -656,7 +685,7 @@
 
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.7.0</span></p>
+        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.7.1</span></p>
         <div class="site-footer__links">
           <a href="https://github.com/everest1508/server-operator">GitHub</a>
           <a href="https://github.com/everest1508/server-operator/issues">Issues</a>

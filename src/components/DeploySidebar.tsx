@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarClock, ChevronDown, Copy, FolderTree, Loader2, Play, Trash2, Wand2, X } from 'lucide-react';
 import type { ProxySettings, ServerConnection } from '../types';
 import { joinRemotePath } from '../utils/remotePath';
+import { DateTimePicker } from './DateTimePicker';
 import { buildScheduleCancelCommand, buildScheduleCheckCommand, buildScheduleInstallCommand } from '../utils/scheduleCommand';
 import { Select } from './Select';
 import { Button } from './ui/Button';
@@ -522,7 +523,7 @@ export function DeploySidebar({
     try {
       const isWindows = isLocalWorkspaceConnection(currentServer) && window.serverOperator.platform === 'win32';
       const marker = (typeof crypto !== 'undefined' && 'randomUUID' in crypto) ? (crypto as any).randomUUID() : 'serop-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8);
-      const installCmd = buildScheduleInstallCommand(command, runAtDate, marker, isWindows);
+      const installCmd = buildScheduleInstallCommand(command, runAtDate, marker, isWindows, activeProjectPath || undefined);
       const installRes = await window.serverOperator.runCommand({
         connection: currentServer,
         command: installCmd,
@@ -752,13 +753,7 @@ export function DeploySidebar({
                 {seropShortcuts.find((s) => s.id === scheduleSource)?.command}
               </p>
             )}
-            <input
-              type="datetime-local"
-              aria-label="Run at"
-              value={scheduleRunAt}
-              onChange={(e) => setScheduleRunAt(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-primary"
-            />
+            <DateTimePicker ariaLabel="Run at" value={scheduleRunAt} onChange={setScheduleRunAt} />
             <Button variant="solid" size="sm" onClick={handleScheduleCommand} disabled={scheduleBusy || !currentServer}>
               {scheduleBusy ? <Loader2 size={11} className="animate-spin" /> : <CalendarClock size={11} />}
               Schedule
