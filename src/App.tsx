@@ -26,6 +26,7 @@ import { parseLsLine } from './utils/parseLs';
 import { resolveRemotePath } from './utils/remotePath';
 import { loadProjectContext } from './utils/loadProjectContext';
 import { confirmDialog, setConfirmServer } from './utils/confirm';
+import { useScheduleWatcher } from './utils/useScheduleWatcher';
 
 const STORAGE_KEY_PROXY = 'server-operator-proxy';
 const STORAGE_KEY_REPOS = 'server-operator:repos';
@@ -345,6 +346,7 @@ export default function App() {
   const [serversReady, setServersReady] = useState(false);
   const [proxy, setProxy] = useState<ProxySettings>(() => loadProxy());
   const proxyRef = useRef(proxy);
+  useScheduleWatcher(servers, proxy);
   proxyRef.current = proxy; // always use latest when Connect is clicked (avoids stale closure)
   const [connectingTo, setConnectingTo] = useState<string | null>(null);
   const [connectingToServer, setConnectingToServer] = useState<ServerConnection | null>(null);

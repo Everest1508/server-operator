@@ -4,7 +4,7 @@ import type { ProxySettings, ServerConnection } from '../types';
 import { joinRemotePath } from '../utils/remotePath';
 import { pushNotification } from '../utils/notifications';
 import { DateTimePicker } from './DateTimePicker';
-import { buildScheduleCancelCommand, buildScheduleCheckCommand, buildScheduleInstallCommand } from '../utils/scheduleCommand';
+import { buildScheduleCancelCommand, buildScheduleInstallCommand } from '../utils/scheduleCommand';
 import { Select } from './Select';
 import { Button } from './ui/Button';
 import { Textarea } from './ui/Textarea';
@@ -466,32 +466,6 @@ export function DeploySidebar({
     }
     const rows = await window.serverOperator.scheduleList({ serverId: currentServer.id });
 
-    // Best-effort: for anything still marked "scheduled" but past its run
-    // time, check whether the marker is still installed on the target — if
-    // it's gone, the one-time job already fired (or was removed elsewhere).
-    const now = Date.now();
-    const isWindows = isLocalWorkspaceConnection(currentServer) && window.serverOperator.platform === 'win32';
-    await Promise.all(
-      rows
-        .filter((row) => row.status === 'scheduled' && new Date(row.runAt).getTime() < now)
-        .map(async (row) => {
-          const check = await window.serverOperator.runCommand({
-            connection: currentServer,
-            command: buildScheduleCheckCommand(row.marker, isWindows),
-            proxy: proxy.enabled ? proxy : undefined,
-          });
-          if (check.ok && (check.stdout || '').includes('NONE')) {
-            await window.serverOperator.scheduleUpdateStatus({ id: row.id, status: 'ran' });
-            row.status = 'ran';
-            pushNotification({
-              id: `sched-${row.id}`,
-              kind: 'success',
-              title: 'Scheduled command finished',
-              message: `${row.serverName || currentServer.name}: ${row.command}`,
-            });
-          }
-        })
-    );
     setScheduledCommands(rows);
   }, [currentServer, proxy]);
 
@@ -560,6 +534,11 @@ export function DeploySidebar({
         return;
       }
       setScheduleMessage(`Scheduled for ${formatScheduledTime(runAtDate.toISOString())}.`);
+      pushNotification({
+        kind: 'info',
+        title: 'Command scheduled',
+        message: `${currentServer.name}: ${command.split('\n')[0]}\nRuns ${formatScheduledTime(runAtDate.toISOString())}. You will get a notification when it has run.`,
+      });
       setScheduleCustomCommand('');
       setScheduleRunAt('');
       await loadScheduledCommands();

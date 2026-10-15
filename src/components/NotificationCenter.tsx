@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Bell, CheckCircle2, AlertTriangle, XCircle, Info } from 'lucide-react';
 import { FloatingMenu } from './FloatingMenu';
 import {
@@ -34,6 +35,18 @@ export function NotificationCenter() {
   const [open, setOpen] = useState(false);
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const anchorRef = useRef<HTMLDivElement>(null);
+  const [toast, setToast] = useState<AppNotification | null>(null);
+  const lastSeen = useRef(items[0]?.at ?? 0);
+  const newest = items[0];
+
+  // Pop a toast for anything that arrives while the app is open, so results are not missed
+  useEffect(() => {
+    if (!newest || newest.at <= lastSeen.current) return;
+    lastSeen.current = newest.at;
+    setToast(newest);
+    const t = setTimeout(() => setToast(null), 8000);
+    return () => clearTimeout(t);
+  }, [newest]);
   const unread = items.filter((n) => !n.read).length;
 
   useEffect(() => {
@@ -81,6 +94,19 @@ export function NotificationCenter() {
           </span>
         )}
       </button>
+      {toast && createPortal(
+        <div
+          role="status"
+          onClick={() => setToast(null)}
+          className="fixed top-12 right-4 z-[99999] w-[340px] max-w-[calc(100vw-2rem)] flex items-start gap-2.5 px-3.5 py-3 rounded-xl popover-surface border border-border/40 shadow-2xl cursor-pointer"
+        >
+          {ICONS[toast.kind]}
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs font-semibold text-text-primary">{toast.title}</span>
+            {toast.message && <span className="block text-[11px] text-text-secondary mt-0.5 whitespace-pre-line break-words line-clamp-5">{toast.message}</span>}
+          </span>
+        </div>
+      , document.body)}
       {open && (
         <FloatingMenu anchorRef={anchorRef} align="right" className="w-[340px] max-w-[calc(100vw-1rem)] rounded-xl border border-border/40 popover-surface shadow-2xl overflow-hidden">
           <div role="dialog" aria-label="Notifications">
@@ -112,7 +138,7 @@ export function NotificationCenter() {
                           <span className="text-xs font-semibold text-text-primary truncate">{n.title}</span>
                           <span className="text-[10px] text-text-muted shrink-0">{timeAgo(n.at)}</span>
                         </span>
-                        {n.message && <span className="block text-[11px] text-text-secondary mt-0.5 line-clamp-2 break-words">{n.message}</span>}
+                        {n.message && <span className="block text-[11px] text-text-secondary mt-0.5 line-clamp-3 whitespace-pre-line break-words">{n.message}</span>}
                       </span>
                     </button>
                   </li>
