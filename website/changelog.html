@@ -106,6 +106,33 @@
 <path class="a" d="M62 56l8 8 14-16M62 104l8 8 14-16M62 152l8 8 14-16"/>
 <path class="l" d="M104 56h110M104 104h110M104 152h80"/></g></svg></div>
 
+          <!-- 2.8.0 — Countdown -->
+          <div class="release-card" style="margin-bottom: 32px;">
+            <div class="release-card__header">
+              <div>
+                <span class="release-badge">v2.8.0</span>
+                <h3>Countdown</h3>
+              </div>
+              <p>2026-10-15</p>
+            </div>
+            <p style="color: var(--ash); font-size: 15px; margin: 0 0 24px;">
+              Scheduled commands now show a live toast: a countdown to the start, then the job's output as it runs, then the result with its exit code. You can cancel a schedule before it starts or stop a running job. Multi-line shortcuts now schedule correctly, and the date and time picker is easier to use.
+            </p>
+            <div class="release-grid">
+              <article class="release-block">
+                <h4>Scheduled commands</h4>
+                <ul>
+                  <li>Shortcuts with several lines, or with quotes or a % sign, broke the schedule, and Serop still said Scheduled. They now schedule correctly, and an install that fails shows its error.</li>
+                  <li>A toast counts down to the start of a scheduled command, then shows its output as it runs (refreshed every 2 seconds) and ends with finished or failed and the exit code.</li>
+                  <li>Stop a running scheduled command from the toast or the sidebar, or cancel a schedule from the toast before it starts.</li>
+                  <li>Started, finished and failed notifications arrive as a toast, a bell entry and a system notification, from whichever screen you are on. If a job is still waiting in cron two minutes after its time, you are told to check that cron is running.</li>
+                  <li>Cron fires on the server's clock, so on a server in another timezone a job ran hours late. The server now converts the time you picked, and times show in 12-hour form.</li>
+                  <li>The date and time picker has a solid background and typed hour and minute boxes with an AM/PM switch, so any minute can be chosen.</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+
           <!-- 2.7.2 — Clockwork -->
           <div class="release-card" style="margin-bottom: 32px;">
             <div class="release-card__header">
@@ -708,7 +735,7 @@
 
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.7.2</span></p>
+        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.8.0</span></p>
         <div class="site-footer__links">
           <a href="https://github.com/everest1508/server-operator">GitHub</a>
           <a href="https://github.com/everest1508/server-operator/issues">Issues</a>

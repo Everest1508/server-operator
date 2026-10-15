@@ -61,7 +61,7 @@
       "url": "https://server-operator-zeta.vercel.app/",
       "downloadUrl": "https://github.com/Everest1508/server-operator/releases/latest",
       "license": "https://www.apache.org/licenses/LICENSE-2.0",
-      "softwareVersion": "2.7.2",
+      "softwareVersion": "2.8.0",
       "isAccessibleForFree": true,
       "image": "https://server-operator-zeta.vercel.app/logo.png",
       "author": {
@@ -405,15 +405,15 @@
 
       <section class="section" id="whats-new" aria-labelledby="whats-new-heading">
         <div class="section__inner">
-          <h2 class="section__title" id="whats-new-heading">What’s New in 2.7.2</h2>
+          <h2 class="section__title" id="whats-new-heading">What’s New in 2.8.0</h2>
           <p class="section__subtitle">
-            Scheduled commands now fire at the time you picked even when the server is in another timezone, and Serop shows the real error when the job could not be installed.
+            Scheduled commands now show a live toast: a countdown to the start, then the job's output as it runs, then the result with its exit code. You can cancel a schedule before it starts or stop a running job. Multi-line shortcuts now schedule correctly, and the date and time picker is easier to use.
           </p>
           <div class="release-card">
             <div class="release-card__header">
               <div>
-                <span class="release-badge">v2.7.2</span>
-                <h3>Clockwork</h3>
+                <span class="release-badge">v2.8.0</span>
+                <h3>Countdown</h3>
               </div>
               <p>2026-10-15</p>
             </div>
@@ -421,8 +421,12 @@
               <article class="release-block">
                 <h4>Scheduled commands</h4>
                 <ul>
-                  <li>Cron runs on the server's clock, so on a server in UTC a time picked in your timezone fired hours late. The server now converts the exact moment you picked into its own time. Cancel and schedule existing jobs again to get the fix.</li>
-                  <li>A failed crontab install still showed Scheduled. It now shows the error, for example when crontab is missing on the server.</li>
+                  <li>Shortcuts with several lines, or with quotes or a % sign, broke the schedule, and Serop still said Scheduled. They now schedule correctly, and an install that fails shows its error.</li>
+                  <li>A toast counts down to the start of a scheduled command, then shows its output as it runs (refreshed every 2 seconds) and ends with finished or failed and the exit code.</li>
+                  <li>Stop a running scheduled command from the toast or the sidebar, or cancel a schedule from the toast before it starts.</li>
+                  <li>Started, finished and failed notifications arrive as a toast, a bell entry and a system notification, from whichever screen you are on. If a job is still waiting in cron two minutes after its time, you are told to check that cron is running.</li>
+                  <li>Cron fires on the server's clock, so on a server in another timezone a job ran hours late. The server now converts the time you picked, and times show in 12-hour form.</li>
+                  <li>The date and time picker has a solid background and typed hour and minute boxes with an AM/PM switch, so any minute can be chosen.</li>
                 </ul>
               </article>
             </div>
@@ -514,7 +518,7 @@
 
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.7.2</span></p>
+        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.8.0</span></p>
         <div class="site-footer__links">
           <a href="https://github.com/everest1508/server-operator">GitHub</a>
           <a href="https://github.com/everest1508/server-operator/issues">Issues</a>

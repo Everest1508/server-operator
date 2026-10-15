@@ -23,6 +23,28 @@ export interface ChangelogVersion {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: '2.8.0',
+    codename: 'Countdown',
+    date: '2026-10-15',
+    summary:
+      'Scheduled commands now show a live toast: a countdown to the start, then the job\'s output as it runs, then the result with its exit code. You can cancel a schedule before it starts or stop a running job. Multi-line shortcuts now schedule correctly, and the date and time picker is easier to use.',
+    groups: [
+      {
+        label: 'Scheduled commands',
+        icon: History,
+        color: '#f0abfc',
+        items: [
+          { type: 'fix', text: 'Shortcuts with several lines, or with quotes or a % sign, broke the schedule, and Serop still said Scheduled. They now schedule correctly, and an install that fails shows its error.' },
+          { type: 'feat', text: 'A toast counts down to the start of a scheduled command, then shows its output as it runs (refreshed every 2 seconds) and ends with finished or failed and the exit code.' },
+          { type: 'feat', text: 'Stop a running scheduled command from the toast or the sidebar, or cancel a schedule from the toast before it starts.' },
+          { type: 'feat', text: 'Started, finished and failed notifications arrive as a toast, a bell entry and a system notification, from whichever screen you are on. If a job is still waiting in cron two minutes after its time, you are told to check that cron is running.' },
+          { type: 'fix', text: 'Cron fires on the server\'s clock, so on a server in another timezone a job ran hours late. The server now converts the time you picked, and times show in 12-hour form.' },
+          { type: 'improve', text: 'The date and time picker has a solid background and typed hour and minute boxes with an AM/PM switch, so any minute can be chosen.' },
+        ],
+      },
+    ],
+  },
+  {
     version: '2.7.2',
     codename: 'Clockwork',
     date: '2026-10-15',
