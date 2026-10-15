@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarClock, ChevronDown, Copy, FolderTree, Loader2, Play, Trash2, Wand2, X } from 'lucide-react';
+import { CalendarClock, ChevronDown, Copy, FolderTree, Loader2, Play, Square, Trash2, Wand2, X } from 'lucide-react';
 import type { ProxySettings, ServerConnection } from '../types';
 import { joinRemotePath } from '../utils/remotePath';
+import { stopScheduledJob } from '../utils/useScheduleWatcher';
 import { pushNotification } from '../utils/notifications';
 import { DateTimePicker } from './DateTimePicker';
 import { buildScheduleCancelCommand, buildScheduleInstallCommand } from '../utils/scheduleCommand';
@@ -569,6 +570,17 @@ export function DeploySidebar({
     }
   };
 
+  const handleStopScheduledCommand = async (row: ScheduledCommand) => {
+    if (!currentServer) return;
+    setScheduleActionId(row.id);
+    try {
+      await stopScheduledJob(currentServer, proxy, row.id, row.marker);
+      await loadScheduledCommands();
+    } finally {
+      setScheduleActionId(null);
+    }
+  };
+
   const handleDeleteScheduledCommand = async (row: ScheduledCommand) => {
     if (!window.serverOperator) return;
     setScheduleActionId(row.id);
@@ -787,6 +799,15 @@ export function DeploySidebar({
                           className="flex items-center gap-1 px-2 py-1 rounded-md border border-border/30 text-[11px] font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/60 disabled:opacity-50 transition-colors cursor-pointer"
                         >
                           <X size={10} />Cancel
+                        </button>
+                      ) : row.status === 'running' ? (
+                        <button
+                          type="button"
+                          disabled={scheduleActionId === row.id}
+                          onClick={() => handleStopScheduledCommand(row)}
+                          className="flex items-center gap-1 px-2 py-1 rounded-md border border-border/30 text-[11px] font-semibold text-text-secondary hover:text-error hover:bg-error/10 disabled:opacity-50 transition-colors cursor-pointer"
+                        >
+                          <Square size={10} />Stop
                         </button>
                       ) : (
                         <button

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Bell, CheckCircle2, AlertTriangle, XCircle, Info } from 'lucide-react';
 import { FloatingMenu } from './FloatingMenu';
+import { ScheduleToast } from './ScheduleToast';
 import {
   useNotifications,
   markAllNotificationsRead,
@@ -43,6 +44,7 @@ export function NotificationCenter() {
   useEffect(() => {
     if (!newest || newest.at <= lastSeen.current) return;
     lastSeen.current = newest.at;
+    if (newest.quiet) return;
     setToast(newest);
     const t = setTimeout(() => setToast(null), 8000);
     return () => clearTimeout(t);
@@ -94,6 +96,7 @@ export function NotificationCenter() {
           </span>
         )}
       </button>
+      <ScheduleToast />
       {toast && createPortal(
         <div
           role="status"

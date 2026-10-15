@@ -9,6 +9,8 @@ export interface AppNotification {
   message?: string;
   at: number;
   read: boolean;
+  /** Keep it in the bell and as a system banner, but do not pop the in-app toast (something else already shows it). */
+  quiet?: boolean;
   /** For deploy notifications: the job record, so a click can reopen its output. */
   job?: Record<string, unknown>;
 }

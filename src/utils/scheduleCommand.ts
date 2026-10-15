@@ -44,7 +44,7 @@ export function buildScheduleInstallCommand(command: string, runAt: Date, marker
   // The script travels base64-encoded: a crontab entry is one line and treats % as a
   // newline, so multi-line shortcuts, quotes and % would otherwise corrupt it.
   const cd = cwd ? `cd '${escapeShellSingleQuotes(cwd)}' || exit 1\n` : '';
-  const script = `export PATH=$PATH:/usr/local/bin:/opt/homebrew/bin:$HOME/.local/bin\n${cd}${command}\n`;
+  const script = `echo $$ > ~/.serop-scheduled/${marker}.pid\nexport PATH=$PATH:/usr/local/bin:/opt/homebrew/bin:$HOME/.local/bin\n${cd}${command}\n`;
   const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(script)));
   // No % anywhere in the entry (cron would turn it into a newline). The entry removes itself
   // first, so "marker gone" means "started"; the script then writes its exit code to the log.
@@ -65,4 +65,10 @@ export function buildScheduleCancelCommand(marker: string, isWindows: boolean): 
 export function buildScheduleCheckCommand(marker: string, isWindows: boolean): string {
   if (isWindows) return `(schtasks /query /tn "Serop_${marker}" >nul 2>&1 && echo FOUND) || echo NONE`;
   return `(crontab -l 2>/dev/null | grep -q '${marker}' && echo FOUND) || echo NONE`;
+}
+
+/** Kills a running scheduled job: its shell and that shell's direct children. */
+export function buildScheduleStopCommand(marker: string): string {
+  // kill the shell first (else it moves on to the next line), then the children it was waiting on
+  return `P=$(cat ~/.serop-scheduled/${marker}.pid 2>/dev/null); if [ -n "$P" ]; then C=$(pgrep -P $P); kill $P 2>/dev/null && { [ -n "$C" ] && kill $C 2>/dev/null; echo STOPPED; } || echo GONE; else echo NOPID; fi`;
 }
