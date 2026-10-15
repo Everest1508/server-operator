@@ -493,7 +493,12 @@
           <div class="download-note">
             <strong style="color: var(--ink)">macOS "App is damaged" Warning:</strong>
             Because the macOS build is currently unsigned, Gatekeeper may flag it as damaged. To fix this, copy the app to your Applications folder, open Terminal, and run:
-            <code class="cmd">xattr -cr /Applications/Serop.app</code>
+            <div class="cmd-wrap">
+              <code class="cmd" id="xattr-cmd">xattr -cr /Applications/Serop.app</code>
+              <button type="button" class="cmd-copy" id="xattr-copy" aria-label="Copy command" title="Copy command">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+            </div>
           </div>
           <div class="download-note" style="margin-top: 16px;">
             <strong style="color: var(--ink)">Prefer the release page?</strong>
@@ -519,6 +524,15 @@
       </div>
     </footer>
 
+    <script>
+      document.getElementById('xattr-copy').addEventListener('click', function (e) {
+        var b = e.currentTarget;
+        navigator.clipboard.writeText(document.getElementById('xattr-cmd').textContent.trim()).then(function () {
+          b.classList.add('is-copied'); b.title = 'Copied!';
+          setTimeout(function () { b.classList.remove('is-copied'); b.title = 'Copy command'; }, 1500);
+        });
+      });
+    </script>
     <script src="app.js" defer></script>
       <script src="draw.js" defer></script>
   </body>
