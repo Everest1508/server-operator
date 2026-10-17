@@ -1,6 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AlertTriangle, HelpCircle } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 /** The server an action runs against. Only its name and production flag matter here. */
 export interface ConfirmServer {
@@ -42,60 +45,41 @@ function ConfirmDialog({
   onClose: (ok: boolean) => void;
 }) {
   const danger = opts.danger ?? true;
-  const cancelRef = useRef<HTMLButtonElement>(null);
-  const okRef = useRef<HTMLButtonElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const [typed, setTyped] = useState('');
   const matches = !typeToConfirm || typed === typeToConfirm;
-
-  useEffect(() => {
-    // For risky actions the safe answer gets focus, so a stray Enter doesn't confirm.
-    if (typeToConfirm) inputRef.current?.focus();
-    else (danger && cancelRef.current ? cancelRef : okRef).current?.focus();
-  }, [danger, typeToConfirm]);
-
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      e.stopPropagation();
-      onClose(false);
-    } else if (e.key === 'Tab') {
-      // Keep focus inside the dialog.
-      e.preventDefault();
-      const order = [inputRef.current, cancelRef.current, matches ? okRef.current : null].filter(Boolean) as HTMLElement[];
-      const i = order.indexOf(document.activeElement as HTMLElement);
-      order[(i + (e.shiftKey ? order.length - 1 : 1)) % order.length]?.focus();
-    }
-  };
-
   const Icon = danger ? AlertTriangle : HelpCircle;
+
   return (
-    <div
-      className="fixed inset-0 z-[1000000] flex items-start justify-center bg-black/50 p-4 pt-[18vh]"
-      onMouseDown={(e) => e.target === e.currentTarget && onClose(false)}
-      onKeyDown={onKeyDown}
-    >
-      <div
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(false); }}>
+      <DialogContent
         role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="confirm-title"
-        aria-describedby="confirm-message"
-        className={`w-full max-w-md rounded-xl border popover-surface p-5 shadow-2xl ${typeToConfirm ? 'border-error/60' : 'border-border/50'}`}
+        overlayClassName="z-[1000000]"
+        className={`z-[1000000] max-w-md ${typeToConfirm ? 'border-error/60' : ''}`}
+        onOpenAutoFocus={(e) => {
+          // For risky actions the safe answer gets focus, so a stray Enter doesn't confirm.
+          e.preventDefault();
+          const root = e.currentTarget as HTMLElement;
+          const target = typeToConfirm
+            ? root.querySelector<HTMLElement>('input')
+            : root.querySelector<HTMLElement>(danger && !opts.hideCancel ? '[data-cancel]' : '[data-ok]');
+          target?.focus();
+        }}
       >
         <div className="flex items-start gap-3">
           <Icon size={20} className={`shrink-0 mt-0.5 ${typeToConfirm ? 'text-error' : danger ? 'text-warning' : 'text-accent'}`} />
           <div className="min-w-0 flex-1">
-            <h2 id="confirm-title" className="text-sm font-semibold text-text-primary flex items-center gap-2 flex-wrap">
+            <DialogTitle className="text-sm flex items-center gap-2 flex-wrap">
               {opts.title ?? 'Are you sure?'}
               {typeToConfirm && (
                 <span className="px-1.5 py-0.5 rounded-md bg-error/15 text-error text-[10px] font-semibold">Production</span>
               )}
-            </h2>
-            <p id="confirm-message" className="mt-1.5 text-xs leading-relaxed text-text-secondary whitespace-pre-line break-words">{message}</p>
+            </DialogTitle>
+            <DialogDescription className="mt-1.5 text-xs leading-relaxed whitespace-pre-line break-words">{message}</DialogDescription>
             {typeToConfirm && (
               <label className="block mt-4 text-[11px] text-text-secondary">
                 This is a production server. Type <span className="font-mono font-semibold text-text-primary">{typeToConfirm}</span> to continue.
-                <input
-                  ref={inputRef}
+                <Input
+                  size="sm"
                   value={typed}
                   onChange={(e) => setTyped(e.target.value)}
                   onKeyDown={(e) => {
@@ -103,37 +87,24 @@ function ConfirmDialog({
                   }}
                   autoComplete="off"
                   spellCheck={false}
-                  className="mt-1.5 w-full rounded-lg border border-border/40 bg-bg-primary/60 px-2.5 py-1.5 text-xs font-mono text-text-primary focus:outline-none focus:border-error/60 focus:ring-1 focus:ring-error/30"
+                  className="mt-1.5 font-mono"
                 />
               </label>
             )}
           </div>
         </div>
-        <div className="mt-5 flex justify-end gap-2">
+        <DialogFooter>
           {!opts.hideCancel && (
-            <button
-              ref={cancelRef}
-              type="button"
-              onClick={() => onClose(false)}
-              className="px-3.5 py-1.5 rounded-lg border border-border/40 text-xs font-semibold text-text-primary hover:bg-bg-tertiary/60 transition-colors cursor-pointer"
-            >
+            <Button data-cancel variant="outline" onClick={() => onClose(false)}>
               {opts.cancelLabel ?? 'Cancel'}
-            </button>
+            </Button>
           )}
-          <button
-            ref={okRef}
-            type="button"
-            disabled={!matches}
-            onClick={() => matches && onClose(true)}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-              danger ? 'bg-error hover:opacity-90' : 'bg-accent hover:bg-accent-hover'
-            }`}
-          >
+          <Button data-ok variant={danger ? 'destructive' : 'primary'} disabled={!matches} onClick={() => matches && onClose(true)}>
             {opts.confirmLabel ?? 'Confirm'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

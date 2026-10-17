@@ -1,26 +1,16 @@
-import { forwardRef } from 'react';
-import type { TextareaHTMLAttributes } from 'react';
+import * as React from 'react';
+import { cn } from '@/lib/utils';
+import { fieldClass } from './Input';
 
-type TextareaSize = 'sm' | 'md';
+const SIZES = { sm: 'px-2.5 py-1.5 text-[10px]', md: 'px-3 py-2 text-xs' };
 
-interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
-  size?: TextareaSize;
+interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  size?: keyof typeof SIZES;
 }
 
-const SIZE_CLASSES: Record<TextareaSize, string> = {
-  sm: 'px-2.5 py-1.5 text-[10px]',
-  md: 'px-3 py-2 text-xs',
-};
-
-export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea(
-  { size = 'md', className = '', ...props },
-  ref
+export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea(
+  { size = 'md', className, ...props },
+  ref,
 ) {
-  return (
-    <textarea
-      ref={ref}
-      className={`w-full rounded-xl bg-bg-primary/40 border border-border/20 font-mono text-text-primary placeholder-text-muted resize-y focus:outline-none focus:border-accent ${SIZE_CLASSES[size]} ${className}`}
-      {...props}
-    />
-  );
+  return <textarea ref={ref} className={cn(fieldClass, 'min-h-20 resize-y font-mono leading-relaxed', SIZES[size], className)} {...props} />;
 });

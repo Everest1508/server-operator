@@ -27,6 +27,8 @@ import type { ServerConnection, ProxySettings } from '../types';
 import { useAppTheme, isLightTheme } from '../hooks/useAppTheme';
 import Editor, { useMonaco } from '@monaco-editor/react';
 import { Select } from './Select';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 import { confirmDialog } from '../utils/confirm';
 import { QueryLibrary, recordQueryHistory } from './QueryLibrary';
 import type * as Monaco from 'monaco-editor';
@@ -1050,13 +1052,12 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
               {dbType === 'sqlite' ? (
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-medium text-text-secondary mb-0.5" htmlFor="sqlite-path-input">SQLite file path (on the server)</label>
-                  <input
+                  <Input size="sm"
                     id="sqlite-path-input"
                     type="text"
                     value={sqliteFilePath}
                     onChange={(e) => setSqliteFilePath(e.target.value)}
                     placeholder="/var/data/app.db"
-                    className="w-full px-3 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent"
                   />
                 </div>
               ) : (
@@ -1064,22 +1065,20 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
                   <div className="grid grid-cols-3 gap-2">
                     <div className="col-span-2 flex flex-col gap-1">
                       <label className="text-xs font-medium text-text-secondary mb-0.5" htmlFor="host-input">Host</label>
-                      <input
+                      <Input size="sm"
                         id="host-input"
                         type="text"
                         value={host}
                         onChange={(e) => setHost(e.target.value)}
-                        className="w-full px-3 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent"
                       />
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-medium text-text-secondary mb-0.5" htmlFor="port-input">Port</label>
-                      <input
+                      <Input size="sm"
                         id="port-input"
                         type="text"
                         value={port}
                         onChange={(e) => setPort(e.target.value)}
-                        className="w-full px-3 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent"
                       />
                     </div>
                   </div>
@@ -1087,12 +1086,11 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
                   {dbType !== 'redis' && (
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-medium text-text-secondary mb-0.5" htmlFor="user-input">Username</label>
-                      <input
+                      <Input size="sm"
                         id="user-input"
                         type="text"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
-                        className="w-full px-3 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent"
                       />
                     </div>
                   )}
@@ -1100,13 +1098,13 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-medium text-text-secondary mb-0.5" htmlFor="pass-input">Password</label>
                     <div className="relative flex items-center">
-                      <input
+                      <Input size="sm"
                         id="pass-input"
                         type={showPassword ? 'text' : 'password'}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Optional"
-                        className="w-full px-3 py-1.5 pr-10 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent"
+ className="pr-10"
                       />
                       <button
                         type="button"
@@ -1122,24 +1120,22 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
                     <label className="text-xs font-medium text-text-secondary mb-0.5" htmlFor="db-input">
                       {dbType === 'redis' ? 'Database index' : 'Database'}
                     </label>
-                    <input
+                    <Input size="sm"
                       id="db-input"
                       type="text"
                       value={database}
                       onChange={(e) => setDatabase(e.target.value)}
                       placeholder={dbType === 'redis' ? '0' : 'Database name'}
-                      className="w-full px-3 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent"
                     />
                   </div>
                 </>
               )}
 
-              <button
+              <Button className="w-full mt-3"
                 type="submit"
-                className="w-full mt-3 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-sm"
               >
                 {dbType === 'sqlite' ? 'Open file' : 'Connect'}
-              </button>
+              </Button>
 
               {status === 'error' && error && (
                 <div className="mt-2 p-3 rounded-xl bg-error/10 border border-error/20 text-error text-xs flex gap-1.5 items-start font-mono break-all select-text">
@@ -1163,13 +1159,11 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
                   <>Target: {host}:{port} {database && <><br />DB: {database}</>}</>
                 )}
               </p>
-              <button
-                type="button"
+              <Button variant="softDestructive" className="w-full"
                 onClick={handleDisconnect}
-                className="w-full py-2 bg-error/15 hover:bg-error hover:text-white border border-error/25 hover:border-transparent text-error text-xs font-semibold rounded-xl transition-all cursor-pointer mt-2 select-none"
               >
                 {dbType === 'sqlite' ? 'Close file' : 'Disconnect'}
-              </button>
+              </Button>
             </div>
           )}
 
@@ -1194,12 +1188,12 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
               {/* Search filter for explorer list */}
               <div className="px-4 mb-3 relative select-none">
                 <Search size={12} className="absolute left-7 top-2.5 text-text-muted" />
-                <input
+                <Input size="sm"
                   type="text"
                   placeholder={dbType === 'redis' ? 'Filter keys…' : 'Filter tables…'}
                   value={metadataSearch}
                   onChange={(e) => setMetadataSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent"
+ className="pl-8 pr-3"
                 />
               </div>
 
@@ -1259,15 +1253,13 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
             </button>
             {cloudinaryOpen && (
               <div className="px-4 pb-4 space-y-2">
-                <button
-                  type="button"
+                <Button variant="outline" size="sm"
                   onClick={loadCloudinaryBackups}
                   disabled={cloudinaryBackupsLoading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/30 bg-bg-primary/50 text-text-primary text-[11px] font-semibold hover:border-border/60 hover:bg-bg-tertiary disabled:opacity-50 cursor-pointer transition-all w-full justify-center"
                 >
                   {cloudinaryBackupsLoading ? <RefreshCw size={10} className="animate-spin" /> : <RefreshCw size={10} />}
                   Refresh
-                </button>
+                </Button>
 
                 {cloudinaryBackupsError && (
                   <p className="text-[11px] text-error font-mono bg-error/10 p-2 rounded-lg">{cloudinaryBackupsError}</p>
@@ -1357,15 +1349,13 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
                         >
                           Clear
                         </button>
-                        <button
-                          type="button"
+                        <Button
                           onClick={handleRunQuery}
                           disabled={queryLoading || !queryText.trim()}
-                          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-xl disabled:opacity-40 cursor-pointer shadow-sm transition-all"
                         >
                           {queryLoading ? <RefreshCw size={12} className="animate-spin" /> : <Play size={12} />}
                           Run Query
-                        </button>
+                        </Button>
                       </div>
                     </div>
 
@@ -1524,16 +1514,14 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
                           >
                             Clear
                           </button>
-                          <button
-                            type="button"
+                          <Button
                             onClick={handleRunQuery}
                             disabled={queryLoading || !queryText.trim()}
                             title={`${hasSqlSelection ? 'Run only the selected text' : 'Run the query'} (${window.serverOperator?.platform === 'darwin' ? '⌘' : 'Ctrl+'}Enter)`}
-                            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-xl disabled:opacity-40 cursor-pointer shadow-sm transition-all whitespace-nowrap"
                           >
                             {queryLoading ? <RefreshCw size={12} className="animate-spin" /> : <Play size={12} />}
                             {hasSqlSelection ? 'Run selection' : 'Run Query'}
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -1573,35 +1561,31 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
 
                     <div className="flex items-center gap-2">
                       {isEditableTableView && tableColumns.length > 0 && (
-                        <button
-                          type="button"
+                        <Button variant="soft" size="sm"
                           onClick={beginAddRow}
                           disabled={addingRow || rowMutationLoading}
-                          className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold border border-accent/35 bg-accent/10 text-accent hover:bg-accent/15 rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
                         >
                           <Plus size={10} /> Add Row
-                        </button>
+                        </Button>
                       )}
                       {/* Filter records input */}
                       <div className="relative">
                         <Search size={10} className="absolute left-2.5 top-2.5 text-text-muted" />
-                        <input
+                        <Input size="sm"
                           type="text"
                           placeholder="Filter rows…"
                           value={resultsSearch}
                           onChange={(e) => setResultsSearch(e.target.value)}
-                          className="pl-6.5 pr-2.5 py-1 border border-border/30 bg-bg-primary/50 rounded-xl text-[11px] text-text-primary w-36 focus:outline-none focus:border-accent"
+ className="pl-6.5 pr-2.5 text-[11px] w-36"
                         />
                       </div>
                       
-                      <button
-                        type="button"
+                      <Button variant="outline" size="sm"
                         onClick={exportQueryResultToCSV}
                         disabled={filteredResults.length === 0}
-                        className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold border border-border/30 bg-bg-secondary hover:bg-bg-tertiary rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
                       >
                         <Download size={10} /> Export CSV
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -1663,12 +1647,12 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
                             </td>
                             {tableColumns.map((column) => (
                               <td key={column.name} className="px-3.5 py-2 border-r border-border/10 align-top">
-                                <input
+                                <Input size="sm"
                                   type="text"
                                   value={newRowValues[column.name] ?? ''}
                                   onChange={(e) => setNewRowValues((prev) => ({ ...prev, [column.name]: e.target.value }))}
                                   placeholder={column.nullable ? 'NULL' : column.type || column.name}
-                                  className="w-full px-2.5 py-1.5 rounded-lg bg-bg-primary/60 border border-border/20 text-[11px] text-text-primary focus:outline-none focus:border-accent"
+ className="px-2.5 text-[11px]"
                                 />
                               </td>
                             ))}
@@ -1743,12 +1727,12 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
                                 return (
                                   <td key={header} className="px-3.5 py-1.5 border-r border-border/10 truncate max-w-md" title={String(renderVal)}>
                                     {isEditing ? (
-                                      <input
+                                      <Input size="sm"
                                         type="text"
                                         value={editingRowValues[header] ?? ''}
                                         onChange={(e) => setEditingRowValues((prev) => ({ ...prev, [header]: e.target.value }))}
                                         placeholder="NULL"
-                                        className="w-full px-2.5 py-1.5 rounded-lg bg-bg-primary/60 border border-border/20 text-[11px] text-text-primary focus:outline-none focus:border-accent"
+ className="px-2.5 text-[11px]"
                                       />
                                     ) : renderVal}
                                   </td>

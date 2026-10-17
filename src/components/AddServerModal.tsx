@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { X } from 'lucide-react';
 import type { ServerConnection } from '../types';
 import { Input } from './ui/Input';
-import { createPortal } from 'react-dom';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 
 interface AddServerModalProps {
   onClose: () => void;
@@ -31,18 +30,12 @@ export function AddServerModal({ onClose, onAdd }: AddServerModalProps) {
   };
 
   return (
-    createPortal(<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="w-full max-w-md rounded-2xl border border-border/40 popover-surface shadow-2xl  overflow-hidden">
-        <div className="flex items-center justify-between border-b border-border/30 px-5 py-4 bg-bg-secondary/40">
-          <h2 className="text-sm font-semibold text-text-primary">Add New Server Profile</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 rounded-lg text-text-secondary hover:bg-bg-tertiary hover:text-text-primary transition-all"
-          >
-            <X size={15} />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="gap-0 p-0 overflow-hidden">
+        <DialogHeader className="border-b border-border/30 px-5 py-4 bg-bg-secondary/40">
+          <DialogTitle>Add New Server Profile</DialogTitle>
+          <DialogDescription className="sr-only">Enter the SSH connection details for the server.</DialogDescription>
+        </DialogHeader>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
             <label className="block text-[11px] font-semibold text-text-secondary mb-1.5">Display Name</label>
@@ -80,7 +73,7 @@ export function AddServerModal({ onClose, onAdd }: AddServerModalProps) {
             </button>
           </div>
         </form>
-      </div>
-    </div>, document.body)
+      </DialogContent>
+    </Dialog>
   );
 }

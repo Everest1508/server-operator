@@ -19,6 +19,28 @@
   --color-input-bg: rgba(60, 60, 60, 0.40);
 }
 
+/* befui tokens, aliased to the Serop theme vars so built-in and custom themes carry over.
+   befui's own "accent" (subtle hover bg) is not mapped: Serop's --color-accent is the solid brand blue. */
+@theme inline {
+  --color-background: var(--color-bg-primary);
+  --color-foreground: var(--color-text-primary);
+  --color-card: var(--color-bg-secondary);
+  --color-card-foreground: var(--color-text-primary);
+  --color-popover: var(--color-bg-tertiary);
+  --color-popover-foreground: var(--color-text-primary);
+  --color-primary: var(--color-accent);
+  --color-primary-foreground: #ffffff;
+  --color-secondary: var(--color-bg-tertiary);
+  --color-secondary-foreground: var(--color-text-primary);
+  --color-muted: var(--color-bg-tertiary);
+  --color-muted-foreground: var(--color-text-secondary);
+  --color-input: var(--color-input-bg);
+  --color-ring: var(--color-accent);
+  --color-destructive: var(--color-error);
+  --color-info: var(--color-accent);
+  --radius: 0.5rem;
+}
+
 :root {
   --glass-blur: 28px;
   --popover-base: #1c1d21;
@@ -240,4 +262,16 @@ input[type="number"] {
   grid-template-rows: 1fr;
   opacity: 1;
   visibility: visible;
+}
+
+/* befui dialog/sheet motion */
+@theme {
+  --animate-in: befui-fade 0.15s ease-out;
+  --animate-pop: befui-pop 0.16s ease-out;
+  --animate-slide-right: befui-slide-right 0.2s ease-out;
+  --animate-slide-left: befui-slide-left 0.2s ease-out;
+  @keyframes befui-fade { from { opacity: 0; } }
+  @keyframes befui-pop { from { opacity: 0; transform: translate(-50%, -48%) scale(0.96); } }
+  @keyframes befui-slide-right { from { transform: translateX(100%); } }
+  @keyframes befui-slide-left { from { transform: translateX(-100%); } }
 }

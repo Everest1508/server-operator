@@ -37,6 +37,9 @@ import {
 
 import { CHANGELOG, ChangeEntry } from './changelogData';
 import { Select } from './Select';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
+import { Card } from './ui/Card';
 import { ThemeEditor } from './ThemeEditor';
 import {
   CustomTheme, THEME_TEMPLATE, parseThemeJson, loadCustomThemes, addCustomTheme, removeCustomTheme,
@@ -513,9 +516,6 @@ function ModulesView() {
 
   const selectedTheme = allThemes.find((t) => t.id === themeChoice) ?? allThemes[0];
   const sw = selectedTheme.swatch;
-  const ghostBtn =
-    'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/30 hover:border-border/60 hover:bg-bg-tertiary/60 text-[11px] font-semibold text-text-secondary hover:text-text-primary transition-colors cursor-pointer';
-
   return (
     <div className="flex-1 min-h-0 overflow-y-auto">
       {editor && (
@@ -551,26 +551,25 @@ function ModulesView() {
                   e.target.value = '';
                 }}
               />
-              <button
-                type="button"
+              <Button
+                size="sm"
                 onClick={() => setEditor({ initial: null, restore: themeChoice })}
                 title="Design your own theme with colour pickers"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-accent text-white text-[11px] font-semibold hover:bg-accent-hover cursor-pointer"
               >
                 <Plus size={12} /> Create theme
-              </button>
-              <button type="button" onClick={() => themeFileRef.current?.click()} title="Load a theme from a JSON file" className={ghostBtn}>
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => themeFileRef.current?.click()} title="Load a theme from a JSON file">
                 <Upload size={12} /> Import
-              </button>
-              <button type="button" onClick={downloadThemeTemplate} title="Download an example theme file to edit" className={ghostBtn}>
+              </Button>
+              <Button variant="outline" size="sm" onClick={downloadThemeTemplate} title="Download an example theme file to edit">
                 <Download size={12} /> Template
-              </button>
-              <button type="button" onClick={() => void openThemesFolder()} title="Open the folder where you can drop theme .json files" className={ghostBtn}>
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => void openThemesFolder()} title="Open the folder where you can drop theme .json files">
                 <FolderOpen size={12} /> Folder
-              </button>
-              <button type="button" onClick={() => void reloadThemeFolders()} title="Read the theme folders again" className={ghostBtn}>
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => void reloadThemeFolders()} title="Read the theme folders again">
                 <RotateCcw size={12} /> Reload
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -727,17 +726,18 @@ function ModulesView() {
             </div>
             <div className="relative w-64 max-w-full">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" />
-              <input
+              <Input
+                size="sm"
                 type="text"
                 placeholder="Search modules..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-bg-secondary/40 border border-border/30 text-text-primary rounded-xl pl-9 pr-3.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent/40 transition-all placeholder:text-text-muted"
+                className="pl-9"
               />
             </div>
-            <button onClick={resetToDefaults} className={ghostBtn}>
+            <Button variant="outline" size="sm" onClick={resetToDefaults}>
               <RotateCcw size={12} /> Reset modules
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -1051,60 +1051,47 @@ function CloudinarySettingsView() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-border/20 bg-bg-secondary/35 p-5 space-y-4">
+      <Card tone="secondary" className="p-5 space-y-4">
         <div className="flex flex-col gap-1.5">
           <label htmlFor="cld-name" className="text-xs font-medium text-text-secondary">Cloud name</label>
-          <input
+          <Input
             id="cld-name"
             type="text"
             value={cloudName}
             onChange={(e) => setCloudName(e.target.value)}
             placeholder="your-cloud-name"
-            className="w-full px-3.5 py-2 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
           />
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="cld-key" className="text-xs font-medium text-text-secondary">API key</label>
-          <input
+          <Input
             id="cld-key"
             type="text"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             placeholder="123456789012345"
-            className="w-full px-3.5 py-2 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
           />
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="cld-secret" className="text-xs font-medium text-text-secondary">API secret</label>
-          <input
+          <Input
             id="cld-secret"
             type="password"
             value={apiSecret}
             onChange={(e) => setApiSecret(e.target.value)}
             placeholder={hasConfig ? '•••••••• (stored)' : 'your-api-secret'}
-            className="w-full px-3.5 py-2 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
           />
         </div>
 
         <div className="flex items-center gap-3 pt-2">
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent-hover disabled:opacity-50 cursor-pointer transition-colors shadow-sm"
-          >
+          <Button onClick={handleSave} disabled={saving} className="px-4 rounded-xl">
             {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
             Save credentials
-          </button>
-          <button
-            type="button"
-            onClick={handleTest}
-            disabled={testing || !hasConfig}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border/30 bg-bg-primary/50 text-text-primary text-xs font-semibold hover:border-border/60 hover:bg-bg-tertiary disabled:opacity-40 cursor-pointer transition-all"
-          >
+          </Button>
+          <Button variant="outline" onClick={handleTest} disabled={testing || !hasConfig} className="px-4 rounded-xl">
             {testing ? <Loader2 size={13} className="animate-spin" /> : <Cloud size={13} />}
             Test connection
-          </button>
+          </Button>
         </div>
 
         {message && (
@@ -1114,9 +1101,9 @@ function CloudinarySettingsView() {
             {message.text}
           </div>
         )}
-      </div>
+      </Card>
 
-      <div className="rounded-xl border border-border/20 bg-bg-secondary/35 p-5 space-y-3">
+      <Card tone="secondary" className="p-5 space-y-3">
         <h3 className="text-sm font-semibold text-text-primary">How it works</h3>
         <ul className="text-[11px] text-text-secondary space-y-2 leading-relaxed">
           <li>1. Enter your Cloudinary credentials above and save them once.</li>
@@ -1124,7 +1111,7 @@ function CloudinarySettingsView() {
           <li>3. Click <strong className="text-text-primary">Get Backup</strong> to export and upload the database SQL to Cloudinary.</li>
           <li>4. Connect to a <strong className="text-text-primary">different SSH server</strong>, open the Database tab, and use <strong className="text-text-primary">Restore from Cloudinary</strong> to import the backup.</li>
         </ul>
-      </div>
+      </Card>
     </div>
   );
 }

@@ -5,3 +5,4 @@ export { Textarea } from './Textarea';
 export { SectionLabel } from './SectionLabel';
 export { Card } from './Card';
 export { EmptyState } from './EmptyState';
+export * from './dialog';
