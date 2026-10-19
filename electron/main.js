@@ -4226,6 +4226,60 @@ ipcMain.handle('tunnel:close', async (_, { tunnelId }) => {
   return { ok: true };
 });
 
+// API tester: requests go out from the main process, so there is no browser CORS and self-signed certs can be allowed.
+ipcMain.handle('api:request', async (_, opts) => {
+  const { method = 'GET', url, headers = {}, body, timeoutMs = 30000, allowInsecure = false } = opts || {};
+  let u;
+  try {
+    u = new URL(url);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('bad protocol');
+  } catch {
+    return { ok: false, error: 'That URL does not look right. Start it with http:// or https://' };
+  }
+  const MAX = 5 * 1024 * 1024;
+  const started = Date.now();
+  return new Promise((resolve) => {
+    const lib = u.protocol === 'https:' ? require('https') : http;
+    const req = lib.request(u, { method, headers, rejectUnauthorized: !allowInsecure, timeout: timeoutMs }, (res) => {
+      const chunks = [];
+      let size = 0;
+      let truncated = false;
+      res.on('data', (c) => {
+        size += c.length;
+        if (size > MAX) { truncated = true; res.destroy(); return; }
+        chunks.push(c);
+      });
+      const done = () => resolve({
+        ok: true,
+        status: res.statusCode,
+        statusText: res.statusMessage || '',
+        headers: res.headers,
+        body: Buffer.concat(chunks).toString('utf8'),
+        size,
+        truncated,
+        ms: Date.now() - started,
+      });
+      res.on('end', done);
+      res.on('close', () => { if (truncated) done(); });
+    });
+    req.on('timeout', () => req.destroy(new Error('No answer after ' + Math.round(timeoutMs / 1000) + ' seconds')));
+    req.on('error', (e) => resolve({ ok: false, error: friendlyApiError(e), ms: Date.now() - started }));
+    if (body && method !== 'GET' && method !== 'HEAD') req.write(body);
+    req.end();
+  });
+});
+
+function friendlyApiError(e) {
+  const c = e && e.code;
+  if (c === 'ECONNREFUSED') return 'Nothing is listening at that address. Is the app running, and is the port right?';
+  if (c === 'ENOTFOUND') return 'Could not find that host. Check the spelling of the domain.';
+  if (c === 'ECONNRESET') return 'The server closed the connection.';
+  if (c === 'CERT_HAS_EXPIRED' || c === 'DEPTH_ZERO_SELF_SIGNED_CERT' || c === 'SELF_SIGNED_CERT_IN_CHAIN' || c === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE' || c === 'ERR_TLS_CERT_ALTNAME_INVALID') {
+    return 'The HTTPS certificate is not trusted. Turn on "Allow untrusted certificate" if you trust this server.';
+  }
+  return (e && e.message) || 'Request failed';
+}
+
 ipcMain.handle('features:load', async () => {
   try {
     const p = getFeaturesConfigPath();

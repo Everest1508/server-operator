@@ -19,6 +19,7 @@ import { DeployJobsDock } from './components/DeployJobsDock';
 import { QuickOpen } from './components/QuickOpen';
 import { pushNotification } from './utils/notifications';
 import type { ServerTabSession } from './components/MultiServerBar';
+import { ApiView } from './components/ApiView';
 import type { ServerConnection, ViewId, ProxySettings, DockerContainer, FileTreeClipboard } from './types';
 import { escapeShellSingleQuotes } from './utils/shellQuote';
 import type { ServerSysInfo } from './components/ServerOverview';
@@ -27,6 +28,7 @@ import { resolveRemotePath } from './utils/remotePath';
 import { loadProjectContext } from './utils/loadProjectContext';
 import { confirmDialog, setConfirmServer } from './utils/confirm';
 import { useScheduleWatcher } from './utils/useScheduleWatcher';
+import { Button } from './components/ui/Button';
 
 const STORAGE_KEY_PROXY = 'server-operator-proxy';
 const STORAGE_KEY_REPOS = 'server-operator:repos';
@@ -78,7 +80,7 @@ function loadComposePathsByServer(): Record<string, string[]> {
   }
 }
 
-const VIEW_IDS: ViewId[] = ['servers', 'files', 'docker', 'deploy', 'notes', 'database', 'firewall', 'guide', 'settings'];
+const VIEW_IDS: ViewId[] = ['servers', 'files', 'docker', 'deploy', 'notes', 'database', 'firewall', 'api', 'guide', 'settings'];
 const HASH_PREFIX = '#/';
 
 function viewFromHash(): ViewId {
@@ -1973,7 +1975,7 @@ export default function App() {
         />
       <div
         style={{
-          width: sidebarOpen && activeView !== 'settings' ? `${sidebarWidth}px` : '0px',
+          width: sidebarOpen && activeView !== 'settings' && activeView !== 'api' ? `${sidebarWidth}px` : '0px',
           transition: resizeDrag === 'sidebar' ? 'none' : 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
         className="flex flex-col shrink-0 bg-bg-secondary overflow-hidden"
@@ -2038,9 +2040,9 @@ export default function App() {
       <div
         role="separator"
         style={{
-          opacity: sidebarOpen && activeView !== 'settings' ? 1 : 0,
-          pointerEvents: sidebarOpen && activeView !== 'settings' ? 'auto' : 'none',
-          width: sidebarOpen && activeView !== 'settings' ? '3px' : '0px',
+          opacity: sidebarOpen && activeView !== 'settings' && activeView !== 'api' ? 1 : 0,
+          pointerEvents: sidebarOpen && activeView !== 'settings' && activeView !== 'api' ? 'auto' : 'none',
+          width: sidebarOpen && activeView !== 'settings' && activeView !== 'api' ? '3px' : '0px',
           transition: resizeDrag === 'sidebar' ? 'none' : 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
         className="shrink-0 cursor-col-resize bg-transparent hover:bg-accent/40 active:bg-accent transition-colors duration-150"
@@ -2059,13 +2061,11 @@ export default function App() {
               {proxy?.enabled && connectingToServer.useProxy !== false && (
                 <p className="text-[11px] text-text-muted mt-0.5 bg-bg-tertiary/60 border border-border/40 px-2 py-0.5 rounded-full">Via SOCKS5 proxy</p>
               )}
-              <button
-                type="button"
+              <Button variant="outline" className="mt-3"
                 onClick={cancelConnect}
-                className="mt-3 px-4 py-2 rounded-lg text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-tertiary border border-border/60 transition-colors"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -2081,13 +2081,11 @@ export default function App() {
               </p>
             )}
             <div className="flex justify-end">
-              <button
-                type="button"
+              <Button variant="outline"
                 onClick={() => setConnectionError(null)}
-                className="px-3.5 py-1.5 rounded-lg bg-bg-tertiary hover:bg-bg-tertiary/80 text-text-primary text-xs font-semibold border border-border/60 transition-colors cursor-pointer"
               >
                 Dismiss
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -2097,6 +2095,8 @@ export default function App() {
               <CloudTeamView onConnectServer={handleSelectServer} />
             ) : activeView === 'settings' ? (
               <SettingsView />
+            ) : activeView === 'api' ? (
+              <ApiView currentServer={currentServer} proxy={proxy} />
             ) : activeView === 'servers' ? (
               <NoServerView
                 servers={servers}
@@ -2298,13 +2298,11 @@ export default function App() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {toast.onAction && toast.actionLabel && (
-              <button
-                type="button"
+              <Button variant="soft"
                 onClick={() => { toast.onAction?.(); dismissToast(toast.id); }}
-                className="px-2 py-0.5 rounded-md bg-accent/20 text-accent font-semibold hover:bg-accent/30 cursor-pointer"
               >
                 {toast.actionLabel}
-              </button>
+              </Button>
             )}
             <button
               type="button"

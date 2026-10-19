@@ -1,4 +1,4 @@
-import { Database, GitBranch, History, TerminalSquare, Sliders, Shield, Sparkles, Keyboard, Layers, ListOrdered, FolderTree } from 'lucide-react';
+import { Database, GitBranch, History, TerminalSquare, Sliders, Shield, Sparkles, Keyboard, Layers, ListOrdered, FolderTree, Send } from 'lucide-react';
 import React from 'react';
 
 export interface ChangeEntry {
@@ -22,6 +22,27 @@ export interface ChangelogVersion {
 }
 
 export const CHANGELOG: ChangelogVersion[] = [
+  {
+    version: '2.9.0',
+    codename: 'Courier',
+    date: '2026-10-19',
+    summary:
+      'A new API Tester tab works like Postman: send a request to any URL, public or on your own computer, and read the response. Paste a curl command to fill it in, and let Serop find the web apps running on your server.',
+    groups: [
+      {
+        label: 'API Tester',
+        icon: Send,
+        color: '#7dd3fc',
+        items: [
+          { type: 'feat', text: 'New API Tester tab. Pick GET, POST, PUT, PATCH, DELETE and more, type a URL (public, or localhost for an app on your computer) and see the status, time, size and a formatted response.' },
+          { type: 'feat', text: 'Paste a curl command into the URL box and Serop fills in the method, URL, headers, body and login for you. Chrome\'s Copy as cURL works too.' },
+          { type: 'feat', text: 'Add query params, headers, a JSON or text body, and a token or username and password. Save requests to the list on the left to run them again.' },
+          { type: 'feat', text: 'Find APIs on your server: one button lists the web apps running on the connected server, named by Docker container or program and marked Public or Private. Click one to fill in its URL. Databases, mail and SSH ports are skipped.' },
+          { type: 'improve', text: 'Errors are in plain words, such as nothing listening on that port or host not found. For a self-signed HTTPS certificate you can choose Allow untrusted certificate.' },
+        ],
+      },
+    ],
+  },
   {
     version: '2.8.0',
     codename: 'Countdown',

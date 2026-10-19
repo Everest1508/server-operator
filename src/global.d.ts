@@ -235,6 +235,17 @@ export interface ServerOperatorAPI {
   }) => Promise<{ ok: boolean; id?: number; error?: string }>;
   scheduleUpdateStatus: (opts: { id: number; status: 'scheduled' | 'running' | 'ran' | 'cancelled' | 'error' }) => Promise<{ ok: boolean; error?: string }>;
   scheduleDelete: (opts: { id: number }) => Promise<{ ok: boolean; error?: string }>;
+  apiRequest: (opts: {
+    method: string;
+    url: string;
+    headers: Record<string, string>;
+    body?: string;
+    timeoutMs?: number;
+    allowInsecure?: boolean;
+  }) => Promise<
+    | { ok: true; status: number; statusText: string; headers: Record<string, string | string[] | undefined>; body: string; size: number; truncated: boolean; ms: number }
+    | { ok: false; error: string; ms?: number }
+  >;
   loadFeaturesConfig: () => Promise<any>;
   saveFeaturesConfig: (config: any) => Promise<{ ok: boolean; error?: string }>;
   openTunnel: (opts: { connection: any; proxy?: any; remoteHost: string; remotePort: number }) => Promise<{ ok: boolean; localPort?: number; tunnelId?: string; error?: string }>;

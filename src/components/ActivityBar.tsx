@@ -3,7 +3,7 @@ import FolderIcon from './icons/FolderIcon';
 import DockerIcon from './icons/DockerIcon';
 import CloudUploadIcon from './icons/CloudUploadIcon';
 import FileDescriptionIcon from './icons/FileDescriptionIcon';
-import { PanelLeftClose, PanelBottomClose, LogOut, Activity, Database, Terminal, Lock, Settings, BookOpen, ShieldCheck } from 'lucide-react';
+import { PanelLeftClose, PanelBottomClose, LogOut, Activity, Database, Terminal, Lock, Settings, BookOpen, ShieldCheck, Send } from 'lucide-react';
 import type { ViewId, ServerConnection, FeatureFlags } from '../types';
 import { Tooltip } from './Tooltip';
 import { useFeatureFlags } from '../contexts/FeatureFlagContext';
@@ -14,6 +14,7 @@ const items = [
   { id: 'docker' as const, icon: DockerIcon, label: 'Docker' },
   { id: 'database' as const, icon: Database, label: 'Database' },
   { id: 'firewall' as const, icon: ShieldCheck, label: 'Firewall & Ports' },
+  { id: 'api' as const, icon: Send, label: 'API Tester' },
   { id: 'deploy' as const, icon: CloudUploadIcon, label: 'Deploy' },
   { id: 'notes' as const, icon: FileDescriptionIcon, label: 'Notes & Debug' },
   { id: 'guide' as const, icon: BookOpen, label: 'Feature Guide' },

@@ -106,6 +106,7 @@ contextBridge.exposeInMainWorld('serverOperator', {
   scheduleCreate: (opts) => ipcRenderer.invoke('schedule:create', opts),
   scheduleUpdateStatus: (opts) => ipcRenderer.invoke('schedule:update-status', opts),
   scheduleDelete: (opts) => ipcRenderer.invoke('schedule:delete', opts),
+  apiRequest: (opts) => ipcRenderer.invoke('api:request', opts),
   loadFeaturesConfig: () => ipcRenderer.invoke('features:load'),
   saveFeaturesConfig: (config) => ipcRenderer.invoke('features:save', config),
   openTunnel: (opts) => ipcRenderer.invoke('tunnel:open', opts),
