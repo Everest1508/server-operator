@@ -56,15 +56,15 @@ Download the build for your system from the [latest release](https://github.com/
 | Linux (Debian and Ubuntu) | `.deb`, installed with `sudo dpkg -i *.deb` |
 
 <details>
-<summary><strong>macOS says the app is "damaged"</strong></summary>
+<summary><strong>macOS says Serop is "damaged"</strong></summary>
 
-The macOS build is not yet signed or notarized, so Gatekeeper may block it. Copy the app to `/Applications`, then run:
+The Mac app is not signed with an Apple certificate yet, so macOS can block it the first time you open it. The app is fine. Drag it into `/Applications`, then run this in Terminal:
 
 ```bash
 xattr -cr /Applications/Serop.app
 ```
 
-This removes the quarantine flag so the app can open.
+Then open Serop again.
 </details>
 
 ## Quick start
