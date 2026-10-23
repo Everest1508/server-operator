@@ -15,6 +15,9 @@ import type { ServerConnection } from '../types';
 import { Tooltip } from './Tooltip';
 import { createPortal } from 'react-dom';
 import { confirmDialog } from '../utils/confirm';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
+import { Textarea } from './ui/Textarea';
 
 interface NotesSidebarProps {
   currentServer: ServerConnection | null;
@@ -231,11 +234,10 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
               )}
             </div>
           </div>
-          <textarea
+          <Textarea
             value={generalNotes}
             onChange={(e) => handleGeneralNotesChange(e.target.value)}
-            placeholder="Type general notes, server passwords, or terminal commands you use often..."
-            className="w-full h-44 p-3 rounded-xl bg-bg-secondary/40 border border-border/30 text-xs text-text-primary font-sans placeholder-text-muted resize-y min-h-[96px] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all select-text"
+            placeholder="Type general notes, server passwords, or terminal commands you use often..." className="h-44 font-sans resize-y min-h-[96px] select-text"
           />
         </div>
 
@@ -279,11 +281,10 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
               <p className="text-[11px] text-text-secondary mb-2 truncate">
                 Server: <span className="font-mono text-accent font-semibold">{currentServer.name}</span>
               </p>
-              <textarea
+              <Textarea
                 value={serverNotes}
                 onChange={(e) => handleServerNotesChange(e.target.value)}
-                placeholder={`Type notes, API endpoints, or configurations specific to ${currentServer.name}...`}
-                className="w-full h-44 p-3 rounded-xl bg-bg-secondary/40 border border-border/30 text-xs text-text-primary font-sans placeholder-text-muted resize-y min-h-[96px] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all select-text"
+                placeholder={`Type notes, API endpoints, or configurations specific to ${currentServer.name}...`} className="h-44 font-sans resize-y min-h-[96px] select-text"
               />
             </div>
           ) : (
@@ -328,17 +329,15 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
 
               {/* Read Logs Button */}
               <Tooltip content="Open diagnostic log viewer showing app actions and connection events" position="top">
-                <button
-                  type="button"
+                <Button variant="outline" className="w-full justify-center"
                   onClick={() => {
                     setLogModalOpen(true);
                     loadLogs();
                   }}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border bg-bg-secondary/50 border-border/30 hover:border-accent/40 hover:bg-accent/5 text-text-primary hover:text-accent text-xs font-semibold transition-all duration-200 cursor-pointer"
                 >
                   <RefreshCw size={13} className={logsLoading ? 'animate-spin text-accent' : ''} />
                   View Application Logs
-                </button>
+                </Button>
               </Tooltip>
 
               {/* Clear logs shortcut */}
@@ -396,12 +395,11 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
                 {/* Search field */}
                 <div className="relative">
                   <Search size={12} className="absolute left-3 top-2 text-text-muted" />
-                  <input
+                  <Input size="sm"
                     type="text"
                     value={logSearchQuery}
                     onChange={(e) => setLogSearchQuery(e.target.value)}
-                    placeholder="Filter logs..."
-                    className="w-48 pl-8 pr-3 py-1.5 rounded-xl bg-bg-primary/50 border border-border/40 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent font-sans transition-all select-text"
+                    placeholder="Filter logs..." className="w-48 pl-8 pr-3 select-text"
                   />
                   {logSearchQuery && (
                     <button
@@ -415,28 +413,24 @@ export function NotesSidebar({ currentServer, onOpenFile }: NotesSidebarProps) {
                 </div>
 
                 {/* Refresh button */}
-                <button
-                  type="button"
+                <Button variant="outline"
                   onClick={loadLogs}
                   disabled={logsLoading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-primary hover:border-accent/50 disabled:opacity-50 transition-all cursor-pointer font-semibold"
                   title="Reload log file"
                 >
                   <RefreshCw size={13} className={logsLoading ? 'animate-spin' : ''} />
                   Reload
-                </button>
+                </Button>
 
                 {/* Clear Logs */}
-                <button
-                  type="button"
+                <Button variant="outline"
                   onClick={handleClearLogs}
                   disabled={logsLoading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-secondary hover:text-error hover:border-error/40 disabled:opacity-50 transition-all cursor-pointer font-semibold"
                   title="Clear log file contents"
                 >
                   <Trash2 size={13} />
                   Clear
-                </button>
+                </Button>
 
                 <div className="h-4 w-[1px] bg-border/20" />
 

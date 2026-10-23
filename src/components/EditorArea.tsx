@@ -15,6 +15,8 @@ import { ServerOverview } from './ServerOverview';
 import { DatabaseView } from './DatabaseView';
 import { FirewallView } from './FirewallView';
 import { FloatingMenu } from './FloatingMenu';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 
 // Cursor and scroll position per open file, kept across tab switches and remounts of the editor.
 const editorViewStates = new Map<string, Monaco.editor.ICodeEditorViewState | null>();
@@ -425,7 +427,7 @@ export function EditorArea({
                     ? (pathDialogSudo ? 'Open file as sudo' : 'Open file')
                     : (pathDialogSudo ? 'Create file as sudo' : 'Create file')}
                 </p>
-                <input
+                <Input
                   autoFocus
                   value={pathInput}
                   onChange={(e) => setPathInput(e.target.value)}
@@ -434,24 +436,19 @@ export function EditorArea({
                     if (e.key === 'Escape') setPathDialogOpen(false);
                   }}
                   placeholder="/etc/nginx/nginx.conf or app/config.json"
-                  aria-label="File path"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-border/40 bg-bg-primary/50 text-text-primary text-xs placeholder-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all duration-150 font-mono"
+                  aria-label="File path" className="font-mono"
                 />
                 <div className="mt-4 flex items-center justify-end gap-2">
-                  <button
-                    type="button"
+                  <Button variant="outline"
                     onClick={() => setPathDialogOpen(false)}
-                    className="px-4 py-2 rounded-xl border border-border/40 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/30 transition-all cursor-pointer font-medium"
                   >
                     Cancel
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
                     onClick={submitPathDialog}
-                    className="px-4 py-2 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent-hover shadow-sm transition-all cursor-pointer"
                   >
                     {pathDialogMode === 'open' ? 'Open' : 'Create'}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -518,17 +515,15 @@ export function EditorArea({
                   )}
                   {(onOpenFileByPath || onCreateFileByPath || (activeTabPath && onSaveFile)) && (
                     <div className="relative shrink-0" ref={menuRef}>
-                      <button
-                        type="button"
+                      <Button variant="outline" className="shrink-0"
                         onClick={() => setFileMenuOpen((v) => !v)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border/30 bg-bg-primary/40 text-text-primary text-xs font-medium hover:bg-bg-tertiary/60 hover:border-border/60 shrink-0 transition-colors duration-150 cursor-pointer"
                         title="Open or create files, save as sudo"
                         aria-haspopup="menu"
                         aria-expanded={fileMenuOpen}
                       >
                         File
                         <ChevronDown size={12} />
-                      </button>
+                      </Button>
                       {fileMenuOpen && (
                         <FloatingMenu anchorRef={menuRef} className="py-1.5 px-1 min-w-[190px] rounded-xl border border-border/40 popover-surface shadow-2xl">
                           {onOpenFileByPath && (
@@ -569,16 +564,14 @@ export function EditorArea({
                     </div>
                   )}
                   {activeTabPath && onSaveFile && !isBinary && (
-                    <button
-                      type="button"
+                    <Button className="shrink-0"
                       onClick={handleSave}
                       disabled={saving || !isDirty}
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent text-white text-xs font-semibold hover:bg-accent-hover shadow-sm disabled:opacity-40 disabled:pointer-events-none transition-all duration-150 shrink-0 cursor-pointer"
                       title={`Save (${window.serverOperator?.platform === 'darwin' ? '⌘' : 'Ctrl+'}S)`}
                     >
                       {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
                       {saving ? 'Saving…' : 'Save'}
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
@@ -614,13 +607,11 @@ export function EditorArea({
                     <div className="max-w-md">
                       <h3 className="text-sm font-semibold text-text-primary mb-1">Couldn't open this file</h3>
                       <p className="text-[11px] text-text-muted mb-4 font-mono whitespace-pre-wrap break-all bg-bg-tertiary/50 p-2.5 rounded-xl border border-border/40">{fileLoadError}</p>
-                      <button
-                        type="button"
+                      <Button
                         onClick={() => activeTabPath && onOpenFileByPath?.(activeTabPath, { useSudo: activeTabUsesSudo })}
-                        className="px-4 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
                       >
                         Try again
-                      </button>
+                      </Button>
                     </div>
                   </motion.div>
                 ) : activeTabPath && isBinary ? (
@@ -724,24 +715,20 @@ export function EditorArea({
               </div>
               <div className="flex items-center gap-2">
                 {onOpenFileByPath && (
-                  <button
-                    type="button"
+                  <Button
                     onClick={() => handleOpenFromPath(false)}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-accent text-white text-xs font-semibold hover:bg-accent-hover transition-colors cursor-pointer"
                   >
                     <FolderOpen size={13} />
                     Open by path
-                  </button>
+                  </Button>
                 )}
                 {onCreateFileByPath && (
-                  <button
-                    type="button"
+                  <Button variant="outline"
                     onClick={() => handleCreateFromPath(false)}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-border/40 text-text-primary text-xs font-semibold hover:bg-bg-tertiary/60 transition-colors cursor-pointer"
                   >
                     <Plus size={13} />
                     New file
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>

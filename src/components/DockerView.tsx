@@ -6,6 +6,8 @@ import type { DockerContainer } from '../types';
 import { Tooltip } from './Tooltip';
 import { FloatingMenu } from './FloatingMenu';
 import { confirmDialog } from '../utils/confirm';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 
 const TAB_ALL = '__all__';
 const LOG_TAIL = 200;
@@ -94,12 +96,11 @@ function LogPanel({ title, content, preRef, onClose }: { title: string; content:
         <span className="text-xs font-medium text-text-secondary truncate mr-auto">Logs for {title}</span>
         <div className="relative">
           <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
-          <input
+          <Input size="sm"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             placeholder="Filter lines"
-            aria-label="Filter log lines"
-            className="w-36 pl-7 pr-2 py-1 rounded-md bg-bg-tertiary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+            aria-label="Filter log lines" className="w-36 pl-7 pr-2"
           />
         </div>
         <Tooltip content={copied ? 'Copied' : 'Copy logs'} position="top">
@@ -623,15 +624,13 @@ export function DockerView({
                     </div>
                   </div>
                   <div className="flex justify-end">
-                    <button
-                      type="button"
+                    <Button
                       onClick={() => onRefresh?.()}
                       disabled={loading}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white font-semibold transition-colors disabled:opacity-50 text-xs cursor-pointer"
                     >
                       {loading ? <Loader2 size={13} className="animate-spin" /> : <RotateCw size={13} />}
                       Try again
-                    </button>
+                    </Button>
                   </div>
                 </motion.div>
               ) : (

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckCircle2, Clock, Loader2, OctagonX, Square, X, XCircle } from 'lucide-react';
 import { dismissLiveSchedule, setLiveSchedule, useLiveSchedule } from '../utils/scheduleLive';
+import { Button } from './ui/Button';
 
 function mmss(ms: number) {
   const s = Math.max(0, Math.ceil(ms / 1000));
@@ -75,15 +76,13 @@ export function ScheduleToast() {
       )}
       {live.act && (live.phase === 'countdown' || live.phase === 'running') && (
         <div className="mt-2.5 flex justify-end">
-          <button
-            type="button"
+          <Button variant="outline" size="sm"
             disabled={busy}
             onClick={act}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-md border border-border/30 text-[11px] font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/60 disabled:opacity-50 cursor-pointer"
           >
             {live.phase === 'running' ? <Square size={10} /> : <X size={10} />}
             {live.phase === 'running' ? 'Stop' : 'Cancel schedule'}
-          </button>
+          </Button>
         </div>
       )}
     </div>,

@@ -3,6 +3,8 @@ import { ShieldCheck, ShieldOff, RefreshCw, Plus, Trash2, AlertTriangle, Lock, U
 import type { ServerConnection, ProxySettings } from '../types';
 import { Select } from './Select';
 import { confirmDialog } from '../utils/confirm';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 
 interface FirewallViewProps {
   currentServer: ServerConnection;
@@ -402,7 +404,7 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-medium text-text-secondary">Port</label>
-                    <input type="text" aria-label="Port" value={rulePort} onChange={e => setRulePort(e.target.value)} placeholder="80 or 8000:9000" className="w-32 px-2.5 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent" />
+                    <Input size="sm" type="text" aria-label="Port" value={rulePort} onChange={e => setRulePort(e.target.value)} placeholder="80 or 8000:9000" className="w-32" />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-medium text-text-secondary">Proto</label>
@@ -420,12 +422,12 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-medium text-text-secondary">From (IP or any)</label>
-                    <input type="text" aria-label="From" value={ruleFrom} onChange={e => setRuleFrom(e.target.value)} placeholder="any" className="w-36 px-2.5 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent" />
+                    <Input size="sm" type="text" aria-label="From" value={ruleFrom} onChange={e => setRuleFrom(e.target.value)} placeholder="any" className="w-36" />
                   </div>
-                  <button type="button" onClick={handleAddRule} disabled={!rulePort.trim() || actionLoading === 'add'} className="flex items-center gap-1.5 px-3.5 py-1.5 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-xl disabled:opacity-40 cursor-pointer shadow-sm">
+                  <Button onClick={handleAddRule} disabled={!rulePort.trim() || actionLoading === 'add'}>
                     {actionLoading === 'add' ? <RefreshCw size={12} className="animate-spin" /> : <Plus size={12} />}
                     Add rule
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -488,15 +490,13 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
                       <Layers size={14} className="text-accent" />
                       <span className="text-xs font-bold text-text-primary">{group.name}</span>
                     </div>
-                    <button
-                      type="button"
+                    <Button variant="soft" size="sm"
                       onClick={() => applySecurityGroup(group)}
                       disabled={actionLoading === `group-${group.name}`}
-                      className="flex items-center gap-1.5 px-3 py-1 bg-accent/15 hover:bg-accent text-accent hover:text-white text-[11px] font-semibold rounded-lg border border-accent/30 hover:border-transparent disabled:opacity-50 cursor-pointer transition-all"
                     >
                       {actionLoading === `group-${group.name}` ? <RefreshCw size={10} className="animate-spin" /> : <Unlock size={10} />}
                       Apply
-                    </button>
+                    </Button>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {group.rules.map((r, i) => (
@@ -527,28 +527,26 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-medium text-text-secondary">Subnet</label>
                   <div className="flex gap-1.5">
-                    <input
+                    <Input size="sm"
                       type="text"
                       aria-label="Subnet"
                       value={scanCidr}
                       onChange={e => setScanCidr(e.target.value)}
-                      placeholder="192.168.1.0/24"
-                      className="w-40 px-2.5 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent font-mono"
+                      placeholder="192.168.1.0/24" className="w-40 font-mono"
                     />
-                    <button type="button" onClick={autoDetectCidr} title="Fill in the server's own subnet" className="px-2.5 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-secondary hover:text-accent hover:border-accent cursor-pointer transition-colors">
+                    <Button variant="outline" onClick={autoDetectCidr} title="Fill in the server's own subnet">
                       Auto
-                    </button>
+                    </Button>
                   </div>
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-medium text-text-secondary">Port</label>
-                  <input
+                  <Input size="sm"
                     type="text"
                     aria-label="Port"
                     value={scanPort}
                     onChange={e => setScanPort(e.target.value)}
-                    placeholder="22"
-                    className="w-20 px-2.5 py-1.5 border border-border/30 bg-bg-primary/50 rounded-xl text-xs text-text-primary focus:outline-none focus:border-accent font-mono"
+                    placeholder="22" className="w-20 font-mono"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -564,15 +562,13 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
                     ]}
                   />
                 </div>
-                <button
-                  type="button"
+                <Button
                   onClick={handleScan}
                   disabled={scanLoading || !scanCidr.trim() || !scanPort.trim()}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-xl disabled:opacity-40 cursor-pointer shadow-sm"
                 >
                   {scanLoading ? <RefreshCw size={12} className="animate-spin" /> : <ScanSearch size={12} />}
                   {scanLoading ? 'Scanning…' : 'Scan'}
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -621,17 +617,17 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
                                   <span className="text-[11px] font-mono text-success bg-success/10 border border-success/20 px-2 py-0.5 rounded-lg">
                                     127.0.0.1:{tunnel.localPort}
                                   </span>
-                                  <button type="button" onClick={() => handleTunnelToggle(r.ip)} disabled={loading} className="px-2 py-0.5 text-[11px] font-semibold rounded-lg bg-error/10 text-error border border-error/20 hover:bg-error/20 cursor-pointer disabled:opacity-50">
+                                  <Button variant="softDestructive" size="sm" onClick={() => handleTunnelToggle(r.ip)} disabled={loading}>
                                     Close
-                                  </button>
+                                  </Button>
                                 </div>
                                 <span className="text-[11px] text-text-muted select-text">{connectHint(tunnel.localPort)}</span>
                               </div>
                             ) : (
-                              <button type="button" onClick={() => handleTunnelToggle(r.ip)} disabled={loading} className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-accent/10 text-accent border border-accent/20 hover:bg-accent/20 cursor-pointer disabled:opacity-50 transition-colors">
+                              <Button variant="soft" size="sm" onClick={() => handleTunnelToggle(r.ip)} disabled={loading}>
                                 {loading ? <RefreshCw size={10} className="animate-spin" /> : <Globe size={10} />}
                                 Forward to this computer
-                              </button>
+                              </Button>
                             )}
                           </td>
                         </tr>

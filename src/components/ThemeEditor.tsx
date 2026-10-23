@@ -4,6 +4,8 @@ import { createPortal } from 'react-dom';
 import {
   CustomTheme, ThemeColorKey, THEME_COLOR_VARS, parseThemeJson, addCustomTheme, slugify, isValidColor, applyTheme,
 } from '../utils/customThemes';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 
 const GROUPS: { title: string; keys: { key: ThemeColorKey; label: string; hint: string }[] }[] = [
   {
@@ -146,19 +148,17 @@ export function ThemeEditor({ initial, restoreChoice, onClose, onSaved }: Props)
 
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
         <div className="space-y-2.5">
-          <input
+          <Input
             value={name}
             maxLength={40}
             onChange={(e) => setName(e.target.value)}
             placeholder="Theme name"
-            className="w-full px-3 py-2 rounded-lg bg-bg-primary/50 border border-border/40 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
           />
-          <input
+          <Input
             value={description}
             maxLength={120}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Short description (optional)"
-            className="w-full px-3 py-2 rounded-lg bg-bg-primary/50 border border-border/40 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
           />
           <div className="flex rounded-lg border border-border/40 overflow-hidden text-[11px] font-semibold">
             {(['dark', 'light'] as const).map((b) => (
@@ -211,27 +211,24 @@ export function ThemeEditor({ initial, restoreChoice, onClose, onSaved }: Props)
       <div className="px-4 py-3 border-t border-border/40 space-y-2">
         {error && <p className="text-[11px] text-error">{error}</p>}
         <div className="flex items-center gap-2">
-          <button
+          <Button variant="outline" size="sm"
             onClick={() => setColors(startColors.current)}
             title="Undo all colour changes"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/40 text-[11px] font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-tertiary"
           >
             <RotateCcw size={12} /> Reset
-          </button>
-          <button
+          </Button>
+          <Button variant="outline" size="sm"
             onClick={exportJson}
             title="Save as a .json file to share"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/40 text-[11px] font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-tertiary"
           >
             <Download size={12} /> Export
-          </button>
-          <button
+          </Button>
+          <Button size="sm" className="ml-auto"
             onClick={save}
             disabled={!draft.name}
-            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-white text-[11px] font-semibold hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Save size={12} /> Save theme
-          </button>
+          </Button>
         </div>
       </div>
     </div>, document.body)

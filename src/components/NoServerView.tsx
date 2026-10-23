@@ -7,6 +7,7 @@ import EyeOffIcon from './icons/EyeOffIcon';
 import type { ServerConnection, ProxySettings, ConnectionType } from '../types';
 import { Tooltip } from './Tooltip';
 import { createPortal } from 'react-dom';
+import { Button } from './ui/Button';
 
 const inputClass =
   'px-3 py-2 rounded-xl bg-bg-primary/50 border border-border/30 text-text-primary placeholder-text-muted focus:border-accent focus:ring-1 focus:ring-accent outline-none text-xs w-full min-w-0 transition-all duration-150 font-sans';
@@ -284,13 +285,13 @@ function ServerDrawer({
         <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-t border-border/40">
           {tried && hasErrors ? <span className="text-[11px] text-error">Fix the highlighted fields.</span> : <span />}
           <div className="flex gap-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl border border-border/40 text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-tertiary cursor-pointer">
+            <Button variant="outline" onClick={onClose}>
               Cancel
-            </button>
-            <button type="submit" className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent-hover shadow-sm cursor-pointer">
+            </Button>
+            <Button type="submit">
               {editing ? <Check size={14} /> : <Plus size={14} />}
               {editing ? 'Save changes' : 'Add server'}
-            </button>
+            </Button>
           </div>
         </div>
       </form>
@@ -417,13 +418,11 @@ export function NoServerView({
                   />
                 </div>
               )}
-              <button
-                type="button"
+              <Button
                 onClick={() => setDrawer({ server: null })}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent-hover shadow-sm cursor-pointer"
               >
                 <Plus size={14} /> Add server
-              </button>
+              </Button>
             </div>
 
             {servers.length === 0 ? (
@@ -433,13 +432,11 @@ export function NoServerView({
                 <p className="text-xs text-text-secondary mt-1 max-w-sm">
                   Connect with an SSH key, a password, a Cloudflare Tunnel, or open a folder on this computer.
                 </p>
-                <button
-                  type="button"
+                <Button className="mt-5"
                   onClick={() => setDrawer({ server: null })}
-                  className="mt-5 flex items-center gap-1.5 px-4 py-2 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent-hover cursor-pointer"
                 >
                   <Plus size={14} /> Add your first server
-                </button>
+                </Button>
               </div>
             ) : visible.length === 0 ? (
               <p className="text-xs text-text-secondary text-center py-10">No servers match “{query}”.</p>
@@ -477,15 +474,13 @@ export function NoServerView({
                             </button>
                           </Tooltip>
                           {confirmDelete === s.id ? (
-                            <button
-                              type="button"
+                            <Button variant="softDestructive" size="sm"
                               onClick={() => { onRemoveServer(s.id); setConfirmDelete(null); }}
                               onBlur={() => setConfirmDelete(null)}
                               autoFocus
-                              className="px-2 py-1 rounded-lg bg-error/15 text-error text-[11px] font-semibold cursor-pointer"
                             >
                               Confirm remove
-                            </button>
+                            </Button>
                           ) : (
                             <Tooltip content="Remove" position="top">
                               <button type="button" onClick={() => setConfirmDelete(s.id)} aria-label={`Remove ${s.name}`} className="p-1.5 rounded-lg text-text-secondary hover:bg-bg-tertiary/60 hover:text-error cursor-pointer">
@@ -506,15 +501,13 @@ export function NoServerView({
                           <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${meta.tone}`}>{meta.short}</span>
                           {proxyLabel && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full border border-border/30 text-text-muted">{proxyLabel}</span>}
                         </div>
-                        <button
-                          type="button"
+                        <Button
                           onClick={() => onSelectServer(s)}
                           disabled={connectingTo !== null}
-                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent text-white text-xs font-semibold hover:bg-accent-hover transition-colors disabled:opacity-60 cursor-pointer"
                         >
                           {connecting ? <Loader2 size={12} className="animate-spin" /> : <LogIn size={12} />}
                           {connecting ? 'Connecting…' : t === 'local' ? 'Open' : 'Connect'}
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   );
@@ -530,13 +523,11 @@ export function NoServerView({
                   How SQL tunnels, Git deploys, rollbacks and auto-updates work. They open offline, no connection needed.
                 </p>
               </div>
-              <button
-                type="button"
+              <Button variant="outline" className="shrink-0"
                 onClick={() => onViewGuide?.('database')}
-                className="px-3.5 py-1.5 rounded-xl bg-bg-tertiary/50 hover:bg-bg-tertiary border border-border/30 text-text-primary text-xs font-semibold shrink-0 transition-colors cursor-pointer"
               >
                 Open guides
-              </button>
+              </Button>
             </div>
           </div>
         )}

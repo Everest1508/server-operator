@@ -20,6 +20,8 @@ import { parseLsLine } from '../utils/parseLs';
 import { Tooltip } from './Tooltip';
 import { createPortal } from 'react-dom';
 import { confirmDialog } from '../utils/confirm';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 
 interface RepoFileTreeMenuState {
   kind: 'entry' | 'background';
@@ -278,14 +280,13 @@ export function RepoSidebar({
               ) : (
                 <FileCode size={13} className="shrink-0 text-text-secondary" />
               )}
-              <input
+              <Input
                 ref={createInputRef}
                 type="text"
                 value={creatingName}
                 onChange={(e) => setCreatingName(e.target.value)}
                 onKeyDown={handleCreateKeyDown}
-                placeholder={creatingType === 'folder' ? 'Folder name' : 'File name'}
-                className="flex-1 min-w-0 bg-bg-primary/50 border border-border/40 rounded px-2 py-0.5 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+                placeholder={creatingType === 'folder' ? 'Folder name' : 'File name'} className="flex-1 min-w-0"
                 aria-label={creatingType === 'folder' ? 'Folder name' : 'File name'}
               />
             </div>
@@ -699,10 +700,8 @@ export function RepoSidebar({
                 </button>
               )}
               {onDeleteEntry && (
-                <button
-                  type="button"
+                <Button variant="softDestructive" className="w-full"
                   disabled={!!contextMenuAction}
-                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-error hover:bg-error/15 disabled:opacity-50 rounded-lg transition-colors cursor-pointer"
                   onClick={async () => {
                     const p = fileTreeMenu.path!;
                     const label = p.split('/').pop() || p;
@@ -723,7 +722,7 @@ export function RepoSidebar({
                 >
                   <Trash2 size={13} className="shrink-0" />
                   {contextMenuAction === 'del' ? 'Deleting…' : 'Delete'}
-                </button>
+                </Button>
               )}
             </>
           )}

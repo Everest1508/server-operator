@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { ServerConnection } from '../types';
 import { Input } from './ui/Input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
+import { Button } from './ui/Button';
 
 interface AddServerModalProps {
   onClose: () => void;
@@ -65,12 +66,11 @@ export function AddServerModal({ onClose, onAdd }: AddServerModalProps) {
             >
               Cancel
             </button>
-            <button
+            <Button
               type="submit"
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-accent hover:bg-accent-hover text-white transition-all duration-150 shadow-md shadow-accent/15"
             >
               Add Server Profile
-            </button>
+            </Button>
           </div>
         </form>
       </DialogContent>

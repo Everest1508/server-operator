@@ -1,6 +1,6 @@
 {
   "name": "server-operator",
-  "version": "2.10.0",
+  "version": "2.11.0",
   "description": "Premium server manager - deploy code, manage Docker, view logs",
   "author": {
     "name": "Ritesh Mahale",
@@ -39,6 +39,7 @@
     "class-variance-authority": "^0.7.1",
     "cloudinary": "^2.10.0",
     "clsx": "^2.1.1",
+    "electron-updater": "^6.8.9",
     "ioredis": "^5.11.0",
     "lucide-react": "^0.460.0",
     "motion": "^12.40.0",
@@ -72,6 +73,8 @@
   "build": {
     "appId": "com.server-operator.app",
     "productName": "Serop",
+    "afterPack": "build/afterPack.mac.js",
+    "publish": [{ "provider": "github", "owner": "everest1508", "repo": "server-operator", "releaseType": "release" }],
     "files": [
       "dist/**",
       "electron/**",
@@ -137,7 +140,11 @@
         }
       ],
       "category": "public.app-category.developer-tools",
-      "icon": "build/icons"
+      "icon": "build/icons",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "pkg": {
       "scripts": "build/pkg-scripts",

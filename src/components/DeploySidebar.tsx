@@ -653,15 +653,13 @@ export function DeploySidebar({
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="text-[11px] text-text-muted">Hidden from dropdown:</span>
                 {hiddenFiles.map((name) => (
-                  <button
+                  <Button variant="outline" size="sm"
                     key={name}
-                    type="button"
                     onClick={() => handleUnhideShortcutFile(name)}
                     title="Restore to dropdown"
-                    className="px-2 py-0.5 rounded-full border border-border/25 bg-bg-secondary/40 text-[11px] font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-secondary/70 transition-colors cursor-pointer"
                   >
                     {name} ↺
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -697,13 +695,11 @@ export function DeploySidebar({
                           <Button variant="solid" size="sm" onClick={() => runShortcut(editedCommand, shortcut.name)} disabled={!editedCommand.trim()}>
                             <Play size={10} />Run edited
                           </Button>
-                          <button
-                            type="button"
+                          <Button variant="outline" size="sm"
                             onClick={() => setEditedShortcutCommands((prev) => ({ ...prev, [shortcut.id]: shortcut.command }))}
-                            className="px-2.5 py-1 rounded-lg border border-border/30 bg-bg-primary/40 text-[11px] font-semibold text-text-primary hover:bg-bg-tertiary/60 transition-colors cursor-pointer"
                           >
                             Reset
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     )}
@@ -714,12 +710,12 @@ export function DeploySidebar({
               {shortcutsWarning && !shortcutsError && <p className="text-xs text-text-muted">{shortcutsWarning}</p>}
             </div>
             <div className="flex items-center gap-2 flex-wrap pt-1">
-              <button type="button" onClick={handleCopyShortcutBootstrapPrompt} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border/30 bg-bg-primary/40 text-text-primary text-xs font-semibold hover:bg-bg-tertiary/60 transition-all cursor-pointer">
+              <Button variant="outline" onClick={handleCopyShortcutBootstrapPrompt}>
                 <Copy size={12} />Copy AI recipe prompt
-              </button>
-              <button type="button" onClick={handleCreateStarterShortcuts} disabled={shortcutBootstrapBusy || !activeProjectPath} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs bg-accent/20 text-accent font-semibold hover:bg-accent/30 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors">
+              </Button>
+              <Button variant="soft" onClick={handleCreateStarterShortcuts} disabled={shortcutBootstrapBusy || !activeProjectPath}>
                 {shortcutBootstrapBusy ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}Write starter shortcuts
-              </button>
+              </Button>
             </div>
             {shortcutBootstrapMessage && <p className="text-xs text-text-secondary">{shortcutBootstrapMessage}</p>}
             {shortcutBootstrapError && <p className="text-xs text-error break-words">{shortcutBootstrapError}</p>}
@@ -792,14 +788,12 @@ export function DeploySidebar({
                     </div>
                     <div className="flex items-center gap-1.5 pt-0.5">
                       {row.status === 'scheduled' ? (
-                        <button
-                          type="button"
+                        <Button variant="outline" size="sm"
                           disabled={scheduleActionId === row.id}
                           onClick={() => handleCancelScheduledCommand(row)}
-                          className="flex items-center gap-1 px-2 py-1 rounded-md border border-border/30 text-[11px] font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/60 disabled:opacity-50 transition-colors cursor-pointer"
                         >
                           <X size={10} />Cancel
-                        </button>
+                        </Button>
                       ) : row.status === 'running' ? (
                         <button
                           type="button"
@@ -839,7 +833,7 @@ export function DeploySidebar({
               <FolderTree size={12} className="text-accent shrink-0" />
               <span className="truncate" title={activeProjectPath}>{activeProjectPath}</span>
             </div>
-            <textarea value={contextText} onChange={(e) => onContextTextChange(e.target.value)} placeholder="The project file tree appears here once a project is selected. The AI chat uses it as context." rows={10} className="w-full px-3 py-2 rounded-xl bg-bg-primary/50 border border-border/30 text-xs font-mono text-text-primary placeholder-text-muted resize-y" />
+            <Textarea value={contextText} onChange={(e) => onContextTextChange(e.target.value)} placeholder="The project file tree appears here once a project is selected. The AI chat uses it as context." rows={10} className="font-mono resize-y" />
             {contextError && <p className="text-xs text-error break-words">{contextError}</p>}
           </div>
         )}

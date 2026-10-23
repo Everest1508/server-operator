@@ -32,6 +32,7 @@ import { Input } from './ui/Input';
 import { confirmDialog } from '../utils/confirm';
 import { QueryLibrary, recordQueryHistory } from './QueryLibrary';
 import type * as Monaco from 'monaco-editor';
+import { Textarea } from './ui/Textarea';
 
 type DbType = 'mysql' | 'postgres' | 'redis' | 'sqlite';
 type ExportMode = 'schema' | 'data' | 'full';
@@ -1359,11 +1360,10 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
                       </div>
                     </div>
 
-                    <textarea
+                    <Textarea
                       value={queryText}
                       onChange={(e) => setQueryText(e.target.value)}
-                      placeholder="e.g. GET mykey&#10;     HGETALL user:100&#10;     KEYS *"
-                      className="w-full h-24 p-3 border border-border/30 bg-bg-secondary/40 rounded-xl font-mono text-xs text-text-primary focus:outline-none focus:border-accent resize-none select-text"
+                      placeholder="e.g. GET mykey&#10;     HGETALL user:100&#10;     KEYS *" className="h-24 font-mono resize-none select-text"
                     />
                   </>
                 ) : (
@@ -1400,16 +1400,14 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
                             {importLoading ? <RefreshCw size={10} className="animate-spin" /> : <Download size={10} className="rotate-180" />}
                             Import SQL
                           </button>
-                          <button
-                            type="button"
+                          <Button variant="softDestructive" size="sm"
                             onClick={() => importFullFileInputRef.current?.click()}
                             disabled={importLoading || !!exportLoading}
                             title="Deletes everything in the database, then imports a SQL file"
-                            className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold border border-error/35 bg-error/10 text-error hover:bg-error/15 rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
                           >
                             {importLoading ? <RefreshCw size={10} className="animate-spin" /> : <Download size={10} className="rotate-180" />}
                             Wipe and import
-                          </button>
+                          </Button>
                           <button
                             type="button"
                             onClick={() => handleExportSql('schema')}
@@ -1428,15 +1426,13 @@ export function DatabaseView({ currentServer, proxy, activeView, connectedSqlite
                             {exportLoading === 'data' ? <RefreshCw size={10} className="animate-spin" /> : <Download size={10} />}
                             Export Data
                           </button>
-                          <button
-                            type="button"
+                          <Button variant="soft" size="sm"
                             onClick={() => handleExportSql('full')}
                             disabled={!!exportLoading || importLoading}
-                            className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold border border-accent/35 bg-accent/10 text-accent hover:bg-accent/15 rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
                           >
                             {exportLoading === 'full' ? <RefreshCw size={10} className="animate-spin" /> : <Download size={10} />}
                             Export Full
-                          </button>
+                          </Button>
                           <button
                             type="button"
                             onClick={handleBackupToCloudinary}

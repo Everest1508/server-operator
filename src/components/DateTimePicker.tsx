@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CalendarClock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Input } from './ui/Input';
 
 interface Props {
-  /** Local time as "YYYY-MM-DDTHH:mm" (same shape as <input type="datetime-local">), '' when unset. */
+  /** Local time as "YYYY-MM-DDTHH:mm" (same shape as <Input type="datetime-local">), '' when unset. */
   value: string;
   onChange: (value: string) => void;
   ariaLabel?: string;
@@ -43,8 +44,7 @@ function TimeField({ value, min, max, onCommit }: { value: number; min: number; 
         const n = value + (e.key === 'ArrowUp' ? 1 : -1);
         onCommit(n > max ? min : n < min ? max : n);
         setDraft(null);
-      }}
-      className="w-9 h-7 rounded-md bg-bg-primary/50 border border-border/30 text-center text-[12px] focus:outline-none focus:border-accent/60"
+      }} className="w-9 text-center"
     />
   );
 }

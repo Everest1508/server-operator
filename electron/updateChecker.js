@@ -1,13 +1,20 @@
 /**
  * updateChecker.js
  * Silently polls the GitHub Releases API and emits 'update-available' to
- * the renderer when a newer version is found. No electron-updater required.
+ * the renderer when a newer version is found. Download + install goes through
+ * electron-updater (mac builds are Developer ID signed + notarized).
  */
 
 'use strict';
 
 const https  = require('https');
 const { app, ipcMain, shell } = require('electron');
+const { autoUpdater } = require('electron-updater');
+
+const CAN_AUTO_INSTALL = app.isPackaged;
+
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = false;
 
 const REPO    = 'everest1508/server-operator';
 const API_URL = `https://api.github.com/repos/${REPO}/releases/latest`;
@@ -51,6 +58,7 @@ function fetchLatestRelease() {
               version: json.tag_name,
               releaseUrl: json.html_url || `https://github.com/${REPO}/releases/latest`,
               releaseNotes: json.body || '',
+              assets: json.assets || [],
             });
           } else {
             resolve(null);
@@ -105,6 +113,7 @@ async function runUpdateCheck(getWindow, userTriggered = false) {
         version: release.version,
         releaseUrl: release.releaseUrl,
         releaseNotes: release.releaseNotes,
+        canInstall: CAN_AUTO_INSTALL,
       });
     } else if (userTriggered) {
       // Already on latest — tell the renderer to show a toast
@@ -135,6 +144,21 @@ function startUpdateChecker(getWindow) {
   ipcMain.handle('updates:check', async () => {
     await runUpdateCheck(getWindow, true);
     return { ok: true };
+  });
+
+  // IPC: download via electron-updater, then restart into the new version
+  ipcMain.handle('updates:install', async () => {
+    if (!CAN_AUTO_INSTALL) return { ok: false, error: 'Auto-update not available on this platform' };
+    try {
+      const send = (p) => { const w = getWindow(); if (w && !w.isDestroyed()) w.webContents.send('update-progress', p); };
+      autoUpdater.on('download-progress', (p) => send(Math.round(p.percent)));
+      await autoUpdater.checkForUpdates();
+      await autoUpdater.downloadUpdate();
+      setImmediate(() => autoUpdater.quitAndInstall());
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: String(err.message || err) };
+    }
   });
 
   // IPC: open release page in default browser

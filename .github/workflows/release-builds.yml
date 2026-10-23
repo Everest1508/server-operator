@@ -46,9 +46,33 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Import Developer ID certificate (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          MAC_CERT_P12: ${{ secrets.MAC_CERT_P12 }}
+          MAC_CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+        run: |
+          if [ -z "$MAC_CERT_P12" ]; then echo "No MAC_CERT_P12 secret; building ad-hoc signed."; exit 0; fi
+          KC="$RUNNER_TEMP/build.keychain-db"
+          KC_PASS="$(uuidgen)"
+          echo "$MAC_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KC_PASS" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KC_PASS" "$KC"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$MAC_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KC_PASS" "$KC"
+          security list-keychains -d user -s "$KC" login.keychain-db
+          rm "$RUNNER_TEMP/cert.p12"
+
       - name: Build desktop artifacts
         env:
+          # Signing + notarization happen in build/afterPack.mac.js, not electron-builder
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          SIGN_IDENTITY: ${{ runner.os == 'macOS' && secrets.MAC_CERT_P12 != '' && secrets.SIGN_IDENTITY || '' }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           NODE_OPTIONS: "--max-old-space-size=8192"
           VITE_CRM_BASE_URL: "https://crm.beforth.in"
         run: ${{ matrix.build_command }}
@@ -66,6 +90,7 @@ jobs:
             release/*.snap
             release/*.7z
             release/*.blockmap
+            release/latest*.yml
           if-no-files-found: error
           retention-days: 14
 
@@ -79,6 +104,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Download built artifacts
         uses: actions/download-artifact@v4
@@ -121,7 +148,11 @@ jobs:
             echo "No release files found."
             exit 1
           fi
+          PREV="$(git describe --tags --abbrev=0 "${GITHUB_SHA}^" 2>/dev/null || true)"
+          RANGE="${PREV:+${PREV}..}${GITHUB_SHA}"
+          git log --no-merges --pretty='- %s' "$RANGE" | head -30 > notes.md
+          [ -s notes.md ] || echo "Maintenance release." > notes.md
           gh release create "$RELEASE_TAG" "${files[@]}" \
             --target "${GITHUB_SHA}" \
             --title "$RELEASE_TITLE" \
-            --notes "Automated release from push to main for commit ${GITHUB_SHA}."
+            --notes-file notes.md

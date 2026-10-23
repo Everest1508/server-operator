@@ -14,6 +14,8 @@ import { ServerToolsView } from './ServerToolsView';
 import { Select } from './Select';
 import { GroqModelSelect, loadGroqModel, DEFAULT_GROQ_MODELS } from './GroqModelSelect';
 import { confirmDialog } from '../utils/confirm';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 
 const GROQ_API_KEY_STORAGE = 'server-operator:groq-api-key';
 
@@ -895,23 +897,20 @@ export function DeployView({
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">
-                          <input
+                          <Input size="sm"
                             type="password"
                             value={groqApiKey}
                             onChange={(e) => setGroqApiKey(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') { handleSaveGroqKey(); setShowGroqKey(false); } }}
                             placeholder="Paste your Groq API key"
-                            aria-label="Groq API key"
-                            className="flex-1 min-w-0 px-3 py-1.5 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+                            aria-label="Groq API key" className="flex-1 min-w-0"
                           />
-                          <button
-                            type="button"
+                          <Button variant="outline" className="shrink-0"
                             onClick={() => { handleSaveGroqKey(); setShowGroqKey(false); }}
                             disabled={!groqApiKey.trim()}
-                            className="px-3.5 py-1.5 rounded-xl bg-bg-tertiary border border-border/30 text-xs font-semibold text-text-primary hover:border-accent/50 disabled:opacity-50 shrink-0 cursor-pointer"
                           >
                             Save key
-                          </button>
+                          </Button>
                         </div>
                       )}
                       <div className="flex items-center gap-2">
@@ -944,7 +943,7 @@ export function DeployView({
                                     }`}>{job.status}{job.exitCode != null ? ` (${job.exitCode})` : ''}</span>
                                   </div>
                                   <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                                    <button type="button" onClick={() => loadLogs(job.id, job.logPath, true)} className="px-1.5 py-0.5 rounded-md border border-border/20 text-[10px] text-text-secondary hover:text-text-primary hover:bg-bg-tertiary cursor-pointer">View logs</button>
+                                    <Button variant="outline" size="sm" onClick={() => loadLogs(job.id, job.logPath, true)}>View logs</Button>
                                     {job.status === 'running' && (
                                       <button type="button" onClick={() => cancelBgJob(job.id)} className="px-1.5 py-0.5 rounded-md border border-border/20 text-[10px] text-text-secondary hover:text-error hover:bg-error/10 cursor-pointer">Cancel</button>
                                     )}
@@ -994,14 +993,12 @@ export function DeployView({
                                     <div className="rounded-xl border border-accent/15 bg-bg-primary/30 p-2.5 space-y-2">
                                       <div className="flex items-center justify-between gap-2 select-none">
                                         <span className="text-xs font-semibold text-text-secondary">Suggested command</span>
-                                        <button
-                                          type="button"
+                                        <Button variant="soft" size="sm" className="shrink-0"
                                           onClick={() => executeInLeftTerminal(m.command)}
-                                          className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-accent/20 text-accent hover:bg-accent/30 transition-colors cursor-pointer"
                                         >
                                           <Play size={10} />
                                           Run in terminal
-                                        </button>
+                                        </Button>
                                       </div>
                                       <div className="rounded-lg border border-border/10 bg-bg-primary/35 px-2.5 py-2 text-[11px] font-mono text-text-secondary break-words whitespace-pre-wrap">
                                         {m.command}
@@ -1037,15 +1034,13 @@ export function DeployView({
                             className="w-full px-4 py-2.5 bg-transparent border-0 text-xs text-text-primary placeholder-text-muted focus:outline-none select-text"
                           />
                           <div className="flex justify-end px-2.5 pb-2.5">
-                            <button
-                              type="button"
+                            <Button
                               onClick={sendDeployMessage}
                               disabled={aiSuggesting || !aiRequest.trim()}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-white text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shadow-sm"
                             >
                               {aiSuggesting ? <Loader2 size={14} className="animate-spin" /> : <Send size={13} />}
                               Send
-                            </button>
+                            </Button>
                           </div>
                         </div>
                         {aiError && <p role="alert" className="mt-2 text-xs text-error break-words select-text">{aiError}</p>}
@@ -1112,24 +1107,22 @@ export function DeployView({
                           />
                         )}
                       </div>
-                      <input
+                      <Input
                         type="text"
                         value={pipelineProjDir}
                         onChange={(e) => setPipelineProjDir(e.target.value)}
-                        placeholder="/var/www/app"
-                        className="w-full px-3 py-2 border border-border/30 bg-bg-primary/50 rounded-xl text-xs font-mono text-text-primary focus:outline-none focus:border-accent"
+                        placeholder="/var/www/app" className="font-mono"
                       />
                     </div>
 
                     {/* Git Branch */}
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[11px] font-semibold text-text-muted select-none">Branch</label>
-                      <input
+                      <Input
                         type="text"
                         value={pipelineBranch}
                         onChange={(e) => setPipelineBranch(e.target.value)}
-                        placeholder="main"
-                        className="w-full px-3 py-2 border border-border/30 bg-bg-primary/50 rounded-xl text-xs font-mono text-text-primary focus:outline-none focus:border-accent"
+                        placeholder="main" className="font-mono"
                       />
                     </div>
 
@@ -1181,23 +1174,20 @@ export function DeployView({
                     {pipelineRestartType !== 'none' && (
                       <div className="flex flex-col gap-1.5">
                         <label className="text-[11px] font-semibold text-text-muted select-none">Service name</label>
-                        <input
+                        <Input
                           type="text"
                           value={pipelineServiceName}
                           onChange={(e) => setPipelineServiceName(e.target.value)}
-                          placeholder="e.g. nginx or backend-api"
-                          className="w-full px-3 py-2 border border-border/30 bg-bg-primary/50 rounded-xl text-xs font-mono text-text-primary focus:outline-none focus:border-accent"
+                          placeholder="e.g. nginx or backend-api" className="font-mono"
                         />
                       </div>
                     )}
 
                     {/* Deploy Action */}
                     <div className="pt-3 select-none">
-                      <button
-                        type="button"
+                      <Button className="w-full justify-center"
                         onClick={handleStartDeployment}
                         disabled={deploying || !pipelineProjDir.trim() || !isTerminalReady}
-                        className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-semibold text-xs text-white bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                       >
                         {deploying ? (
                           <>
@@ -1210,7 +1200,7 @@ export function DeployView({
                             Deploy
                           </>
                         )}
-                      </button>
+                      </Button>
                       {!isTerminalReady && (
                         <p className="mt-2.5 text-center text-[11px] text-warning font-semibold">
                           Waiting for the terminal to connect…
@@ -1277,23 +1267,19 @@ export function DeployView({
                             </div>
                             
                             <div className="flex items-center gap-1.5 shrink-0 select-none">
-                              <button
-                                type="button"
+                              <Button variant="outline" size="sm"
                                 onClick={() => setExpandedDeployId(expandedDeployId === item.id ? null : item.id)}
-                                className="px-2.5 py-1 border border-border/30 bg-bg-primary/50 hover:bg-bg-tertiary rounded-lg text-[11px] font-semibold text-text-primary transition-all cursor-pointer shadow-xs"
                               >
                                 {expandedDeployId === item.id ? 'Hide output' : 'Show output'}
-                              </button>
+                              </Button>
                               {item.status === 'success' && item.commitHash && (
-                                <button
-                                  type="button"
+                                <Button variant="softDestructive" size="sm"
                                   onClick={() => handleRollback(item.commitHash)}
                                   disabled={deploying || !isTerminalReady}
-                                  className="px-2.5 py-1 bg-error/15 hover:bg-error hover:text-white border border-error/25 hover:border-transparent rounded-lg text-[11px] text-error font-semibold disabled:opacity-40 transition-all cursor-pointer"
                                   title="Check out this commit again and restart the service"
                                 >
                                   Rollback
-                                </button>
+                                </Button>
                               )}
                             </div>
                           </div>

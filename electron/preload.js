@@ -16,6 +16,9 @@ ipcRenderer.on('compose-logs-stream-ended', (_event, payload) => {
 ipcRenderer.on('update-available', (_event, payload) => {
   window.dispatchEvent(new CustomEvent('update-available', { detail: payload }));
 });
+ipcRenderer.on('update-progress', (_event, payload) => {
+  window.dispatchEvent(new CustomEvent('update-progress', { detail: payload }));
+});
 ipcRenderer.on('update-check-result', (_event, payload) => {
   window.dispatchEvent(new CustomEvent('update-check-result', { detail: payload }));
 });
@@ -123,6 +126,7 @@ contextBridge.exposeInMainWorld('serverOperator', {
   crmLogin: (opts) => ipcRenderer.invoke('auth:crm-login', opts),
   // ── Updates ───────────────────────────────────────────────────────────────
   checkForUpdates: () => ipcRenderer.invoke('updates:check'),
+  installUpdate: () => ipcRenderer.invoke('updates:install'),
   openReleasePage: (url) => ipcRenderer.invoke('updates:open-release', url),
   // ── Window Controls ────────────────────────────────────────────────────────
   platform: process.platform,

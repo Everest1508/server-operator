@@ -17,6 +17,8 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { readStoredServers, revealServerPasswords } from '../utils/serverStore';
 import { confirmDialog } from '../utils/confirm';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 
 
 interface CloudTeamViewProps {
@@ -190,13 +192,11 @@ export function CloudTeamView({ onConnectServer, connectingToId }: CloudTeamView
             <p className="text-xs font-semibold text-text-primary">You are in guest mode</p>
             <p className="text-[11px] text-text-secondary mt-0.5">Create an account to manage teams and share servers.</p>
           </div>
-          <button
-            type="button"
+          <Button className="shrink-0"
             onClick={logout}
-            className="shrink-0 px-3 py-2 rounded-lg bg-accent text-white text-xs font-semibold inline-flex items-center gap-1.5"
           >
             <LogIn size={13} /> Sign in / Create account
-          </button>
+          </Button>
         </div>
       )}
 
@@ -228,8 +228,8 @@ export function CloudTeamView({ onConnectServer, connectingToId }: CloudTeamView
           <section className="rounded-xl border border-border/20 bg-bg-secondary/25 p-4 space-y-3">
             <h3 className="text-xs font-bold flex items-center gap-2"><Users size={14} /> Teams</h3>
             <div className="flex gap-2">
-              <input value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="New team name" className="flex-1 px-3 py-2 rounded-lg bg-bg-primary/50 border border-border/30 text-xs" />
-              <button type="button" onClick={handleCreateTeam} className="px-3 py-2 rounded-lg bg-accent text-white text-xs font-semibold">Create</button>
+              <Input value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="New team name" className="flex-1" />
+              <Button onClick={handleCreateTeam}>Create</Button>
             </div>
             {teams.length > 0 && (
               <Select
@@ -240,7 +240,7 @@ export function CloudTeamView({ onConnectServer, connectingToId }: CloudTeamView
             )}
             {selectedTeamId && (
               <div className="flex gap-2">
-                <input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="Teammate email" className="flex-1 px-3 py-2 rounded-lg bg-bg-primary/50 border border-border/30 text-xs" />
+                <Input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="Teammate email" className="flex-1" />
                 <button type="button" onClick={handleInvite} className="px-3 py-2 rounded-lg border border-border/30 text-xs font-semibold">Invite</button>
               </div>
             )}
@@ -257,7 +257,7 @@ export function CloudTeamView({ onConnectServer, connectingToId }: CloudTeamView
                 ...localServers.map((s) => ({ value: s.id, label: `${s.name} — ${s.host}` })),
               ]}
             />
-            <button type="button" onClick={handleShareServer} disabled={!selectedServerId || !selectedTeamId} className="px-3 py-2 rounded-lg bg-accent text-white text-xs font-semibold disabled:opacity-50">Share to team</button>
+            <Button onClick={handleShareServer} disabled={!selectedServerId || !selectedTeamId}>Share to team</Button>
           </section>
         </>
       )}
@@ -279,26 +279,22 @@ export function CloudTeamView({ onConnectServer, connectingToId }: CloudTeamView
                   {isOwner && <p className="text-[11px] text-accent/80 mt-0.5">Shared by you</p>}
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    type="button"
+                  <Button size="sm"
                     disabled={isConnecting}
                     onClick={() => handleConnectShared(s.id)}
-                    className="px-2.5 py-1.5 rounded-lg bg-accent text-white text-[11px] font-semibold inline-flex items-center gap-1 disabled:opacity-50"
                   >
                     <Link2 size={11} />
                     {isConnecting ? 'Connecting…' : 'Connect'}
-                  </button>
+                  </Button>
                   {canRemoveShared(s) && (
-                    <button
-                      type="button"
+                    <Button variant="softDestructive" size="sm"
                       disabled={busyId === s.id}
                       onClick={() => handleRemoveShared(s)}
-                      className="px-2.5 py-1.5 rounded-lg border border-error/30 text-error text-[11px] font-semibold inline-flex items-center gap-1 hover:bg-error/10 disabled:opacity-50"
                       title="Remove shared access"
                     >
                       <Trash2 size={11} />
                       Remove
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>

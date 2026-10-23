@@ -901,14 +901,12 @@ function ModulesView() {
                     {devtoolsStatus === 'opened' ? 'DevTools Opened!' : 'Open DevTools (Inspect App)'}
                   </button>
 
-                  <button
-                    type="button"
+                  <Button variant="outline"
                     onClick={loadLogs}
-                    className="flex items-center gap-2 px-3 py-2 rounded border bg-bg-secondary border-border hover:border-accent text-text-primary hover:text-accent text-xs font-medium transition-all"
                   >
                     <FileText size={14} className={logsLoading ? 'animate-spin' : ''} />
                     View Application Logs
-                  </button>
+                  </Button>
 
                   <button
                     type="button"

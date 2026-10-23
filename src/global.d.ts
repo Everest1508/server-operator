@@ -258,6 +258,7 @@ export interface ServerOperatorAPI {
   }>;
   // Updates
   checkForUpdates?: () => Promise<{ ok: boolean }>;
+  installUpdate?: () => Promise<{ ok: boolean; error?: string }>;
   openReleasePage?: (url: string) => Promise<{ ok: boolean; error?: string }>;
   platform?: string;
   minimizeWindow?: () => Promise<void>;

@@ -1,21 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X, Download, ChevronDown, ChevronUp, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Button } from './ui/Button';
 
 /* ─── Types ────────────────────────────────────────────────────────────── */
 interface UpdateInfo {
   version: string;
   releaseUrl: string;
   releaseNotes: string;
-}
-
-/* ─── localStorage keys ─────────────────────────────────────────────────── */
-const DISMISSED_KEY = 'server-operator:update-dismissed';
-
-function getDismissedVersion(): string | null {
-  try { return localStorage.getItem(DISMISSED_KEY); } catch { return null; }
-}
-function setDismissedVersion(version: string) {
-  try { localStorage.setItem(DISMISSED_KEY, version); } catch { /* ignore */ }
+  canInstall?: boolean;
 }
 
 /* ─── Up-to-date toast ──────────────────────────────────────────────────── */
@@ -56,13 +48,24 @@ function UpdateBannerInner({
 }) {
   const [notesOpen, setNotesOpen] = useState(false);
 
-  const handleDownload = () => {
-    window.serverOperator?.openReleasePage?.(info.releaseUrl);
-  };
+  const [progress, setProgress] = useState<number | null>(null);
+  const [error, setError] = useState('');
 
-  const handleDismiss = () => {
-    setDismissedVersion(info.version);
-    onDismiss();
+  useEffect(() => {
+    const onProgress = (e: Event) => setProgress((e as CustomEvent<number>).detail);
+    window.addEventListener('update-progress', onProgress);
+    return () => window.removeEventListener('update-progress', onProgress);
+  }, []);
+
+  const handleDownload = async () => {
+    if (!info.canInstall) {
+      window.serverOperator?.openReleasePage?.(info.releaseUrl);
+      return;
+    }
+    setError('');
+    setProgress(0);
+    const r = await window.serverOperator?.installUpdate?.();
+    if (r && !r.ok) { setError(r.error || 'Update failed'); setProgress(null); }
   };
 
   return (
@@ -81,13 +84,13 @@ function UpdateBannerInner({
             <span className="font-bold text-accent">{info.version}</span>
           </p>
           <p className="text-[11px] mt-0.5 leading-normal text-text-secondary">
-            A new release has been published to GitHub.
+            {error || 'A new release has been published to GitHub.'}
           </p>
         </div>
 
         {/* Dismiss Button */}
         <button
-          onClick={handleDismiss}
+          onClick={onDismiss}
           className="shrink-0 p-1 rounded-lg hover:bg-bg-tertiary text-text-secondary hover:text-text-primary transition-all"
           title="Dismiss"
         >
@@ -110,12 +113,18 @@ function UpdateBannerInner({
         <div className="flex-1" />
 
         <button
+          onClick={onDismiss}
+          className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-tertiary"
+        >
+          Later
+        </button>
+        <Button size="sm"
+          disabled={progress !== null}
           onClick={handleDownload}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all duration-100 bg-accent hover:bg-accent-hover text-white shadow-md shadow-accent/15"
         >
           <Download size={11} />
-          Download
-        </button>
+          {progress !== null ? `Updating… ${progress}%` : info.canInstall ? 'Update now' : 'Download'}
+        </Button>
       </div>
 
       {/* Expandable release notes */}
@@ -140,7 +149,6 @@ export function UpdateBanner() {
 
   const handleDismiss = useCallback(() => {
     setDismissed(true);
-    setUpdateInfo(null);
   }, []);
 
   useEffect(() => {
@@ -148,15 +156,11 @@ export function UpdateBanner() {
       const info = (e as CustomEvent<UpdateInfo>).detail;
       console.log('[Update Banner] Received update-available event with info:', info);
       if (!info?.version) return;
-      // Don't re-show a version the user already dismissed
-      const dismissedVer = getDismissedVersion();
-      console.log(`[Update Banner] Dismissed version currently in storage: "${dismissedVer}"`);
-      if (dismissedVer === info.version) {
-        console.log('[Update Banner] Version is dismissed. Suppressing banner.');
-        return;
-      }
-      setDismissed(false);
-      setUpdateInfo(info);
+      // Same version re-announced by a periodic check: keep it dismissed (pill stays)
+      setUpdateInfo((prev) => {
+        if (prev?.version !== info.version) setDismissed(false);
+        return info;
+      });
     };
 
     const onCheckResult = (e: Event) => {
@@ -196,6 +200,15 @@ export function UpdateBanner() {
         )}
         {updateInfo && !dismissed && (
           <UpdateBannerInner info={updateInfo} onDismiss={handleDismiss} />
+        )}
+        {updateInfo && dismissed && (
+          <button
+            onClick={() => setDismissed(false)}
+            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold border border-accent/30 popover-surface text-accent"
+            title="Click to update"
+          >
+            <Sparkles size={11} /> Update {updateInfo.version} available
+          </button>
         )}
       </div>
     </>

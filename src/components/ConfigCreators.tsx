@@ -7,6 +7,9 @@ import { Select } from './Select';
 import { loadProjectContext } from '../utils/loadProjectContext';
 
 import { GroqModelSelect, loadGroqModel } from './GroqModelSelect';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
+import { Textarea } from './ui/Textarea';
 
 const GROQ_API_KEY_STORAGE = 'server-operator:groq-api-key';
 const GROQ_WHISPER_MODEL = 'whisper-large-v3-turbo';
@@ -545,13 +548,12 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                   <div className="flex items-center gap-2">
                     <Key size={14} className="text-text-secondary shrink-0" />
                     <div className="relative flex-1 flex items-center min-w-0">
-                      <input
+                      <Input size="sm"
                         type={showGroqKey ? 'text' : 'password'}
                         value={groqApiKey}
                         onChange={(e) => { setGroqApiKey(e.target.value); setAiError(null); }}
                         onBlur={() => saveGroqApiKey(groqApiKey)}
-                        placeholder="Groq API key (saved locally)"
-                        className="w-full px-3 py-1.5 pr-10 rounded-md bg-bg-primary border border-border text-sm text-text-primary placeholder-text-muted focus:outline-none"
+                        placeholder="Groq API key (saved locally)" className="pr-10"
                       />
                       <button
                         type="button"
@@ -596,12 +598,11 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                     {contextText.trim() ? ` (${contextText.split('\n').filter(Boolean).length} lines)` : ''}
                   </button>
                   {!contextCollapsed && (
-                    <textarea
+                    <Textarea
                       value={contextText}
                       onChange={(e) => { setContextText(e.target.value); setAiError(null); }}
                       placeholder="Select a project above to load tree (level 3) + Dockerfile, compose, .env, etc. Or paste your own context."
-                      rows={4}
-                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-xs font-mono text-text-primary placeholder-text-muted resize-y"
+                      rows={4} className="font-mono resize-y"
                     />
                   )}
                 </div>
@@ -666,16 +667,14 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                         >
                           {isTranscribing ? <Loader2 size={18} className="animate-spin" /> : isListening ? <Square size={18} fill="currentColor" /> : <Mic size={18} />}
                         </button>
-                        <button
-                          type="button"
+                        <Button
                           onClick={handleSendMessage}
                           disabled={aiLoading || !aiPrompt.trim()}
-                          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Send"
                         >
                           {aiLoading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
                           Send
-                        </button>
+                        </Button>
                       </div>
                     </div>
                     {aiError && (
@@ -714,7 +713,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                         <Trash2 size={14} />
                       </button>
                     </div>
-                    <input
+                    <Input size="sm"
                       type="text"
                       placeholder="Name (e.g. web, api)"
                       value={s.name}
@@ -725,9 +724,8 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                     />
-                    <input
+                    <Input size="sm"
                       type="text"
                       placeholder="Image (e.g. nginx:alpine)"
                       value={s.image}
@@ -738,9 +736,8 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                     />
-                    <input
+                    <Input size="sm"
                       type="text"
                       placeholder="Build context (e.g. . or ./frontend)"
                       value={s.build}
@@ -751,9 +748,8 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                     />
-                    <input
+                    <Input size="sm"
                       type="text"
                       placeholder="Ports (e.g. 8080:80 or 3000:3000)"
                       value={s.ports}
@@ -764,9 +760,8 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                     />
-                    <textarea
+                    <Textarea
                       placeholder="Environment (one per line: KEY=value)"
                       value={s.env}
                       onChange={(e) =>
@@ -776,10 +771,9 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      rows={2}
-                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary resize-y"
+                      rows={2} className="resize-y"
                     />
-                    <input
+                    <Input size="sm"
                       type="text"
                       placeholder="Volumes (e.g. .:/app or named)"
                       value={s.volumes}
@@ -790,7 +784,6 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                     />
                     <Select
                       value={s.restart || 'no'}
@@ -810,14 +803,12 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                     />
                   </div>
                 ))}
-                <button
-                  type="button"
+                <Button variant="outline"
                   onClick={() => setComposeServices((prev) => [...prev, defaultComposeService()])}
-                  className="flex items-center gap-2 px-3 py-2 rounded-md bg-bg-tertiary border border-border text-sm text-text-primary hover:border-accent hover:text-accent"
                 >
                   <Plus size={16} />
                   Add service
-                </button>
+                </Button>
               </>
             )}
 
@@ -837,7 +828,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                       className="w-28 shrink-0"
                       options={['FROM', 'WORKDIR', 'COPY', 'ADD', 'RUN', 'ENV', 'EXPOSE', 'CMD', 'ENTRYPOINT'].map((t) => ({ value: t, label: t }))}
                     />
-                    <input
+                    <Input size="sm"
                       type="text"
                       value={step.value}
                       onChange={(e) =>
@@ -847,8 +838,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      placeholder={step.type === 'FROM' ? 'node:20-alpine' : step.type === 'COPY' ? '. .' : ''}
-                      className="flex-1 min-w-0 px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary font-mono"
+                      placeholder={step.type === 'FROM' ? 'node:20-alpine' : step.type === 'COPY' ? '. .' : ''} className="flex-1 min-w-0 font-mono"
                     />
                     <button
                       type="button"
@@ -859,14 +849,12 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                     </button>
                   </div>
                 ))}
-                <button
-                  type="button"
+                <Button variant="outline"
                   onClick={() => setDockerfileSteps((prev) => [...prev, { type: 'RUN', value: '' }])}
-                  className="flex items-center gap-2 px-3 py-2 rounded-md bg-bg-tertiary border border-border text-sm text-text-primary hover:border-accent hover:text-accent"
                 >
                   <Plus size={16} />
                   Add step
-                </button>
+                </Button>
               </>
             )}
 
@@ -900,7 +888,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                         { value: 'https', label: 'HTTPS' },
                       ]}
                     />
-                    <input
+                    <Input size="sm"
                       type="text"
                       placeholder="server_name"
                       value={s.serverName}
@@ -911,9 +899,8 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                     />
-                    <input
+                    <Input size="sm"
                       type="text"
                       placeholder="listen port"
                       value={s.port}
@@ -924,9 +911,8 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                     />
-                    <input
+                    <Input size="sm"
                       type="text"
                       placeholder="root (or leave empty for proxy)"
                       value={s.root}
@@ -937,9 +923,8 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                     />
-                    <input
+                    <Input size="sm"
                       type="text"
                       placeholder="proxy_pass (e.g. http://localhost:3000)"
                       value={s.proxyPass || ''}
@@ -950,11 +935,10 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                     />
                     {s.type === 'https' && (
                       <>
-                        <input
+                        <Input size="sm"
                           type="text"
                           placeholder="ssl_certificate path"
                           value={s.sslCert || ''}
@@ -965,9 +949,8 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                               return next;
                             })
                           }
-                          className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                         />
-                        <input
+                        <Input size="sm"
                           type="text"
                           placeholder="ssl_certificate_key path"
                           value={s.sslKey || ''}
@@ -978,25 +961,22 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                               return next;
                             })
                           }
-                          className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                         />
                       </>
                     )}
                   </div>
                 ))}
-                <button
-                  type="button"
+                <Button variant="outline"
                   onClick={() =>
                     setNginxServers((prev) => [
                       ...prev,
                       { type: 'http', serverName: 'localhost', port: '80', root: '/var/www/html', index: 'index.html' },
                     ])
                   }
-                  className="flex items-center gap-2 px-3 py-2 rounded-md bg-bg-tertiary border border-border text-sm text-text-primary hover:border-accent hover:text-accent"
                 >
                   <Plus size={16} />
                   Add server block
-                </button>
+                </Button>
               </>
             )}
 
@@ -1034,7 +1014,7 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                         { value: 'https', label: 'HTTPS (443)' },
                       ]}
                     />
-                    <input
+                    <Input size="sm"
                       type="text"
                       placeholder="ServerName"
                       value={v.serverName}
@@ -1045,9 +1025,8 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                     />
-                    <input
+                    <Input size="sm"
                       type="text"
                       placeholder="DocumentRoot"
                       value={v.documentRoot}
@@ -1058,11 +1037,10 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                           return next;
                         })
                       }
-                      className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                     />
                     {v.type === 'https' && (
                       <>
-                        <input
+                        <Input size="sm"
                           type="text"
                           placeholder="SSLCertificateFile"
                           value={v.sslCert || ''}
@@ -1073,9 +1051,8 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                               return next;
                             })
                           }
-                          className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                         />
-                        <input
+                        <Input size="sm"
                           type="text"
                           placeholder="SSLCertificateKeyFile"
                           value={v.sslKey || ''}
@@ -1086,25 +1063,22 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                               return next;
                             })
                           }
-                          className="w-full px-2 py-1.5 rounded bg-bg-primary border border-border text-sm text-text-primary"
                         />
                       </>
                     )}
                   </div>
                 ))}
-                <button
-                  type="button"
+                <Button variant="outline"
                   onClick={() =>
                     setApacheVhosts((prev) => [
                       ...prev,
                       { type: 'http', serverName: 'localhost', documentRoot: '/var/www/html', port: '80' },
                     ])
                   }
-                  className="flex items-center gap-2 px-3 py-2 rounded-md bg-bg-tertiary border border-border text-sm text-text-primary hover:border-accent hover:text-accent"
                 >
                   <Plus size={16} />
                   Add VirtualHost
-                </button>
+                </Button>
               </>
             )}
               </>
@@ -1135,15 +1109,13 @@ export function ConfigCreators({ currentServer = null, proxy, projectRepos = [] 
                 <span className="text-xs font-medium text-text-secondary">
                   {mode === 'ai' && llmOutput !== null ? 'Generated (AI)' : 'Generated config'}
                 </span>
-                <button
-                  type="button"
+                <Button variant="outline"
                   onClick={handleCopy}
                   disabled={!generated}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs bg-bg-tertiary border border-border text-text-primary hover:border-accent hover:text-accent disabled:opacity-50"
                 >
                   <Copy size={12} />
                   {copied ? 'Copied!' : 'Copy'}
-                </button>
+                </Button>
               </div>
               <pre className="flex-1 min-h-[200px] p-3 rounded bg-bg-primary border border-border text-xs font-mono text-text-primary whitespace-pre-wrap break-words overflow-auto">
                 {generated || (mode === 'ai' ? 'Describe what you want and click Generate.' : 'Use the form to build the config.')}

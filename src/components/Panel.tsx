@@ -6,6 +6,7 @@ import '@xterm/xterm/css/xterm.css';
 import { createTerminal, xtermThemeFromApp, type TerminalHandle } from '../utils/terminalSetup';
 import { useThemeKey } from '../hooks/useAppTheme';
 import type { ServerConnection, ProxySettings } from '../types';
+import { Input } from './ui/Input';
 
 interface PanelProps {
   currentServer: ServerConnection | null;
@@ -599,7 +600,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
         {panelTab === 'logs' && currentServer && composePaths && composePaths.length > 0 && (
           <div className="flex items-center gap-2">
             <label htmlFor="log-tail" className="text-xs text-text-secondary">Start with last</label>
-            <input
+            <Input
               id="log-tail"
               type="number"
               value={tail}
@@ -616,8 +617,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                 if (tail === '') {
                   setTail(200);
                 }
-              }}
-              className="w-14 px-2 py-0.5 rounded-lg bg-bg-primary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent text-center font-mono"
+              }} className="w-14 text-center font-mono"
               title="How many past lines to load when a stream opens"
             />
             <span className="text-xs text-text-secondary">lines</span>
@@ -647,24 +647,21 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
             {currentServer && (
               <div className="shrink-0 border-b border-border/20 p-3 space-y-3 bg-bg-secondary/20">
                 <div className="flex items-center gap-2 flex-wrap max-w-3xl">
-                  <input
+                  <Input size="sm"
                     type="text"
                     value={newComposePath}
                     onChange={(e) => setNewComposePath(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && addComposePath()}
                     placeholder="Compose file or project folder, e.g. docker-compose.yml"
-                    aria-label="Compose file or project folder"
-                    className="flex-1 min-w-[200px] px-3 py-1.5 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent font-mono"
+                    aria-label="Compose file or project folder" className="flex-1 min-w-[200px] font-mono"
                   />
-                  <button
-                    type="button"
+                  <Button variant="outline"
                     onClick={addComposePath}
                     disabled={!newComposePath.trim() || loadingServicesForPath !== null}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-bg-tertiary border border-border/30 text-text-primary hover:border-accent/40 hover:text-accent disabled:opacity-50 text-xs font-semibold cursor-pointer transition-colors"
                   >
                     <Plus size={13} />
                     Add
-                  </button>
+                  </Button>
                   {currentServer.connectionType === 'local' && currentServer.projectPath && !composePaths.includes(currentServer.projectPath) && (
                     <button
                       type="button"
@@ -702,22 +699,18 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                               </span>
                             </div>
                             <div className="flex flex-wrap gap-1">
-                              <button
-                                type="button"
+                              <Button variant="outline" size="sm"
                                 onClick={() => openLogTab(p, '')}
-                                className="px-2.5 py-0.5 rounded-lg bg-bg-tertiary border border-border/30 text-[11px] text-text-primary hover:border-accent hover:text-accent font-medium transition-colors cursor-pointer"
                               >
                                 All services
-                              </button>
+                              </Button>
                               {services.map((s) => (
-                                <button
+                                <Button variant="outline" size="sm"
                                   key={s}
-                                  type="button"
                                   onClick={() => openLogTab(p, s)}
-                                  className="px-2.5 py-0.5 rounded-lg bg-bg-tertiary border border-border/30 text-[11px] text-text-primary hover:border-accent hover:text-accent font-medium transition-colors cursor-pointer"
                                 >
                                   {s}
-                                </button>
+                                </Button>
                               ))}
                             </div>
                             <div className="flex items-center gap-0.5 border-l border-border/20 pl-2 ml-1">
@@ -798,12 +791,11 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                         <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 border-b border-border/20">
                           <div className="relative flex-1 max-w-xs">
                             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
-                            <input
+                            <Input size="sm"
                               value={logFilter}
                               onChange={(e) => setLogFilter(e.target.value)}
                               placeholder="Filter lines"
-                              aria-label="Filter log lines"
-                              className="w-full pl-7 pr-2 py-1 rounded-md bg-bg-tertiary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+                              aria-label="Filter log lines" className="pl-7 pr-2"
                             />
                           </div>
                           <span className="mr-auto" />
@@ -1049,7 +1041,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                             }`}
                           />
                           {renamingTabId === t.id ? (
-                            <input
+                            <Input
                               autoFocus
                               value={renameValue}
                               onChange={(e) => setRenameValue(e.target.value)}
@@ -1060,8 +1052,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                                 else if (e.key === 'Escape') setRenamingTabId(null);
                               }}
                               onBlur={commitRename}
-                              aria-label="Terminal name"
-                              className="text-xs min-w-0 flex-1 font-sans bg-bg-primary/60 border border-accent/40 rounded px-1 py-px text-text-primary focus:outline-none"
+                              aria-label="Terminal name" className="min-w-0 flex-1"
                             />
                           ) : (
                             <span

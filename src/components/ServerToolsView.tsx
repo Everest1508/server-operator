@@ -6,6 +6,8 @@ import { useAppTheme, isLightTheme } from '../hooks/useAppTheme';
 import { Select } from './Select';
 import { createPortal } from 'react-dom';
 import { confirmDialog } from '../utils/confirm';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 
 const NGINX_MAIN_CONFIG = '/etc/nginx/nginx.conf';
 const NGINX_DEFAULT_NEW_PATH = '/etc/nginx/sites-available/new-site.conf';
@@ -510,43 +512,37 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
         {cronOpen && (
           <div className="p-4 space-y-4">
             <div className="flex items-center gap-2">
-              <button
-                type="button"
+              <Button variant="outline"
                 onClick={loadCron}
                 disabled={cronLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/30 bg-bg-primary/50 text-text-primary text-xs font-semibold hover:border-border/60 hover:bg-bg-tertiary transition-all duration-150 cursor-pointer"
               >
                 {cronLoading ? <Loader2 size={12} className="animate-spin text-accent" /> : <RefreshCw size={12} />}
                 Refresh Table
-              </button>
+              </Button>
             </div>
             {/* Add new cron job */}
             <div className="rounded-xl border border-border/20 bg-bg-primary/40 p-4 space-y-3">
               <p className="text-xs font-bold text-text-secondary">Register new job</p>
               <div className="flex flex-col sm:flex-row gap-3">
-                <input
+                <Input
                   type="text"
                   value={cronSchedule}
                   onChange={(e) => setCronSchedule(e.target.value)}
-                  placeholder="0 2 * * * (minute hour day month weekday)"
-                  className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-bg-secondary/50 border border-border/30 text-xs font-mono text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+                  placeholder="0 2 * * * (minute hour day month weekday)" className="flex-1 min-w-0 font-mono"
                 />
-                <input
+                <Input
                   type="text"
                   value={cronCommand}
                   onChange={(e) => setCronCommand(e.target.value)}
-                  placeholder="Command (e.g. /var/www/app/backup.sh)"
-                  className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-bg-secondary/50 border border-border/30 text-xs font-mono text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+                  placeholder="Command (e.g. /var/www/app/backup.sh)" className="flex-1 min-w-0 font-mono"
                 />
-                <button
-                  type="button"
+                <Button className="justify-center shrink-0"
                   onClick={handleAddCronJob}
                   disabled={cronAddLoading}
-                  className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent-hover disabled:opacity-50 shrink-0 cursor-pointer transition-colors shadow-sm"
                 >
                   {cronAddLoading ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
                   Add Cron
-                </button>
+                </Button>
               </div>
               {cronAddError && <p className="text-xs text-error font-mono">{cronAddError}</p>}
               <p className="text-[11px] text-text-muted leading-relaxed font-sans select-none">
@@ -577,68 +573,54 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
         {nginxOpen && (
           <div className="p-4 space-y-3">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <button
-                type="button"
+              <Button variant="outline"
                 onClick={loadNginx}
                 disabled={nginxLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/30 bg-bg-primary/50 text-text-primary text-xs font-semibold hover:border-border/60 hover:bg-bg-tertiary transition-all duration-150 cursor-pointer"
               >
                 {nginxLoading ? <Loader2 size={12} className="animate-spin text-accent" /> : <RefreshCw size={12} />}
                 Telemetry
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button variant="outline"
                 onClick={handleNginxStart}
                 disabled={nginxActionLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/30 bg-bg-primary/50 text-text-primary text-xs font-semibold hover:border-border/60 hover:bg-bg-tertiary transition-all duration-150 cursor-pointer"
               >
                 {nginxActionLoading ? <Loader2 size={12} className="animate-spin text-accent" /> : <Play size={12} />}
                 Start
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button variant="outline"
                 onClick={handleNginxStop}
                 disabled={nginxActionLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/30 bg-bg-primary/50 text-text-primary text-xs font-semibold hover:border-border/60 hover:bg-bg-tertiary transition-all duration-150 cursor-pointer"
               >
                 {nginxActionLoading ? <Loader2 size={12} className="animate-spin text-accent" /> : <Square size={12} />}
                 Stop
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button variant="outline"
                 onClick={handleNginxRestart}
                 disabled={nginxActionLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/30 bg-bg-primary/50 text-text-primary text-xs font-semibold hover:border-border/60 hover:bg-bg-tertiary transition-all duration-150 cursor-pointer"
               >
                 {nginxActionLoading ? <Loader2 size={12} className="animate-spin text-accent" /> : <RotateCw size={12} />}
                 Restart
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button variant="outline"
                 onClick={handleNginxEnable}
                 disabled={nginxActionLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/30 bg-bg-primary/50 text-text-primary text-xs font-semibold hover:border-border/60 hover:bg-bg-tertiary transition-all duration-150 cursor-pointer"
               >
                 {nginxActionLoading ? <Loader2 size={12} className="animate-spin text-accent" /> : <CircleCheck size={12} />}
                 Enable
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button variant="outline"
                 onClick={handleNginxDisable}
                 disabled={nginxActionLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/30 bg-bg-primary/50 text-text-primary text-xs font-semibold hover:border-border/60 hover:bg-bg-tertiary transition-all duration-150 cursor-pointer"
               >
                 {nginxActionLoading ? <Loader2 size={12} className="animate-spin text-accent" /> : <CircleX size={12} />}
                 Disable
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button className="justify-center ml-auto"
                 onClick={handleOpenNginxEditor}
-                className="flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent-hover transition-colors shadow-sm cursor-pointer ml-auto"
               >
                 <FileEdit size={13} />
                 Edit Config Files
-              </button>
+              </Button>
             </div>
             {nginxError && <p className="text-xs text-error font-mono">{nginxError}</p>}
             <p className="text-xs text-text-secondary select-text">
@@ -672,51 +654,45 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
             {certbotInstalled === false && !certbotCheckLoading && (
               <div className="space-y-3">
                 <p className="text-xs text-text-secondary font-sans leading-relaxed">Let\'s Encrypt Certbot utility is not detected on the remote server. Snap integration is recommended for Linux environments.</p>
-                <button
-                  type="button"
+                <Button className="justify-center shrink-0"
                   onClick={handleInstallCertbot}
                   disabled={installCertbotLoading}
-                  className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent-hover disabled:opacity-50 shrink-0 cursor-pointer transition-colors shadow-sm"
                 >
                   {installCertbotLoading ? <Loader2 size={13} className="animate-spin" /> : null}
                   Provision Certbot via Snap
-                </button>
+                </Button>
               </div>
             )}
             {certbotInstalled === true && (
               <div className="space-y-3 select-text">
                 <div>
                   <label className="block text-xs font-medium text-text-secondary mb-1.5 select-none">Domains (separated by commas or spaces)</label>
-                  <input
+                  <Input
                     type="text"
                     value={certDomains}
                     onChange={(e) => setCertDomains(e.target.value)}
                     placeholder="example.com www.example.com"
-                    className="w-full px-3.5 py-2 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-text-secondary mb-1.5 select-none">Email Address (Let\'s Encrypt alert notifications)</label>
-                  <input
+                  <Input
                     type="email"
                     value={certEmail}
                     onChange={(e) => setCertEmail(e.target.value)}
                     placeholder="ops@organization.com"
-                    className="w-full px-3.5 py-2 rounded-xl bg-bg-primary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
                   />
                 </div>
                 <p className="text-[11px] text-text-muted leading-relaxed select-none">
                   Runs standard non-interactive standalone challenge. Please verify port <code className="text-text-primary">80</code> is temporarily freed (shut down Nginx if listening) prior to initiating standalone handshake.
                 </p>
-                <button
-                  type="button"
+                <Button className="justify-center shrink-0"
                   onClick={handleGenerateCert}
                   disabled={certLoading}
-                  className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent-hover disabled:opacity-50 shrink-0 cursor-pointer transition-colors shadow-sm"
                 >
                   {certLoading ? <Loader2 size={13} className="animate-spin" /> : null}
                   Generate TLS Certificate
-                </button>
+                </Button>
                 {certError && <p className="text-xs text-error font-mono">{certError}</p>}
                 {certOutput && <pre className="text-xs font-mono text-text-primary bg-bg-primary p-3 rounded-xl border border-border/20 overflow-auto whitespace-pre-wrap select-text">{certOutput}</pre>}
               </div>
@@ -741,24 +717,20 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
         {certsListOpen && (
           <div className="p-4 space-y-4">
             <div className="flex items-center gap-2">
-              <button
-                type="button"
+              <Button variant="outline"
                 onClick={loadCertList}
                 disabled={certListLoading || certbotInstalled !== true}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/30 bg-bg-primary/50 text-text-primary text-xs font-semibold hover:border-border/60 hover:bg-bg-tertiary transition-all duration-150 cursor-pointer"
               >
                 {certListLoading ? <Loader2 size={12} className="animate-spin text-accent" /> : <RefreshCw size={12} />}
                 Sync Ledger
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button className="justify-center shrink-0"
                 onClick={handleRenew}
                 disabled={renewLoading || certbotInstalled !== true}
-                className="flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent-hover disabled:opacity-50 shrink-0 cursor-pointer transition-colors shadow-sm"
               >
                 {renewLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
                 Renew All Domains
-              </button>
+              </Button>
             </div>
             {renewOutput && <pre className="text-xs font-mono text-text-primary bg-bg-primary p-3 rounded-xl border border-border/20 overflow-auto whitespace-pre-wrap select-text">{renewOutput}</pre>}
             {certList.length === 0 && !certListLoading && certbotInstalled === true && <p className="text-xs text-text-muted ">No certificates yet. Request one above.</p>}
@@ -773,15 +745,13 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
                     </p>
                   </div>
                   <div className="flex items-center justify-end mt-3 border-t border-border/10 pt-2 select-none">
-                    <button
-                      type="button"
+                    <Button size="sm" className="shrink-0"
                       onClick={() => handleRenewOne(c.name)}
                       disabled={renewLoading || renewingCertName !== null}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent text-white text-[11px] font-semibold hover:bg-accent-hover disabled:opacity-50 shrink-0 cursor-pointer shadow-sm transition-colors"
                     >
                       {renewingCertName === c.name ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
                       Renew
-                    </button>
+                    </Button>
                   </div>
                 </li>
               ))}
@@ -816,26 +786,23 @@ export function ServerToolsView({ currentServer, proxy, onRunInTerminal }: Serve
                     ]}
                   />
                   {nginxConfigIsNew && (
-                    <input
+                    <Input size="sm"
                       type="text"
                       value={nginxConfigNewPath}
                       onChange={(e) => setNginxConfigNewPath(e.target.value)}
-                      placeholder="/etc/nginx/sites-available/my-site.conf"
-                      className="flex-1 min-w-[220px] px-3.5 py-1.5 rounded-xl bg-bg-primary/50 border border-border/30 text-xs font-mono text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+                      placeholder="/etc/nginx/sites-available/my-site.conf" className="flex-1 min-w-[220px] font-mono"
                     />
                   )}
                 </>
               )}
               <div className="flex items-center gap-2 ml-auto">
-                <button
-                  type="button"
+                <Button
                   onClick={handleSaveNginxConfig}
                   disabled={nginxConfigLoading || nginxConfigSaving}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent-hover disabled:opacity-50 cursor-pointer shadow-sm transition-colors"
                 >
                   {nginxConfigSaving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
                   {nginxConfigIsNew ? 'Create & save' : 'Save Config'}
-                </button>
+                </Button>
                 <button
                   type="button"
                   onClick={() => !nginxConfigSaving && setNginxEditorOpen(false)}

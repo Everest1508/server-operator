@@ -2,6 +2,7 @@ import {
   FolderOpen, Box, Database, ShieldCheck, CloudUpload, FileText, Check, LogIn, Loader2, Plus, Server, MonitorCog,
 } from 'lucide-react';
 import type { ServerConnection, ViewId } from '../types';
+import { Button } from './ui/Button';
 
 type FeatureView = Extract<ViewId, 'files' | 'docker' | 'database' | 'firewall' | 'deploy' | 'notes'>;
 
@@ -123,13 +124,11 @@ export function DisconnectedView({ view, servers, connectingTo, onSelectServer, 
             <div className="mt-5 flex flex-col items-center text-center py-6">
               <div className="p-3 rounded-xl bg-bg-tertiary/50 text-text-secondary mb-3"><Server size={20} /></div>
               <p className="text-xs text-text-secondary">You have no saved servers yet.</p>
-              <button
-                type="button"
+              <Button className="mt-4"
                 onClick={onManageServers}
-                className="mt-4 flex items-center gap-1.5 px-4 py-2 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent-hover cursor-pointer"
               >
                 <Plus size={14} /> Add a server
-              </button>
+              </Button>
             </div>
           ) : (
             <>

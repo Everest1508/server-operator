@@ -5,6 +5,7 @@ import '@xterm/xterm/css/xterm.css';
 import { Loader2 } from 'lucide-react';
 import { createTerminal, xtermThemeFromApp } from '../utils/terminalSetup';
 import type { ServerConnection, ProxySettings } from '../types';
+import { Button } from './ui/Button';
 
 export interface ProjectTerminalProps {
   currentServer: ServerConnection | null;
@@ -175,13 +176,11 @@ export function ProjectTerminal({ currentServer, proxy, projectPath, onReady, on
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3 p-6 text-error text-xs font-mono select-none">
         <div className="text-center break-all max-w-full">{error}</div>
-        <button
-          type="button"
+        <Button variant="outline"
           onClick={reconnect}
-          className="px-3 py-1.5 rounded-lg bg-bg-tertiary border border-border/30 text-text-primary hover:border-accent hover:text-accent font-semibold transition-colors cursor-pointer"
         >
           Retry Connection
-        </button>
+        </Button>
       </div>
     );
   }
@@ -211,13 +210,11 @@ export function ProjectTerminal({ currentServer, proxy, projectPath, onReady, on
           {status === 'connected' ? 'Connected' : status === 'connecting' ? 'Connecting…' : 'Disconnected'}
         </span>
         {status === 'closed' && (
-          <button
-            type="button"
+          <Button variant="outline" className="ml-auto"
             onClick={reconnect}
-            className="ml-auto px-2 py-0.5 rounded-md bg-bg-tertiary border border-border/30 text-text-primary hover:border-accent hover:text-accent font-semibold transition-colors cursor-pointer"
           >
             Reconnect
-          </button>
+          </Button>
         )}
       </div>
       <div ref={containerRef} className="flex-1 min-h-0 w-full" style={{ minHeight: 120 }} />

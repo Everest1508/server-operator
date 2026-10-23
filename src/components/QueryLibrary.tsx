@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { History, Bookmark, BookmarkPlus, Trash2, CheckCircle2, XCircle } from 'lucide-react';
 import { FloatingMenu } from './FloatingMenu';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 
 // Query history and saved queries, per server + database, kept in localStorage.
 
@@ -159,22 +161,20 @@ export function QueryLibrary({ scope, currentQuery, onLoad }: { scope: string; c
               onSubmit={(e) => { e.preventDefault(); saveQuery(close); }}
               className="flex items-center gap-1.5 p-2 border-b border-border/30"
             >
-              <input
+              <Input size="sm"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 onClick={(e) => e.stopPropagation()}
                 placeholder={currentQuery.trim() ? 'Name this query' : 'Write a query first'}
                 disabled={!currentQuery.trim()}
-                aria-label="Saved query name"
-                className="flex-1 min-w-0 px-2 py-1 rounded-md bg-bg-primary/50 border border-border/30 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent/40 disabled:opacity-50"
+                aria-label="Saved query name" className="flex-1 min-w-0"
               />
-              <button
+              <Button size="sm"
                 type="submit"
                 disabled={!name.trim() || !currentQuery.trim()}
-                className="flex items-center gap-1 px-2 py-1 rounded-md bg-accent text-white text-[11px] font-semibold disabled:opacity-40 cursor-pointer"
               >
                 <BookmarkPlus size={12} /> Save
-              </button>
+              </Button>
             </form>
             {saved.length === 0 ? (
               <p className="px-4 py-5 text-xs text-text-muted text-center">No saved queries yet.</p>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { GitBranch, RefreshCw, Loader2, Download, ArrowDownToLine, Archive, Undo2, GitCommitHorizontal, FileDiff, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import type { ServerConnection, ProxySettings } from '../types';
 import { confirmDialog } from '../utils/confirm';
+import { Input } from './ui/Input';
 
 type Status = NonNullable<Awaited<ReturnType<NonNullable<NonNullable<typeof window.serverOperator>['gitStatus']>>>>;
 type ChangedFile = { code: string; path: string; untracked: boolean };
@@ -145,12 +146,11 @@ export function GitPanel({ currentServer, proxy, defaultDir }: { currentServer: 
           className="flex items-center gap-1.5 min-w-0"
           onSubmit={(e) => { e.preventDefault(); void refresh(); }}
         >
-          <input
+          <Input size="sm"
             value={dir}
             onChange={(e) => setDir(e.target.value)}
             placeholder="Project folder on the server"
-            aria-label="Project folder"
-            className="w-64 max-w-full px-2.5 py-1.5 rounded-lg bg-bg-primary/50 border border-border/30 text-xs font-mono text-text-primary placeholder-text-muted focus:outline-none focus:border-accent/40"
+            aria-label="Project folder" className="w-64 max-w-full font-mono"
           />
           <button type="submit" className={btn} disabled={loading} title="Reload status">
             {loading ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}

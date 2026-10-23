@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { FileQuestion, Download, Loader2 } from 'lucide-react';
+import { Button } from './ui/Button';
 
 const IMAGE_TYPES: Record<string, string> = {
   png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp',
@@ -51,15 +52,13 @@ export function FilePreview({
 
   const name = filePath.split('/').pop() || filePath;
   const downloadButton = onDownload && (
-    <button
-      type="button"
+    <Button variant="outline"
       onClick={onDownload}
       disabled={downloading}
-      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/40 text-xs font-semibold text-text-primary hover:bg-bg-tertiary/60 disabled:opacity-50 cursor-pointer"
     >
       {downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
       Download
-    </button>
+    </Button>
   );
 
   if (imageType) {
