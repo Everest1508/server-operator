@@ -61,7 +61,7 @@
       "url": "https://server-operator-zeta.vercel.app/",
       "downloadUrl": "https://github.com/Everest1508/server-operator/releases/latest",
       "license": "https://www.apache.org/licenses/LICENSE-2.0",
-      "softwareVersion": "2.9.0",
+      "softwareVersion": "2.10.0",
       "isAccessibleForFree": true,
       "image": "https://server-operator-zeta.vercel.app/logo.png",
       "author": {
@@ -405,27 +405,38 @@
 
       <section class="section" id="whats-new" aria-labelledby="whats-new-heading">
         <div class="section__inner">
-          <h2 class="section__title" id="whats-new-heading">What’s New in 2.9.0</h2>
+          <h2 class="section__title" id="whats-new-heading">What’s New in 2.10.0</h2>
           <p class="section__subtitle">
-            A new API Tester tab works like Postman: send a request to any URL, public or on your own computer, and read the response. Paste a curl command to fill it in, and let Serop find the web apps running on your server.
+            The API Tester now imports Postman collections and environments, runs their scripts and tests, and can run a whole collection in order. A new Logs tab tails containers, services and log files in one colour-coded stream, and you can click an ID to follow a request across all of them.
           </p>
           <div class="release-card">
             <div class="release-card__header">
               <div>
-                <span class="release-badge">v2.9.0</span>
-                <h3>Courier</h3>
+                <span class="release-badge">v2.10.0</span>
+                <h3>Chronicle</h3>
               </div>
-              <p>2026-10-19</p>
+              <p>2026-10-23</p>
             </div>
             <div class="release-grid">
               <article class="release-block">
                 <h4>API Tester</h4>
                 <ul>
-                  <li>New API Tester tab. Pick GET, POST, PUT, PATCH, DELETE and more, type a URL (public, or localhost for an app on your computer) and see the status, time, size and a formatted response.</li>
-                  <li>Paste a curl command into the URL box and Serop fills in the method, URL, headers, body and login for you. Chrome's Copy as cURL works too.</li>
-                  <li>Add query params, headers, a JSON or text body, and a token or username and password. Save requests to the list on the left to run them again.</li>
-                  <li>Find APIs on your server: one button lists the web apps running on the connected server, named by Docker container or program and marked Public or Private. Click one to fill in its URL. Databases, mail and SSH ports are skipped.</li>
-                  <li>Errors are in plain words, such as nothing listening on that port or host not found. For a self-signed HTTPS certificate you can choose Allow untrusted certificate.</li>
+                  <li>Import from Postman: paste a collection or environment JSON, or choose the files (several at once, or drop them on the list). Folders, inherited login and collection variables come across.</li>
+                  <li>Variables: pick an environment next to Send and use {{name}} in the URL, params, headers, body and login. A line under the URL shows the final address and warns about any variable that has no value. {{$timestamp}}, {{$guid}} and {{$randomInt}} work too.</li>
+                  <li>Postman scripts and tests run: pm.test, pm.expect, pm.response.json(), pm.environment.set and pm.collectionVariables.set. Results show in new Tests and Console tabs. Scripts run in a sandbox, so a collection cannot reach your servers or files.</li>
+                  <li>Run a whole collection or folder with the play button. Requests go in order, variables such as a login token pass to the next one, and you see pass or fail, status and time for each, with a Stop button.</li>
+                  <li>Make your own collections, add the open request to one, rename them, and export a collection or an environment as a Postman file. Deleting a collection, request or environment now asks first.</li>
+                  <li>Copy as curl: one button copies the request as a curl command with the variables filled in.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Logs</h4>
+                <ul>
+                  <li>New Logs tab. Tick containers, running services and log files such as nginx, or add any file path, and their lines stream into one view with a coloured label per source. It only reads: it never changes anything on the server.</li>
+                  <li>Colour and highlighting: errors in red, warnings in amber, debug dimmed. HTTP status codes get badges (5xx red, 4xx amber, 2xx green), timestamps are dimmed and your search words are highlighted.</li>
+                  <li>Search with an optional regex, hide noisy lines such as health checks, switch levels and sources on or off, pause, clear, and save what you see to a file.</li>
+                  <li>Click any request ID, order ID, UUID or IP address to follow it across every source at once.</li>
+                  <li>Stack traces fold under the line that started them, so one error is one row. Click the arrow to open it.</li>
                 </ul>
               </article>
             </div>
@@ -525,7 +536,7 @@
 
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.9.0</span></p>
+        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.10.0</span></p>
         <div class="site-footer__links">
           <a href="https://github.com/everest1508/server-operator">GitHub</a>
           <a href="https://github.com/everest1508/server-operator/issues">Issues</a>

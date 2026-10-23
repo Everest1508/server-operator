@@ -63,6 +63,7 @@ contextBridge.exposeInMainWorld('serverOperator', {
   getDockerComposeServices: (opts) => ipcRenderer.invoke('server:get-docker-compose-services', opts),
   getDockerComposeLogs: (opts) => ipcRenderer.invoke('server:get-docker-compose-logs', opts),
   startComposeLogsStream: (opts) => ipcRenderer.invoke('server:start-compose-logs-stream', opts),
+  startLogStream: (opts) => ipcRenderer.invoke('server:start-log-stream', opts),
   stopComposeLogsStream: (opts) => ipcRenderer.invoke('server:stop-compose-logs-stream', opts),
   readFile: (opts) => ipcRenderer.invoke('server:read-file', opts),
   writeFile: (opts) => ipcRenderer.invoke('server:write-file', opts),

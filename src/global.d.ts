@@ -52,6 +52,7 @@ export interface ServerOperatorAPI {
     tail?: number;
     proxy?: ProxySettings;
   }) => Promise<{ ok: boolean; error?: string }>;
+  startLogStream: (opts: { streamId: string; connection: ServerConnection; command: string; proxy?: ProxySettings }) => Promise<{ ok: boolean; error?: string }>;
   stopComposeLogsStream: (opts: { streamId: string }) => Promise<void>;
   readFile: (opts: { connection: ServerConnection; filePath: string; proxy?: ProxySettings; useSudo?: boolean; sudoPassword?: string }) => Promise<{
     ok: boolean;

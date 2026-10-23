@@ -106,6 +106,43 @@
 <path class="a" d="M62 56l8 8 14-16M62 104l8 8 14-16M62 152l8 8 14-16"/>
 <path class="l" d="M104 56h110M104 104h110M104 152h80"/></g></svg></div>
 
+          <!-- 2.10.0 — Chronicle -->
+          <div class="release-card" style="margin-bottom: 32px;">
+            <div class="release-card__header">
+              <div>
+                <span class="release-badge">v2.10.0</span>
+                <h3>Chronicle</h3>
+              </div>
+              <p>2026-10-23</p>
+            </div>
+            <p style="color: var(--ash); font-size: 15px; margin: 0 0 24px;">
+              The API Tester now imports Postman collections and environments, runs their scripts and tests, and can run a whole collection in order. A new Logs tab tails containers, services and log files in one colour-coded stream, and you can click an ID to follow a request across all of them.
+            </p>
+            <div class="release-grid">
+              <article class="release-block">
+                <h4>API Tester</h4>
+                <ul>
+                  <li>Import from Postman: paste a collection or environment JSON, or choose the files (several at once, or drop them on the list). Folders, inherited login and collection variables come across.</li>
+                  <li>Variables: pick an environment next to Send and use {{name}} in the URL, params, headers, body and login. A line under the URL shows the final address and warns about any variable that has no value. {{$timestamp}}, {{$guid}} and {{$randomInt}} work too.</li>
+                  <li>Postman scripts and tests run: pm.test, pm.expect, pm.response.json(), pm.environment.set and pm.collectionVariables.set. Results show in new Tests and Console tabs. Scripts run in a sandbox, so a collection cannot reach your servers or files.</li>
+                  <li>Run a whole collection or folder with the play button. Requests go in order, variables such as a login token pass to the next one, and you see pass or fail, status and time for each, with a Stop button.</li>
+                  <li>Make your own collections, add the open request to one, rename them, and export a collection or an environment as a Postman file. Deleting a collection, request or environment now asks first.</li>
+                  <li>Copy as curl: one button copies the request as a curl command with the variables filled in.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Logs</h4>
+                <ul>
+                  <li>New Logs tab. Tick containers, running services and log files such as nginx, or add any file path, and their lines stream into one view with a coloured label per source. It only reads: it never changes anything on the server.</li>
+                  <li>Colour and highlighting: errors in red, warnings in amber, debug dimmed. HTTP status codes get badges (5xx red, 4xx amber, 2xx green), timestamps are dimmed and your search words are highlighted.</li>
+                  <li>Search with an optional regex, hide noisy lines such as health checks, switch levels and sources on or off, pause, clear, and save what you see to a file.</li>
+                  <li>Click any request ID, order ID, UUID or IP address to follow it across every source at once.</li>
+                  <li>Stack traces fold under the line that started them, so one error is one row. Click the arrow to open it.</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+
           <!-- 2.9.0 — Courier -->
           <div class="release-card" style="margin-bottom: 32px;">
             <div class="release-card__header">
@@ -761,7 +798,7 @@
 
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.9.0</span></p>
+        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.10.0</span></p>
         <div class="site-footer__links">
           <a href="https://github.com/everest1508/server-operator">GitHub</a>
           <a href="https://github.com/everest1508/server-operator/issues">Issues</a>

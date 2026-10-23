@@ -20,6 +20,7 @@ import { QuickOpen } from './components/QuickOpen';
 import { pushNotification } from './utils/notifications';
 import type { ServerTabSession } from './components/MultiServerBar';
 import { ApiView } from './components/ApiView';
+import { LogsView } from './components/LogsView';
 import type { ServerConnection, ViewId, ProxySettings, DockerContainer, FileTreeClipboard } from './types';
 import { escapeShellSingleQuotes } from './utils/shellQuote';
 import type { ServerSysInfo } from './components/ServerOverview';
@@ -80,7 +81,7 @@ function loadComposePathsByServer(): Record<string, string[]> {
   }
 }
 
-const VIEW_IDS: ViewId[] = ['servers', 'files', 'docker', 'deploy', 'notes', 'database', 'firewall', 'api', 'guide', 'settings'];
+const VIEW_IDS: ViewId[] = ['servers', 'files', 'docker', 'deploy', 'notes', 'database', 'firewall', 'logs', 'api', 'guide', 'settings'];
 const HASH_PREFIX = '#/';
 
 function viewFromHash(): ViewId {
@@ -1975,7 +1976,7 @@ export default function App() {
         />
       <div
         style={{
-          width: sidebarOpen && activeView !== 'settings' && activeView !== 'api' ? `${sidebarWidth}px` : '0px',
+          width: sidebarOpen && activeView !== 'settings' && activeView !== 'api' && activeView !== 'logs' ? `${sidebarWidth}px` : '0px',
           transition: resizeDrag === 'sidebar' ? 'none' : 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
         className="flex flex-col shrink-0 bg-bg-secondary overflow-hidden"
@@ -2040,9 +2041,9 @@ export default function App() {
       <div
         role="separator"
         style={{
-          opacity: sidebarOpen && activeView !== 'settings' && activeView !== 'api' ? 1 : 0,
-          pointerEvents: sidebarOpen && activeView !== 'settings' && activeView !== 'api' ? 'auto' : 'none',
-          width: sidebarOpen && activeView !== 'settings' && activeView !== 'api' ? '3px' : '0px',
+          opacity: sidebarOpen && activeView !== 'settings' && activeView !== 'api' && activeView !== 'logs' ? 1 : 0,
+          pointerEvents: sidebarOpen && activeView !== 'settings' && activeView !== 'api' && activeView !== 'logs' ? 'auto' : 'none',
+          width: sidebarOpen && activeView !== 'settings' && activeView !== 'api' && activeView !== 'logs' ? '3px' : '0px',
           transition: resizeDrag === 'sidebar' ? 'none' : 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
         className="shrink-0 cursor-col-resize bg-transparent hover:bg-accent/40 active:bg-accent transition-colors duration-150"
@@ -2095,6 +2096,8 @@ export default function App() {
               <CloudTeamView onConnectServer={handleSelectServer} />
             ) : activeView === 'settings' ? (
               <SettingsView />
+            ) : activeView === 'logs' ? (
+              <LogsView currentServer={currentServer} proxy={proxy} />
             ) : activeView === 'api' ? (
               <ApiView currentServer={currentServer} proxy={proxy} />
             ) : activeView === 'servers' ? (

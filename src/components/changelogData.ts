@@ -1,4 +1,4 @@
-import { Database, GitBranch, History, TerminalSquare, Sliders, Shield, Sparkles, Keyboard, Layers, ListOrdered, FolderTree, Send } from 'lucide-react';
+import { Database, GitBranch, History, TerminalSquare, Sliders, Shield, Sparkles, Keyboard, Layers, ListOrdered, FolderTree, Send, ScrollText } from 'lucide-react';
 import React from 'react';
 
 export interface ChangeEntry {
@@ -22,6 +22,40 @@ export interface ChangelogVersion {
 }
 
 export const CHANGELOG: ChangelogVersion[] = [
+  {
+    version: '2.10.0',
+    codename: 'Chronicle',
+    date: '2026-10-23',
+    summary:
+      'The API Tester now imports Postman collections and environments, runs their scripts and tests, and can run a whole collection in order. A new Logs tab tails containers, services and log files in one colour-coded stream, and you can click an ID to follow a request across all of them.',
+    groups: [
+      {
+        label: 'API Tester',
+        icon: Send,
+        color: '#7dd3fc',
+        items: [
+          { type: 'feat', text: 'Import from Postman: paste a collection or environment JSON, or choose the files (several at once, or drop them on the list). Folders, inherited login and collection variables come across.' },
+          { type: 'feat', text: 'Variables: pick an environment next to Send and use {{name}} in the URL, params, headers, body and login. A line under the URL shows the final address and warns about any variable that has no value. {{$timestamp}}, {{$guid}} and {{$randomInt}} work too.' },
+          { type: 'feat', text: 'Postman scripts and tests run: pm.test, pm.expect, pm.response.json(), pm.environment.set and pm.collectionVariables.set. Results show in new Tests and Console tabs. Scripts run in a sandbox, so a collection cannot reach your servers or files.' },
+          { type: 'feat', text: 'Run a whole collection or folder with the play button. Requests go in order, variables such as a login token pass to the next one, and you see pass or fail, status and time for each, with a Stop button.' },
+          { type: 'feat', text: 'Make your own collections, add the open request to one, rename them, and export a collection or an environment as a Postman file. Deleting a collection, request or environment now asks first.' },
+          { type: 'feat', text: 'Copy as curl: one button copies the request as a curl command with the variables filled in.' },
+        ],
+      },
+      {
+        label: 'Logs',
+        icon: ScrollText,
+        color: '#fbbf24',
+        items: [
+          { type: 'feat', text: 'New Logs tab. Tick containers, running services and log files such as nginx, or add any file path, and their lines stream into one view with a coloured label per source. It only reads: it never changes anything on the server.' },
+          { type: 'feat', text: 'Colour and highlighting: errors in red, warnings in amber, debug dimmed. HTTP status codes get badges (5xx red, 4xx amber, 2xx green), timestamps are dimmed and your search words are highlighted.' },
+          { type: 'feat', text: 'Search with an optional regex, hide noisy lines such as health checks, switch levels and sources on or off, pause, clear, and save what you see to a file.' },
+          { type: 'feat', text: 'Click any request ID, order ID, UUID or IP address to follow it across every source at once.' },
+          { type: 'improve', text: 'Stack traces fold under the line that started them, so one error is one row. Click the arrow to open it.' },
+        ],
+      },
+    ],
+  },
   {
     version: '2.9.0',
     codename: 'Courier',

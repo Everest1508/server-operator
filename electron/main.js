@@ -1654,6 +1654,48 @@ ipcMain.handle('server:start-compose-logs-stream', async (event, { streamId, con
   }
 });
 
+// Generic log tail (docker logs / journalctl / tail -F). Output goes out on the compose-logs-* events keyed by streamId,
+// and is stopped with server:stop-compose-logs-stream. `__DOCKER__` in the command becomes the docker command that works on that server.
+ipcMain.handle('server:start-log-stream', async (_, { streamId, connection, command, proxy }) => {
+  const ended = () => {
+    logStreams.delete(streamId);
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('compose-logs-stream-ended', { streamId });
+  };
+  try {
+    if (isLocalWorkspace(connection)) {
+      const cwd = ensureLocalWorkspace(connection);
+      const full = String(command).replace(/__DOCKER__/g, 'docker');
+      const shellBin = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh';
+      const args = process.platform === 'win32' ? ['/d', '/s', '/c', full] : ['-c', full];
+      const proc = spawn(shellBin, args, { cwd, shell: true });
+      logStreams.set(streamId, { proc, local: true });
+      proc.stdout.on('data', (d) => sendComposeLogsData(streamId, d.toString()));
+      proc.stderr.on('data', (d) => sendComposeLogsData(streamId, d.toString()));
+      proc.on('close', ended);
+      return { ok: true };
+    }
+    const conn = await connectSSH(connection, proxy);
+    let full = String(command);
+    if (full.includes('__DOCKER__')) {
+      const resolved = await resolveDockerPrefix(conn, connection, proxy, connection.cwd || connection.projectPath);
+      if (resolved.error) { conn.end(); return { ok: false, error: resolved.error }; }
+      full = full.replace(/__DOCKER__/g, resolved.prefix || 'docker');
+    }
+    return await new Promise((resolve) => {
+      conn.exec(full, (err, stream) => {
+        if (err) { conn.end(); resolve({ ok: false, error: errMsg(err) }); return; }
+        logStreams.set(streamId, { conn, stream });
+        stream.on('data', (d) => sendComposeLogsData(streamId, d.toString()));
+        stream.stderr.on('data', (d) => sendComposeLogsData(streamId, d.toString()));
+        stream.on('close', () => { conn.end(); ended(); });
+        resolve({ ok: true });
+      });
+    });
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
+});
+
 ipcMain.handle('server:stop-compose-logs-stream', async (_, { streamId }) => {
   const s = logStreams.get(streamId);
   if (s) {

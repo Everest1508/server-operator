@@ -1,4 +1,4 @@
-export type ViewId = 'servers' | 'files' | 'docker' | 'deploy' | 'notes' | 'database' | 'guide' | 'settings' | 'firewall' | 'team' | 'api';
+export type ViewId = 'servers' | 'files' | 'docker' | 'deploy' | 'notes' | 'database' | 'guide' | 'settings' | 'firewall' | 'team' | 'api' | 'logs';
 
 export type AppTheme = 'default' | 'glassy' | 'light' | 'tokyo-night';
 
