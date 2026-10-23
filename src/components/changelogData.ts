@@ -23,6 +23,33 @@ export interface ChangelogVersion {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: '2.11.0',
+    codename: 'Relay',
+    date: '2026-10-23',
+    summary:
+      'Serop can now update itself. When a new version is out you get a box with Update now or Later, and Update now downloads and installs it, so there is no more going to GitHub to download. Mac downloads are now signed and notarized by Apple, so macOS no longer says the app is damaged.',
+    groups: [
+      {
+        label: 'Updates',
+        icon: Sparkles,
+        color: '#7dd3fc',
+        items: [
+          { type: 'feat', text: 'Update from inside the app: when a new version is out, a box asks Update now or Later. Update now downloads it with a progress bar and restarts Serop in the new version. It works from 2.11.0 onward; older versions need one last manual download.' },
+          { type: 'feat', text: 'Choose Later and a small "Update available" button stays in the top corner. Click it whenever you are ready.' },
+          { type: 'improve', text: 'The update box shows what changed. Release notes now list the real changes, not just a commit number.' },
+        ],
+      },
+      {
+        label: 'Mac',
+        icon: Shield,
+        color: '#86efac',
+        items: [
+          { type: 'fix', text: 'Mac downloads are signed and notarized by Apple, so macOS opens Serop with a double-click and no "app is damaged" warning.' },
+        ],
+      },
+    ],
+  },
+  {
     version: '2.10.0',
     codename: 'Chronicle',
     date: '2026-10-23',
