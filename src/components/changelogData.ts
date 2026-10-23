@@ -23,7 +23,7 @@ export interface ChangelogVersion {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
-    version: '2.11.0',
+    version: '2.11.1',
     codename: 'Relay',
     date: '2026-10-23',
     summary:
