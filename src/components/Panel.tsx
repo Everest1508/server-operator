@@ -582,6 +582,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
             <FileText size={13} />
             Logs
           </button>
+          {!currentServer?.projectLock && (
           <button
             type="button"
             onClick={() => onTabChange('terminal')}
@@ -596,6 +597,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
             <TerminalIcon size={13} />
             Terminal
           </button>
+          )}
         </div>
         {panelTab === 'logs' && currentServer && composePaths && composePaths.length > 0 && (
           <div className="flex items-center gap-2">

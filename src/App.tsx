@@ -618,7 +618,12 @@ export default function App() {
     }
   }, [composePathsByServer]);
 
-  const composePaths = currentServer ? (composePathsByServer[currentServer.id] ?? []) : [];
+  const projectLock = currentServer?.projectLock;
+  const composePaths = currentServer
+    ? projectLock
+      ? [currentServer.projectPath ?? '']
+      : (composePathsByServer[currentServer.id] ?? [])
+    : [];
 
   const [dockerContainers, setDockerContainers] = useState<DockerContainer[]>([]);
   const [dockerLoading, setDockerLoading] = useState(false);
@@ -690,11 +695,11 @@ export default function App() {
     setComposePathsByServer((prev) => ({ ...prev, [currentServer.id]: paths }));
   };
   const addComposePath = (path: string) => {
-    if (!currentServer || composePaths.includes(path)) return;
+    if (!currentServer || projectLock || composePaths.includes(path)) return;
     setComposePaths([...composePaths, path]);
   };
   const removeComposePath = (path: string) => {
-    if (!currentServer) return;
+    if (!currentServer || projectLock) return;
     setComposePaths(composePaths.filter((p) => p !== path));
   };
 
@@ -1723,10 +1728,18 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
+  // Views a project connection may open. Everything else falls back to Docker.
+  const PROJECT_LOCK_VIEWS: ViewId[] = ['docker', 'servers', 'team', 'settings'];
   const setActiveViewAndRoute = (view: ViewId) => {
+    if (projectLock && !PROJECT_LOCK_VIEWS.includes(view)) view = 'docker';
     setActiveView(view);
     window.location.hash = hashFromView(view);
   };
+  useEffect(() => {
+    if (!projectLock) return;
+    if (!PROJECT_LOCK_VIEWS.includes(activeView)) setActiveViewAndRoute('docker');
+    if (panelTab === 'terminal') setPanelTab('logs');
+  }, [projectLock, activeView, panelTab]);
 
   const handleSelectGuideId = (id: string) => {
     setSelectedGuideId(id);

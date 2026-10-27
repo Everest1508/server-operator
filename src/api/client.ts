@@ -58,6 +58,23 @@ export interface SharedServerCredentials {
   password?: string;
 }
 
+export interface ApiProject {
+  id: string;
+  name: string;
+  teamId: string;
+  /** The one directory on the server the person may work in. */
+  path: string;
+  server: {
+    id: string;
+    name: string;
+    host: string;
+    username: string;
+    connectionType: string;
+    privateKeyPath: string | null;
+    password: string | null;
+  };
+}
+
 const STORAGE_KEY_TOKEN = 'server-operator:auth-token';
 const STORAGE_KEY_USER = 'server-operator:auth-user';
 
@@ -213,4 +230,8 @@ export function connectInboxWebSocket(token: string, onMessage: (data: unknown) 
   } catch {
     return null;
   }
+}
+
+export async function listMyProjects() {
+  return apiRequest<{ projects: ApiProject[] }>('/api/serop/projects');
 }

@@ -131,7 +131,7 @@ export function Dropdown({
           <div className="fixed inset-0 z-[99998]" aria-hidden onClick={() => setOpen(false)} />
           <div
             ref={panelRef}
-            className={`fixed z-[99999] overflow-hidden rounded-xl border border-border/50 bg-[#121820]/98 shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-xl dropdown-panel-enter ${panelClassName}`}
+            className={`fixed z-[99999] overflow-hidden rounded-xl border border-border/50 bg-bg-secondary shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-xl dropdown-panel-enter ${panelClassName}`}
             style={
               coords
                 ? { top: coords.top, left: coords.left, width: coords.width, visibility: 'visible' as const }

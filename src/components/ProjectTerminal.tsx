@@ -195,7 +195,7 @@ export function ProjectTerminal({ currentServer, proxy, projectPath, onReady, on
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-[#1e1e1e]">
+    <div className="flex-1 flex flex-col min-h-0 bg-bg-primary">
       <div className="flex items-center gap-2 px-3 py-1 border-b border-border/20 bg-bg-secondary/40 text-[10px] font-mono select-none shrink-0">
         <span
           className={`w-2 h-2 rounded-full shrink-0 ${

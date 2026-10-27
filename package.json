@@ -17,6 +17,7 @@
     "build": "tsc && cross-env NODE_OPTIONS=--max-old-space-size=8192 vite build && electron-builder",
     "preview": "vite preview",
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && cross-env ELECTRON_DEV=1 electron . --no-sandbox\"",
+    "electron:dev:5180": "cross-env PORT=5180 concurrently \"vite\" \"wait-on http://localhost:5180 && cross-env ELECTRON_DEV=1 electron . --no-sandbox\"",
     "electron:build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 vite build && electron-builder",
     "electron:build:linux": "cross-env NODE_OPTIONS=--max-old-space-size=8192 vite build && electron-builder --linux deb",
     "electron:build:mac": "cross-env NODE_OPTIONS=--max-old-space-size=8192 vite build && electron-builder --mac dmg zip",

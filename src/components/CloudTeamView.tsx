@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Bell, Link2, LogIn, Share2, Trash2, Users } from 'lucide-react';
+import { Bell, FolderGit2, Link2, LogIn, Share2, Trash2, Users } from 'lucide-react';
 import type { ServerConnection } from '../types';
 import { Select } from './Select';
 import {
+  ApiProject,
   ApiSharedServer,
   ApiTeam,
   createTeam,
   deleteSharedServer,
   fetchSharedServerCredentials,
   inviteToTeam,
+  listMyProjects,
   listSharedServers,
   listTeams,
   markNotificationRead,
@@ -30,6 +32,7 @@ export function CloudTeamView({ onConnectServer, connectingToId }: CloudTeamView
   const { user, logout, notifications, refreshInbox } = useAuth();
   const [teams, setTeams] = useState<ApiTeam[]>([]);
   const [sharedServers, setSharedServers] = useState<ApiSharedServer[]>([]);
+  const [projects, setProjects] = useState<ApiProject[]>([]);
   const [teamName, setTeamName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [selectedTeamId, setSelectedTeamId] = useState('');
@@ -45,9 +48,14 @@ export function CloudTeamView({ onConnectServer, connectingToId }: CloudTeamView
 
   const loadData = async () => {
     try {
-      const [teamsRes, serversRes] = await Promise.all([listTeams(), listSharedServers()]);
+      const [teamsRes, serversRes, projectsRes] = await Promise.all([
+        listTeams(),
+        listSharedServers(),
+        listMyProjects().catch(() => ({ projects: [] as ApiProject[] })),
+      ]);
       setTeams(teamsRes.teams);
       setSharedServers(serversRes.servers);
+      setProjects(projectsRes.projects);
       if (!selectedTeamId && teamsRes.teams[0]) setSelectedTeamId(teamsRes.teams[0].id);
       setError('');
     } catch (err) {
@@ -122,6 +130,26 @@ export function CloudTeamView({ onConnectServer, connectingToId }: CloudTeamView
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to share server');
     }
+  };
+
+  const handleOpenProject = (project: ApiProject) => {
+    setMessage('');
+    setError('');
+    const connection: ServerConnection = {
+      id: `project:${project.id}`,
+      name: project.name,
+      host: project.server.host,
+      username: project.server.username,
+      connectionType: (project.server.connectionType as ServerConnection['connectionType']) || 'password',
+      privateKeyPath: project.server.privateKeyPath || undefined,
+      password: project.server.password || undefined,
+      projectPath: project.path,
+      cwd: project.path,
+      projectLock: { projectId: project.id, projectName: project.name },
+    };
+    if (onConnectServer) onConnectServer(connection);
+    else window.dispatchEvent(new CustomEvent('connect-shared-server', { detail: { server: connection } }));
+    setMessage(`Opening "${project.name}"…`);
   };
 
   const handleConnectShared = async (serverId: string) => {
@@ -261,6 +289,32 @@ export function CloudTeamView({ onConnectServer, connectingToId }: CloudTeamView
           </section>
         </>
       )}
+
+      <section className="rounded-xl border border-border/20 bg-bg-secondary/25 p-4 space-y-3">
+        <h3 className="text-xs font-bold flex items-center gap-2"><FolderGit2 size={14} /> Your projects</h3>
+        <p className="text-[11px] text-text-secondary">Projects you have been given access to. Opening one shows only that project's Docker containers and logs.</p>
+        {projects.length === 0 ? (
+          <p className="text-[11px] text-text-secondary">No projects yet. Ask a team admin to give you access to one.</p>
+        ) : (
+          projects.map((p) => (
+            <div key={p.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/20 bg-bg-primary/30 px-3 py-2.5">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-text-primary truncate">{p.name}</p>
+                <p className="text-[10px] text-text-secondary truncate">{connectingToId === `project:${p.id}` ? 'Connecting…' : 'Docker and logs'}</p>
+              </div>
+              <button
+                type="button"
+                disabled={connectingToId === `project:${p.id}`}
+                onClick={() => handleOpenProject(p)}
+                className="px-2.5 py-1.5 rounded-lg bg-accent text-white text-[10px] font-semibold inline-flex items-center gap-1 disabled:opacity-50 shrink-0"
+              >
+                <Link2 size={11} />
+                Open
+              </button>
+            </div>
+          ))
+        )}
+      </section>
 
       <section className="rounded-xl border border-border/20 bg-bg-secondary/25 p-4 space-y-3">
         <h3 className="text-xs font-bold">Shared servers in your teams</h3>

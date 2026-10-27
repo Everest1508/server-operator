@@ -59,6 +59,12 @@ export interface ServerConnection {
   passwordEnc?: string;
   projectPath?: string;
   cwd?: string;
+  /**
+   * Set when the connection was opened from a CRM project. The person may only
+   * work on that project: Docker for its directory, no terminal, files or other
+   * tools. Never saved to the server list.
+   */
+  projectLock?: { projectId: string; projectName: string };
   useProxy?: boolean;
   layoutX?: number;
   layoutY?: number;

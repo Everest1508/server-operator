@@ -237,7 +237,7 @@ export function DockerView({
   currentServer,
   proxy,
   onOpenLogs,
-  onOpenTerminalAndRun,
+  onOpenTerminalAndRun: onOpenTerminalAndRunProp,
   composePaths = [],
   containers: containersProp = [],
   loading: loadingProp = false,
@@ -247,7 +247,13 @@ export function DockerView({
   servicesLoading: servicesLoadingProp = false,
   onRefresh,
 }: DockerViewProps) {
-  const [activeTab, setActiveTab] = useState<string>(TAB_ALL);
+  // A project connection sees only its own compose project and cannot open a shell.
+  const locked = !!currentServer?.projectLock;
+  const onOpenTerminalAndRun = locked ? undefined : onOpenTerminalAndRunProp;
+  const [activeTab, setActiveTab] = useState<string>(() => (locked && composePaths[0]) || TAB_ALL);
+  useEffect(() => {
+    if (locked && composePaths[0] && activeTab !== composePaths[0]) setActiveTab(composePaths[0]);
+  }, [locked, composePaths[0], activeTab]);
   const [containerAction, setContainerAction] = useState<string | null>(null);
   const [composeServiceAction, setComposeServiceAction] = useState<string | null>(null);
   const [restartAllInProgress, setRestartAllInProgress] = useState(false);
@@ -552,9 +558,11 @@ export function DockerView({
     <div className="flex-1 flex flex-col bg-bg-primary min-h-0">
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/30 bg-bg-secondary/30 shrink-0">
         <div role="tablist" className="flex items-center gap-1 overflow-x-auto min-w-0 flex-1 p-0.5 scrollbar-none">
+          {!locked && (
           <button type="button" role="tab" aria-selected={showAllContainers} onClick={() => setActiveTab(TAB_ALL)} className={tabCls(showAllContainers)}>
             Containers
           </button>
+          )}
           {composePaths.map((p) => (
             <Tooltip key={p} content={p} position="bottom">
               <button type="button" role="tab" aria-selected={activeTab === p} onClick={() => setActiveTab(p)} className={tabCls(activeTab === p)}>

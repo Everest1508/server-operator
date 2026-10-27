@@ -58,6 +58,8 @@ export function ActivityBar({
     <div className="flex flex-col w-14 bg-bg-activity/40 border-r border-border/25 shrink-0">
       <div className="flex flex-col items-center py-3 gap-1.5">
         {items.map(({ id, icon: Icon, label }) => {
+          // A project connection only gets Docker (and the Servers list to leave it).
+          if (currentServer?.projectLock && id !== 'servers' && id !== 'docker') return null;
           const flagKey = flagMapping[id];
           const isEnabled = flagKey ? !!flags[flagKey] : true;
 
