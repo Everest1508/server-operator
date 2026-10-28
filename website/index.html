@@ -61,7 +61,7 @@
       "url": "https://server-operator-zeta.vercel.app/",
       "downloadUrl": "https://github.com/Everest1508/server-operator/releases/latest",
       "license": "https://www.apache.org/licenses/LICENSE-2.0",
-      "softwareVersion": "2.11.1",
+      "softwareVersion": "2.12.0",
       "isAccessibleForFree": true,
       "image": "https://server-operator-zeta.vercel.app/logo.png",
       "author": {
@@ -405,31 +405,39 @@
 
       <section class="section" id="whats-new" aria-labelledby="whats-new-heading">
         <div class="section__inner">
-          <h2 class="section__title" id="whats-new-heading">What’s New in 2.11.1</h2>
+          <h2 class="section__title" id="whats-new-heading">What’s New in 2.12.0</h2>
           <p class="section__subtitle">
-            Serop can now update itself. When a new version is out you get a box with Update now or Later, and Update now downloads and installs it, so there is no more going to GitHub to download. Mac downloads are now signed and notarized by Apple, so macOS no longer says the app is damaged.
+            Projects now have their own icon in the left bar. Open a project and you get its Docker containers, its files and its saved commands, kept inside the project folder, with only safe commands allowed to run.
           </p>
           <div class="release-card">
             <div class="release-card__header">
               <div>
-                <span class="release-badge">v2.11.1</span>
-                <h3>Relay</h3>
+                <span class="release-badge">v2.12.0</span>
+                <h3>Lantern</h3>
               </div>
-              <p>2026-10-23</p>
+              <p>2026-10-28</p>
             </div>
             <div class="release-grid">
               <article class="release-block">
-                <h4>Updates</h4>
+                <h4>Projects</h4>
                 <ul>
-                    <li>Update from inside the app: when a new version is out, a box asks Update now or Later. Update now downloads it with a progress bar and restarts Serop in the new version. It works from 2.11.1 onward; older versions need one last manual download.</li>
-                    <li>Choose Later and a small "Update available" button stays in the top corner. Click it whenever you are ready.</li>
-                    <li>The update box shows what changed. Release notes now list the real changes, not just a commit number.</li>
+                    <li>A Projects icon in the left bar lists your projects and shared servers with their folders. Click one to open it.</li>
+                    <li>Opened projects get a Files view that stays inside the project folder. Paths outside it are refused.</li>
+                    <li>The Docker side list shows the project name and folder and only that project's containers. Server addresses are no longer shown for projects.</li>
                 </ul>
               </article>
               <article class="release-block">
-                <h4>Mac</h4>
+                <h4>Commands</h4>
                 <ul>
-                    <li>Mac downloads are signed and notarized by Apple, so macOS opens Serop with a double-click and no "app is damaged" warning.</li>
+                    <li>A new Commands view runs the shortcuts in the project's .server-operator folder and streams their output, with a Stop button.</li>
+                    <li>Only safe commands run in a project: looking at files and logs, git pull, and docker compose up, down and restart, with sudo allowed before git and docker. Everything else shows as Locked with the reason.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Fixes</h4>
+                <ul>
+                    <li>Docker services now load for a project, so the project's compose services are no longer empty.</li>
+                    <li>Sign-in and team loading no longer fail with Failed to fetch against the hosted CRM.</li>
                 </ul>
               </article>
             </div>
@@ -529,7 +537,7 @@
 
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.11.1</span></p>
+        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.12.0</span></p>
         <div class="site-footer__links">
           <a href="https://github.com/everest1508/server-operator">GitHub</a>
           <a href="https://github.com/everest1508/server-operator/issues">Issues</a>

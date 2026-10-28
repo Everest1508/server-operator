@@ -23,6 +23,43 @@ export interface ChangelogVersion {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: '2.12.0',
+    codename: 'Lantern',
+    date: '2026-10-28',
+    summary:
+      'Projects now have their own icon in the left bar. Open a project and you get its Docker containers, its files and its saved commands, kept inside the project folder, with only safe commands allowed to run.',
+    groups: [
+      {
+        label: 'Projects',
+        icon: FolderTree,
+        color: '#7dd3fc',
+        items: [
+          { type: 'feat', text: 'A Projects icon in the left bar lists your projects and shared servers with their folders. Click one to open it.' },
+          { type: 'feat', text: 'Opened projects get a Files view that stays inside the project folder. Paths outside it are refused.' },
+          { type: 'improve', text: 'The Docker side list shows the project name and folder and only that project\'s containers. Server addresses are no longer shown for projects.' },
+        ],
+      },
+      {
+        label: 'Commands',
+        icon: TerminalSquare,
+        color: '#86efac',
+        items: [
+          { type: 'feat', text: 'A new Commands view runs the shortcuts in the project\'s .server-operator folder and streams their output, with a Stop button.' },
+          { type: 'core', text: 'Only safe commands run in a project: looking at files and logs, git pull, and docker compose up, down and restart, with sudo allowed before git and docker. Everything else shows as Locked with the reason.' },
+        ],
+      },
+      {
+        label: 'Fixes',
+        icon: Shield,
+        color: '#fca5a5',
+        items: [
+          { type: 'fix', text: 'Docker services now load for a project, so the project\'s compose services are no longer empty.' },
+          { type: 'fix', text: 'Sign-in and team loading no longer fail with Failed to fetch against the hosted CRM.' },
+        ],
+      },
+    ],
+  },
+  {
     version: '2.11.1',
     codename: 'Relay',
     date: '2026-10-23',

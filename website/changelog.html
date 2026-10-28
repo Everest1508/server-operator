@@ -106,6 +106,44 @@
 <path class="a" d="M62 56l8 8 14-16M62 104l8 8 14-16M62 152l8 8 14-16"/>
 <path class="l" d="M104 56h110M104 104h110M104 152h80"/></g></svg></div>
 
+          <!-- 2.12.0 — Lantern -->
+          <div class="release-card" style="margin-bottom: 32px;">
+            <div class="release-card__header">
+              <div>
+                <span class="release-badge">v2.12.0</span>
+                <h3>Lantern</h3>
+              </div>
+              <p>2026-10-28</p>
+            </div>
+            <p style="color: var(--ash); font-size: 15px; margin: 0 0 24px;">
+              Projects now have their own icon in the left bar. Open a project and you get its Docker containers, its files and its saved commands, kept inside the project folder, with only safe commands allowed to run.
+            </p>
+            <div class="release-grid">
+              <article class="release-block">
+                <h4>Projects</h4>
+                <ul>
+                    <li>A Projects icon in the left bar lists your projects and shared servers with their folders. Click one to open it.</li>
+                    <li>Opened projects get a Files view that stays inside the project folder. Paths outside it are refused.</li>
+                    <li>The Docker side list shows the project name and folder and only that project's containers. Server addresses are no longer shown for projects.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Commands</h4>
+                <ul>
+                    <li>A new Commands view runs the shortcuts in the project's .server-operator folder and streams their output, with a Stop button.</li>
+                    <li>Only safe commands run in a project: looking at files and logs, git pull, and docker compose up, down and restart, with sudo allowed before git and docker. Everything else shows as Locked with the reason.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Fixes</h4>
+                <ul>
+                    <li>Docker services now load for a project, so the project's compose services are no longer empty.</li>
+                    <li>Sign-in and team loading no longer fail with Failed to fetch against the hosted CRM.</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+
           <!-- 2.11.1 — Relay -->
           <div class="release-card" style="margin-bottom: 32px;">
             <div class="release-card__header">
@@ -828,7 +866,7 @@
 
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.11.1</span></p>
+        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.12.0</span></p>
         <div class="site-footer__links">
           <a href="https://github.com/everest1508/server-operator">GitHub</a>
           <a href="https://github.com/everest1508/server-operator/issues">Issues</a>
