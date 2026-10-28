@@ -61,7 +61,7 @@
       "url": "https://server-operator-zeta.vercel.app/",
       "downloadUrl": "https://github.com/Everest1508/server-operator/releases/latest",
       "license": "https://www.apache.org/licenses/LICENSE-2.0",
-      "softwareVersion": "2.12.1",
+      "softwareVersion": "2.12.2",
       "isAccessibleForFree": true,
       "image": "https://server-operator-zeta.vercel.app/logo.png",
       "author": {
@@ -405,31 +405,25 @@
 
       <section class="section" id="whats-new" aria-labelledby="whats-new-heading">
         <div class="section__inner">
-          <h2 class="section__title" id="whats-new-heading">What’s New in 2.12.1</h2>
+          <h2 class="section__title" id="whats-new-heading">What’s New in 2.12.2</h2>
           <p class="section__subtitle">
-            Teams now has its own icon in the left bar and the page scrolls properly. Shared servers are gone, so you only see the projects you were given. Docker compose commands with -f now run in a project when the file is inside the project folder.
+            If the network drops while Serop is downloading an update, it now retries by itself and tells you what it is doing, instead of stopping and making you start again.
           </p>
           <div class="release-card">
             <div class="release-card__header">
               <div>
-                <span class="release-badge">v2.12.1</span>
-                <h3>Beacon</h3>
+                <span class="release-badge">v2.12.2</span>
+                <h3>Tether</h3>
               </div>
               <p>2026-10-28</p>
             </div>
             <div class="release-grid">
               <article class="release-block">
-                <h4>Teams</h4>
+                <h4>Updates</h4>
                 <ul>
-                    <li>Teams has its own icon in the left bar, with a count of pending invitations, instead of hiding in the profile menu.</li>
-                    <li>Shared servers are removed. Teams now shows your teams, invitations and the projects you can open.</li>
-                    <li>The Teams page scrolls again and no longer shows the screen behind it.</li>
-                </ul>
-              </article>
-              <article class="release-block">
-                <h4>Commands</h4>
-                <ul>
-                    <li>docker compose commands with -f now run in a project, with or without sudo, as long as the compose file is inside the project folder. Files outside it, and -p, stay locked.</li>
+                    <li>A dropped connection during an update download is retried automatically, up to five more times with a short pause, so you no longer have to press Update now again.</li>
+                    <li>The update box shows what is happening, such as Network error, retrying in 4s (2/5), and a clear message if the connection keeps dropping.</li>
+                    <li>Pressing Update now more than once no longer stacks up duplicate progress updates, and a second press while a download is running is ignored.</li>
                 </ul>
               </article>
             </div>
@@ -529,7 +523,7 @@
 
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.12.1</span></p>
+        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.12.2</span></p>
         <div class="site-footer__links">
           <a href="https://github.com/everest1508/server-operator">GitHub</a>
           <a href="https://github.com/everest1508/server-operator/issues">Issues</a>

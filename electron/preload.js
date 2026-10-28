@@ -19,6 +19,9 @@ ipcRenderer.on('update-available', (_event, payload) => {
 ipcRenderer.on('update-progress', (_event, payload) => {
   window.dispatchEvent(new CustomEvent('update-progress', { detail: payload }));
 });
+ipcRenderer.on('update-status', (_event, payload) => {
+  window.dispatchEvent(new CustomEvent('update-status', { detail: payload }));
+});
 ipcRenderer.on('update-check-result', (_event, payload) => {
   window.dispatchEvent(new CustomEvent('update-check-result', { detail: payload }));
 });

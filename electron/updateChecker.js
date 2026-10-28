@@ -18,7 +18,14 @@ autoUpdater.autoInstallOnAppQuit = false;
 
 const REPO    = 'everest1508/server-operator';
 const API_URL = `https://api.github.com/repos/${REPO}/releases/latest`;
+const MAX_DOWNLOAD_ATTEMPTS = 6;
 const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000; // 4 hours
+
+/** True for a dropped or unreachable connection, as opposed to a bad file or a missing release. */
+function isNetworkError(err) {
+  const text = `${err && err.code ? err.code : ''} ${err && err.message ? err.message : err}`;
+  return /ECONNRESET|ECONNREFUSED|ECONNABORTED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|ENETUNREACH|ENETDOWN|EPIPE|socket hang up|net::ERR_|timeout|timed out|network|aborted|premature close|unexpected end/i.test(text);
+}
 
 /** Naive semver compare: returns true if remote > local */
 function isNewer(local, remote) {
@@ -147,17 +154,39 @@ function startUpdateChecker(getWindow) {
   });
 
   // IPC: download via electron-updater, then restart into the new version
+  // electron-updater cannot resume a partial download: a dropped connection throws the temp file away.
+  // So a network error is retried automatically (with a growing pause) instead of making the person click again.
+  const send = (channel, payload) => { const w = getWindow(); if (w && !w.isDestroyed()) w.webContents.send(channel, payload); };
+  autoUpdater.on('download-progress', (p) => send('update-progress', Math.round(p.percent)));
+
+  let installing = false;
   ipcMain.handle('updates:install', async () => {
     if (!CAN_AUTO_INSTALL) return { ok: false, error: 'Auto-update not available on this platform' };
+    if (installing) return { ok: false, error: 'An update is already downloading.' };
+    installing = true;
     try {
-      const send = (p) => { const w = getWindow(); if (w && !w.isDestroyed()) w.webContents.send('update-progress', p); };
-      autoUpdater.on('download-progress', (p) => send(Math.round(p.percent)));
-      await autoUpdater.checkForUpdates();
-      await autoUpdater.downloadUpdate();
-      setImmediate(() => autoUpdater.quitAndInstall());
-      return { ok: true };
-    } catch (err) {
-      return { ok: false, error: String(err.message || err) };
+      let lastErr;
+      for (let attempt = 1; attempt <= MAX_DOWNLOAD_ATTEMPTS; attempt++) {
+        try {
+          await autoUpdater.checkForUpdates();
+          await autoUpdater.downloadUpdate();
+          send('update-status', '');
+          setImmediate(() => autoUpdater.quitAndInstall());
+          return { ok: true };
+        } catch (err) {
+          lastErr = err;
+          if (!isNetworkError(err) || attempt === MAX_DOWNLOAD_ATTEMPTS) break;
+          const waitSec = Math.min(30, 2 ** attempt);
+          console.warn(`[Update] Download failed (${err.message || err}); retry ${attempt}/${MAX_DOWNLOAD_ATTEMPTS - 1} in ${waitSec}s`);
+          send('update-status', `Network error, retrying in ${waitSec}s (${attempt}/${MAX_DOWNLOAD_ATTEMPTS - 1})…`);
+          await new Promise((r) => setTimeout(r, waitSec * 1000));
+        }
+      }
+      send('update-status', '');
+      const reason = isNetworkError(lastErr) ? 'The connection kept dropping. Check your network and try again.' : String(lastErr.message || lastErr);
+      return { ok: false, error: reason };
+    } finally {
+      installing = false;
     }
   });
 

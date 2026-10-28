@@ -50,11 +50,17 @@ function UpdateBannerInner({
 
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const [status, setStatus] = useState('');
 
   useEffect(() => {
-    const onProgress = (e: Event) => setProgress((e as CustomEvent<number>).detail);
+    const onProgress = (e: Event) => { setProgress((e as CustomEvent<number>).detail); setStatus(''); };
+    const onStatus = (e: Event) => setStatus((e as CustomEvent<string>).detail || '');
     window.addEventListener('update-progress', onProgress);
-    return () => window.removeEventListener('update-progress', onProgress);
+    window.addEventListener('update-status', onStatus);
+    return () => {
+      window.removeEventListener('update-progress', onProgress);
+      window.removeEventListener('update-status', onStatus);
+    };
   }, []);
 
   const handleDownload = async () => {
@@ -84,7 +90,7 @@ function UpdateBannerInner({
             <span className="font-bold text-accent">{info.version}</span>
           </p>
           <p className="text-[11px] mt-0.5 leading-normal text-text-secondary">
-            {error || 'A new release has been published to GitHub.'}
+            {error || status || 'A new release has been published to GitHub.'}
           </p>
         </div>
 

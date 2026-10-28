@@ -23,6 +23,25 @@ export interface ChangelogVersion {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: '2.12.2',
+    codename: 'Tether',
+    date: '2026-10-28',
+    summary:
+      'If the network drops while Serop is downloading an update, it now retries by itself and tells you what it is doing, instead of stopping and making you start again.',
+    groups: [
+      {
+        label: 'Updates',
+        icon: Sparkles,
+        color: '#7dd3fc',
+        items: [
+          { type: 'improve', text: 'A dropped connection during an update download is retried automatically, up to five more times with a short pause, so you no longer have to press Update now again.' },
+          { type: 'improve', text: 'The update box shows what is happening, such as Network error, retrying in 4s (2/5), and a clear message if the connection keeps dropping.' },
+          { type: 'fix', text: 'Pressing Update now more than once no longer stacks up duplicate progress updates, and a second press while a download is running is ignored.' },
+        ],
+      },
+    ],
+  },
+  {
     version: '2.12.1',
     codename: 'Beacon',
     date: '2026-10-28',
