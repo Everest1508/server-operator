@@ -12,6 +12,7 @@ import { HostKeyPrompt } from './components/HostKeyPrompt';
 import { applyTheme, loadThemeChoice, loadFolderThemes } from './utils/customThemes';
 import { STORAGE_KEY_SERVERS, readStoredServers, revealServerPasswords, protectServerPasswords } from './utils/serverStore';
 import { TitleBar } from './components/TitleBar';
+import { ProjectCommands } from './components/ProjectCommands';
 import { CloudTeamView } from './components/CloudTeamView';
 import { CustomContextMenu } from './components/CustomContextMenu';
 import { ServerAlreadyConnectedToast } from './components/ServerAlreadyConnectedToast';
@@ -81,7 +82,7 @@ function loadComposePathsByServer(): Record<string, string[]> {
   }
 }
 
-const VIEW_IDS: ViewId[] = ['servers', 'files', 'docker', 'deploy', 'notes', 'database', 'firewall', 'logs', 'api', 'guide', 'settings'];
+const VIEW_IDS: ViewId[] = ['servers', 'files', 'docker', 'deploy', 'notes', 'database', 'firewall', 'logs', 'commands', 'api', 'guide', 'settings'];
 const HASH_PREFIX = '#/';
 
 function viewFromHash(): ViewId {
@@ -643,7 +644,7 @@ export default function App() {
         else setDockerError(res.error || 'Failed to fetch containers');
       })
       .finally(() => setDockerLoading(false));
-    const paths = composePathsByServer[currentServer.id] ?? [];
+    const paths = composePaths;
     if (paths.length === 0) return;
     setDockerServicesLoading(true);
     Promise.all(
@@ -1729,7 +1730,7 @@ export default function App() {
   }, []);
 
   // Views a project connection may open. Everything else falls back to Docker.
-  const PROJECT_LOCK_VIEWS: ViewId[] = ['docker', 'servers', 'team', 'settings'];
+  const PROJECT_LOCK_VIEWS: ViewId[] = ['docker', 'files', 'commands', 'servers', 'team', 'settings'];
   const setActiveViewAndRoute = (view: ViewId) => {
     if (projectLock && !PROJECT_LOCK_VIEWS.includes(view)) view = 'docker';
     setActiveView(view);
@@ -1982,6 +1983,7 @@ export default function App() {
           panelOpen={panelOpen}
           onPanelToggle={() => setPanelOpen((o) => !o)}
           currentServer={currentServer}
+          onOpenProject={handleSelectServer}
           onDisconnect={() => {
             setCurrentServer(null);
             setActiveViewAndRoute('servers');
@@ -1989,7 +1991,7 @@ export default function App() {
         />
       <div
         style={{
-          width: sidebarOpen && activeView !== 'settings' && activeView !== 'api' && activeView !== 'logs' ? `${sidebarWidth}px` : '0px',
+          width: sidebarOpen && activeView !== 'settings' && activeView !== 'api' && activeView !== 'logs' && activeView !== 'commands' ? `${sidebarWidth}px` : '0px',
           transition: resizeDrag === 'sidebar' ? 'none' : 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
         className="flex flex-col shrink-0 bg-bg-secondary overflow-hidden"
@@ -2054,9 +2056,9 @@ export default function App() {
       <div
         role="separator"
         style={{
-          opacity: sidebarOpen && activeView !== 'settings' && activeView !== 'api' && activeView !== 'logs' ? 1 : 0,
-          pointerEvents: sidebarOpen && activeView !== 'settings' && activeView !== 'api' && activeView !== 'logs' ? 'auto' : 'none',
-          width: sidebarOpen && activeView !== 'settings' && activeView !== 'api' && activeView !== 'logs' ? '3px' : '0px',
+          opacity: sidebarOpen && activeView !== 'settings' && activeView !== 'api' && activeView !== 'logs' && activeView !== 'commands' ? 1 : 0,
+          pointerEvents: sidebarOpen && activeView !== 'settings' && activeView !== 'api' && activeView !== 'logs' && activeView !== 'commands' ? 'auto' : 'none',
+          width: sidebarOpen && activeView !== 'settings' && activeView !== 'api' && activeView !== 'logs' && activeView !== 'commands' ? '3px' : '0px',
           transition: resizeDrag === 'sidebar' ? 'none' : 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
         className="shrink-0 cursor-col-resize bg-transparent hover:bg-accent/40 active:bg-accent transition-colors duration-150"
@@ -2070,8 +2072,10 @@ export default function App() {
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-bg-primary/80 backdrop-blur-sm">
             <div className="rounded-2xl border border-border/40 bg-bg-secondary/70 px-8 py-6 flex flex-col items-center gap-4 shadow-2xl max-w-sm text-center">
               <div className="w-12 h-12 border-2 border-accent border-t-transparent rounded-full animate-spin mb-2" />
-              <p className="text-text-primary text-sm font-semibold">Connecting to {connectingToServer.name} via SSH…</p>
-              <p className="text-xs text-text-secondary mt-0.5">{connectingToServer.host} ({connectingToServer.username})</p>
+              <p className="text-text-primary text-sm font-semibold">Connecting to {connectingToServer.name}{connectingToServer.projectLock ? '' : ' via SSH'}…</p>
+              {!connectingToServer.projectLock && (
+                <p className="text-xs text-text-secondary mt-0.5">{connectingToServer.host} ({connectingToServer.username})</p>
+              )}
               {proxy?.enabled && connectingToServer.useProxy !== false && (
                 <p className="text-[11px] text-text-muted mt-0.5 bg-bg-tertiary/60 border border-border/40 px-2 py-0.5 rounded-full">Via SOCKS5 proxy</p>
               )}
@@ -2109,6 +2113,8 @@ export default function App() {
               <CloudTeamView onConnectServer={handleSelectServer} />
             ) : activeView === 'settings' ? (
               <SettingsView />
+            ) : activeView === 'commands' && currentServer ? (
+              <ProjectCommands currentServer={currentServer} proxy={proxy} />
             ) : activeView === 'logs' ? (
               <LogsView currentServer={currentServer} proxy={proxy} />
             ) : activeView === 'api' ? (

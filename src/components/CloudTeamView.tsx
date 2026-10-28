@@ -11,6 +11,7 @@ import {
   fetchSharedServerCredentials,
   inviteToTeam,
   listMyProjects,
+  projectToConnection,
   listSharedServers,
   listTeams,
   markNotificationRead,
@@ -135,18 +136,7 @@ export function CloudTeamView({ onConnectServer, connectingToId }: CloudTeamView
   const handleOpenProject = (project: ApiProject) => {
     setMessage('');
     setError('');
-    const connection: ServerConnection = {
-      id: `project:${project.id}`,
-      name: project.name,
-      host: project.server.host,
-      username: project.server.username,
-      connectionType: (project.server.connectionType as ServerConnection['connectionType']) || 'password',
-      privateKeyPath: project.server.privateKeyPath || undefined,
-      password: project.server.password || undefined,
-      projectPath: project.path,
-      cwd: project.path,
-      projectLock: { projectId: project.id, projectName: project.name },
-    };
+    const connection = projectToConnection(project);
     if (onConnectServer) onConnectServer(connection);
     else window.dispatchEvent(new CustomEvent('connect-shared-server', { detail: { server: connection } }));
     setMessage(`Opening "${project.name}"…`);
@@ -329,7 +319,7 @@ export function CloudTeamView({ onConnectServer, connectingToId }: CloudTeamView
               <div key={s.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/20 bg-bg-primary/30 px-3 py-2.5">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold text-text-primary truncate">{s.name}</p>
-                  <p className="text-[11px] text-text-secondary truncate">{s.username}@{s.host}</p>
+                                    {s.projectPath && <p className="font-mono text-[10px] text-text-secondary truncate" title={s.projectPath}>{s.projectPath}</p>}
                   {isOwner && <p className="text-[11px] text-accent/80 mt-0.5">Shared by you</p>}
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">

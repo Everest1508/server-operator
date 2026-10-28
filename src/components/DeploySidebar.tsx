@@ -84,7 +84,7 @@ ${STARTER_SEROP_FILES[1].content.trim()}
 Use shell commands and keep file names ending in .serop.`;
 }
 
-function parseSeropShortcuts(content: string): { shortcuts: SeropShortcut[]; warning?: string } {
+export function parseSeropShortcuts(content: string): { shortcuts: SeropShortcut[]; warning?: string } {
   const lines = content.split(/\r?\n/);
   const shortcuts: SeropShortcut[] = [];
   let currentSectionName = '';

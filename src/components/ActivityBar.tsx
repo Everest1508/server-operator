@@ -6,6 +6,7 @@ import FileDescriptionIcon from './icons/FileDescriptionIcon';
 import { PanelLeftClose, PanelBottomClose, LogOut, Activity, Database, Terminal, Lock, Settings, BookOpen, ShieldCheck, Send, ScrollText } from 'lucide-react';
 import type { ViewId, ServerConnection, FeatureFlags } from '../types';
 import { Tooltip } from './Tooltip';
+import { ProjectsMenu } from './ProjectsMenu';
 import { useFeatureFlags } from '../contexts/FeatureFlagContext';
 
 const items = [
@@ -16,6 +17,7 @@ const items = [
   { id: 'firewall' as const, icon: ShieldCheck, label: 'Firewall & Ports' },
   { id: 'logs' as const, icon: ScrollText, label: 'Logs' },
   { id: 'api' as const, icon: Send, label: 'API Tester' },
+  { id: 'commands' as const, icon: Terminal, label: 'Commands' },
   { id: 'deploy' as const, icon: CloudUploadIcon, label: 'Deploy' },
   { id: 'notes' as const, icon: FileDescriptionIcon, label: 'Notes & Debug' },
   { id: 'guide' as const, icon: BookOpen, label: 'Feature Guide' },
@@ -40,6 +42,7 @@ interface ActivityBarProps {
   onPanelToggle: () => void;
   currentServer?: ServerConnection | null;
   onDisconnect?: () => void;
+  onOpenProject?: (connection: ServerConnection) => void;
 }
 
 export function ActivityBar({
@@ -51,15 +54,20 @@ export function ActivityBar({
   onPanelToggle,
   currentServer,
   onDisconnect,
+  onOpenProject,
 }: ActivityBarProps) {
   const { flags } = useFeatureFlags();
 
   return (
     <div className="flex flex-col w-14 bg-bg-activity/40 border-r border-border/25 shrink-0">
       <div className="flex flex-col items-center py-3 gap-1.5">
+        {onOpenProject && (
+          <ProjectsMenu activeProjectId={currentServer?.projectLock?.projectId} onOpenProject={onOpenProject} />
+        )}
         {items.map(({ id, icon: Icon, label }) => {
-          // A project connection only gets Docker (and the Servers list to leave it).
-          if (currentServer?.projectLock && id !== 'servers' && id !== 'docker') return null;
+          if (id === 'commands' && !currentServer?.projectLock) return null;
+          // A project connection only gets Files and Docker (and the Servers list to leave it).
+          if (currentServer?.projectLock && id !== 'servers' && id !== 'docker' && id !== 'files' && id !== 'commands') return null;
           const flagKey = flagMapping[id];
           const isEnabled = flagKey ? !!flags[flagKey] : true;
 

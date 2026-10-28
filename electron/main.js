@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog, Menu, shell, clipboard, Notification } = require('electron');
 const { startUpdateChecker, runUpdateCheck } = require('./updateChecker');
+const { readOnlyCommandProblem } = require('./readOnlyCommand');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -1710,8 +1711,22 @@ ipcMain.handle('server:stop-compose-logs-stream', async (_, { streamId }) => {
   }
 });
 
+// A project connection (opened from a CRM project) may only touch paths inside its project folder.
+// Relative paths resolve against the folder; `..` and absolute paths outside it are refused.
+function assertInProjectScope(connection, target) {
+  const lock = connection && connection.projectLock;
+  if (!lock) return;
+  const root = path.posix.normalize(String(connection.projectPath || '/')).replace(/\/+$/, '') || '/';
+  const raw = String(target == null || target === '' ? '.' : target).replace(/\\/g, '/');
+  const abs = path.posix.normalize(raw.startsWith('/') ? raw : path.posix.join(root, raw));
+  if (abs !== root && !abs.startsWith(root + '/')) {
+    throw new Error('Outside the project folder.');
+  }
+}
+
 ipcMain.handle('server:read-file', async (_, { connection, filePath, proxy, useSudo, sudoPassword }) => {
   try {
+    assertInProjectScope(connection, filePath);
     if (isLocalWorkspace(connection)) {
       const resolved = resolveDummyPath(connection, filePath);
       const buf = fs.readFileSync(resolved);
@@ -1791,6 +1806,7 @@ function sudoFilePermissionMessage(action) {
 
 ipcMain.handle('server:write-file', async (_, { connection, filePath, content, proxy, useSudo, sudoPassword }) => {
   try {
+    assertInProjectScope(connection, filePath);
     if (isLocalWorkspace(connection)) {
       ensureLocalWorkspace(connection);
       const resolved = resolveDummyPath(connection, filePath);
@@ -1827,6 +1843,7 @@ ipcMain.handle('server:write-file', async (_, { connection, filePath, content, p
 
 ipcMain.handle('server:list-dir', async (_, { connection, dirPath, proxy }) => {
   try {
+    assertInProjectScope(connection, dirPath);
     if (isLocalWorkspace(connection)) {
       return listDirDummy(connection, dirPath);
     }
@@ -1855,6 +1872,7 @@ ipcMain.handle('server:list-dir', async (_, { connection, dirPath, proxy }) => {
 
 ipcMain.handle('server:stat-file', async (_, { connection, filePath, proxy }) => {
   try {
+    assertInProjectScope(connection, filePath);
     if (isLocalWorkspace(connection)) {
       const resolved = resolveDummyPath(connection, filePath);
       if (!fs.existsSync(resolved)) return { ok: false, error: 'File not found' };
@@ -1873,6 +1891,7 @@ ipcMain.handle('server:stat-file', async (_, { connection, filePath, proxy }) =>
 
 ipcMain.handle('server:mkdir', async (_, { connection, dirPath, proxy }) => {
   try {
+    assertInProjectScope(connection, dirPath);
     if (isLocalWorkspace(connection)) {
       ensureLocalWorkspace(connection);
       const resolved = resolveDummyPath(connection, dirPath);
@@ -1890,6 +1909,7 @@ ipcMain.handle('server:mkdir', async (_, { connection, dirPath, proxy }) => {
 
 ipcMain.handle('server:deletePath', async (_, { connection, filePath, proxy }) => {
   try {
+    assertInProjectScope(connection, filePath);
     if (isLocalWorkspace(connection)) {
       ensureLocalWorkspace(connection);
       const resolved = resolveDummyPath(connection, filePath);
@@ -2097,6 +2117,7 @@ async function uploadLocalFileTo(connection, proxy, remoteDir, localPath) {
 
 ipcMain.handle('server:upload-local-file', async (_, { connection, proxy, remoteDir }) => {
   try {
+    assertInProjectScope(connection, remoteDir);
     const win = BrowserWindow.getFocusedWindow() || mainWindow;
     const picked = await dialog.showOpenDialog(win, {
       title: 'Upload file to server',
@@ -2114,6 +2135,11 @@ ipcMain.handle('server:upload-local-file', async (_, { connection, proxy, remote
 
 // Files dropped onto the file tree from Finder / Explorer. Folders are skipped (not uploaded) and reported back.
 ipcMain.handle('server:upload-local-paths', async (_, { connection, proxy, remoteDir, localPaths }) => {
+  try {
+    assertInProjectScope(connection, remoteDir);
+  } catch (e) {
+    return { ok: false, uploaded: [], skipped: [], failed: [{ error: errMsg(e) }] };
+  }
   const uploaded = [];
   const skipped = [];
   const failed = [];
@@ -2174,6 +2200,7 @@ ipcMain.handle('server:find-files', async (_, { connection, proxy }) => {
 
 ipcMain.handle('server:download-remote-file', async (_, { connection, proxy, remoteFilePath }) => {
   try {
+    assertInProjectScope(connection, remoteFilePath);
     const win = BrowserWindow.getFocusedWindow() || mainWindow;
     const suggested =
       String(remoteFilePath || '')
@@ -2501,8 +2528,17 @@ async function runDeployJob(job, connection, proxy, cwd, cmd) {
   }
 }
 
+ipcMain.handle('project:check-commands', (_, { commands }) => ({
+  ok: true,
+  problems: (Array.isArray(commands) ? commands : []).map((c) => readOnlyCommandProblem(c)),
+}));
+
 ipcMain.handle('deploy:start-bg', async (_, { cwd, cmd, name, connection, proxy }) => {
   if (!connection || !String(cmd || '').trim()) return { ok: false, error: 'A server and a command are required.' };
+  if (connection.projectLock) {
+    const problem = readOnlyCommandProblem(cmd);
+    if (problem) return { ok: false, error: `Blocked: ${problem}. Project connections can only run inspection, git pull and docker compose commands.` };
+  }
   const job = createDeployJob({ connection, name, cmd: String(cmd).trim(), cwd });
   runDeployJob(job, connection, proxy, cwd, job.cmd); // not awaited: it keeps running in the background
   return { ok: true, jobId: job.id, logPath: job.logPath };

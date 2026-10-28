@@ -884,17 +884,30 @@ export function Sidebar({
             </div>
           </div>
         )}
-        {activeView === 'docker' && currentServer && (
+        {activeView === 'docker' && currentServer && (() => {
+          // A project connection sees only the containers compose started from its folder.
+          const projectDir = currentServer.projectLock ? (currentServer.projectPath ?? '').replace(/\/+$/, '') : '';
+          const containers = projectDir
+            ? dockerContainers.filter((c) =>
+                (c.Labels ?? '').split(',').some((l) => l.trim() === `com.docker.compose.project.working_dir=${projectDir}`))
+            : dockerContainers;
+          return (
           <div className="px-3 pt-1 pb-4">
+            {currentServer.projectLock && (
+              <div className="mx-1 mb-3 rounded-lg border border-border/25 bg-bg-secondary/30 px-3 py-2">
+                <p className="text-xs font-semibold text-text-primary truncate">{currentServer.projectLock.projectName}</p>
+                <p className="mt-0.5 font-mono text-[10px] text-text-secondary break-all" title={projectDir}>{projectDir}</p>
+              </div>
+            )}
             <div className="flex items-center justify-between px-1 pb-2">
-              <span className="text-xs font-semibold text-text-secondary">Containers on {currentServer.name}</span>
-              <span className="text-[11px] text-text-muted">{dockerContainers.length}</span>
+              <span className="text-xs font-semibold text-text-secondary">{projectDir ? 'Project containers' : `Containers on ${currentServer.name}`}</span>
+              <span className="text-[11px] text-text-muted">{containers.length}</span>
             </div>
-            {dockerContainers.length === 0 ? (
+            {containers.length === 0 ? (
               <p className="px-1 py-3 text-xs text-text-muted">No containers found.</p>
             ) : (
               <ul className="space-y-0.5">
-                {dockerContainers.map((c, i) => {
+                {containers.map((c, i) => {
                   const status = (c.Status || c.State || '').toLowerCase();
                   const paused = status.includes('paused');
                   const running = status.startsWith('up') && !paused;
@@ -908,7 +921,8 @@ export function Sidebar({
               </ul>
             )}
           </div>
-        )}
+          );
+        })()}
         {activeView === 'deploy' && currentServer && (
           <DeploySidebar
             currentServer={currentServer}

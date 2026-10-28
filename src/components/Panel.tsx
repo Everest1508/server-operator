@@ -639,7 +639,7 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
               }`}
               title={activeTerminalStatus ? `Session ${activeTerminalStatus}` : 'No active session'}
             />
-            {currentServer.connectionType === 'local' ? 'Local shell' : `${currentServer.username}@${currentServer.host}`}
+            {currentServer.connectionType === 'local' ? 'Local shell' : currentServer.projectLock ? currentServer.projectLock.projectName : `${currentServer.username}@${currentServer.host}`}
           </div>
         )}
       </div>

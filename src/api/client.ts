@@ -1,3 +1,4 @@
+import type { ServerConnection } from '../types';
 export interface ApiUser {
   id: string;
   email: string | null;
@@ -234,4 +235,20 @@ export function connectInboxWebSocket(token: string, onMessage: (data: unknown) 
 
 export async function listMyProjects() {
   return apiRequest<{ projects: ApiProject[] }>('/api/serop/projects');
+}
+
+/** The project-locked connection opened for a CRM project. */
+export function projectToConnection(project: ApiProject): ServerConnection {
+  return {
+    id: `project:${project.id}`,
+    name: project.name,
+    host: project.server.host,
+    username: project.server.username,
+    connectionType: (project.server.connectionType as ServerConnection['connectionType']) || 'password',
+    privateKeyPath: project.server.privateKeyPath || undefined,
+    password: project.server.password || undefined,
+    projectPath: project.path,
+    cwd: project.path,
+    projectLock: { projectId: project.id, projectName: project.name },
+  };
 }

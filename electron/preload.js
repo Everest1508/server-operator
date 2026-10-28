@@ -140,6 +140,7 @@ contextBridge.exposeInMainWorld('serverOperator', {
   shellResize: (opts) => ipcRenderer.invoke('server:shell-resize', opts),
   openUrl: (url) => ipcRenderer.invoke('shell:open-url', url),
   deployStartBg: (opts) => ipcRenderer.invoke('deploy:start-bg', opts),
+  checkProjectCommands: (opts) => ipcRenderer.invoke('project:check-commands', opts),
   deployReadLog: (opts) => ipcRenderer.invoke('deploy:read-log', opts),
   deployList: () => ipcRenderer.invoke('deploy:list'),
   deployStatus: (opts) => ipcRenderer.invoke('deploy:status', opts),
