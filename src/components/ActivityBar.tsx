@@ -3,10 +3,11 @@ import FolderIcon from './icons/FolderIcon';
 import DockerIcon from './icons/DockerIcon';
 import CloudUploadIcon from './icons/CloudUploadIcon';
 import FileDescriptionIcon from './icons/FileDescriptionIcon';
-import { PanelLeftClose, PanelBottomClose, LogOut, Activity, Database, Terminal, Lock, Settings, BookOpen, ShieldCheck, Send, ScrollText } from 'lucide-react';
+import { PanelLeftClose, PanelBottomClose, LogOut, Activity, Database, Terminal, Lock, Settings, BookOpen, ShieldCheck, Send, ScrollText, Users } from 'lucide-react';
 import type { ViewId, ServerConnection, FeatureFlags } from '../types';
 import { Tooltip } from './Tooltip';
 import { ProjectsMenu } from './ProjectsMenu';
+import { useAuth } from '../contexts/AuthContext';
 import { useFeatureFlags } from '../contexts/FeatureFlagContext';
 
 const items = [
@@ -20,6 +21,7 @@ const items = [
   { id: 'commands' as const, icon: Terminal, label: 'Commands' },
   { id: 'deploy' as const, icon: CloudUploadIcon, label: 'Deploy' },
   { id: 'notes' as const, icon: FileDescriptionIcon, label: 'Notes & Debug' },
+  { id: 'team' as const, icon: Users, label: 'Teams' },
   { id: 'guide' as const, icon: BookOpen, label: 'Feature Guide' },
 ];
 
@@ -57,6 +59,8 @@ export function ActivityBar({
   onOpenProject,
 }: ActivityBarProps) {
   const { flags } = useFeatureFlags();
+  const { notifications } = useAuth();
+  const pendingInvites = notifications.filter((n) => n.type === 'team_invitation' && !n.readAt).length;
 
   return (
     <div className="flex flex-col w-14 bg-bg-activity/40 border-r border-border/25 shrink-0">
@@ -67,7 +71,7 @@ export function ActivityBar({
         {items.map(({ id, icon: Icon, label }) => {
           if (id === 'commands' && !currentServer?.projectLock) return null;
           // A project connection only gets Files and Docker (and the Servers list to leave it).
-          if (currentServer?.projectLock && id !== 'servers' && id !== 'docker' && id !== 'files' && id !== 'commands') return null;
+          if (currentServer?.projectLock && id !== 'servers' && id !== 'docker' && id !== 'files' && id !== 'commands' && id !== 'team') return null;
           const flagKey = flagMapping[id];
           const isEnabled = flagKey ? !!flags[flagKey] : true;
 
@@ -109,6 +113,11 @@ export function ActivityBar({
                   <span className="absolute -left-2 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-accent" />
                 )}
                 <Icon size={20} strokeWidth={1.8} />
+                {id === 'team' && pendingInvites > 0 && (
+                  <span className="absolute top-0.5 right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full bg-error text-white text-[8px] font-bold flex items-center justify-center">
+                    {pendingInvites}
+                  </span>
+                )}
               </button>
             </Tooltip>
           );

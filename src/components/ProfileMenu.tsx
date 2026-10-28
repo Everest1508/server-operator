@@ -1,5 +1,5 @@
 import { useState, type ReactNode, type Ref } from 'react';
-import { ChevronDown, LogIn, LogOut, UserRound, Users } from 'lucide-react';
+import { ChevronDown, LogIn, LogOut, UserRound } from 'lucide-react';
 import { Dropdown } from './Dropdown';
 import { useAuth } from '../contexts/AuthContext';
 import type { ViewId } from '../types';
@@ -16,9 +16,8 @@ function initials(name: string): string {
 }
 
 export function ProfileMenu({ onViewChange }: ProfileMenuProps) {
-  const { user, logout, notifications } = useAuth();
+  const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
-  const pendingInvites = notifications.filter((n) => n.type === 'team_invitation' && !n.readAt).length;
 
   if (!user) return null;
 
@@ -41,20 +40,6 @@ export function ProfileMenu({ onViewChange }: ProfileMenuProps) {
       },
       tone: 'accent',
       hidden: !user.isGuest,
-    },
-    {
-      key: 'teams',
-      label: 'Teams & shared servers',
-      icon: <Users size={15} strokeWidth={2} />,
-      onClick: () => {
-        setOpen(false);
-        onViewChange?.('team');
-      },
-      trailing: pendingInvites > 0 ? (
-        <span className="ml-auto shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-error/15 text-error text-[11px] font-bold flex items-center justify-center">
-          {pendingInvites}
-        </span>
-      ) : null,
     },
     {
       key: 'signout',
@@ -91,11 +76,6 @@ export function ProfileMenu({ onViewChange }: ProfileMenuProps) {
         >
           <span className="relative w-5 h-5 rounded-full bg-accent/20 border border-accent/25 text-accent text-[11px] font-bold flex items-center justify-center">
             {initials(user.displayName)}
-            {pendingInvites > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[12px] h-[12px] px-0.5 rounded-full bg-error text-white text-[7px] font-bold flex items-center justify-center">
-                {pendingInvites}
-              </span>
-            )}
           </span>
           <ChevronDown size={12} className={`text-text-secondary transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </button>

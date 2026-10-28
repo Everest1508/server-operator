@@ -274,7 +274,7 @@ export interface ServerOperatorAPI {
   /** Run a native edit command (copy, cut, paste, selectAll, undo, redo) on the focused element. */
   editCommand?: (command: 'copy' | 'cut' | 'paste' | 'pasteAndMatchStyle' | 'selectAll' | 'undo' | 'redo') => Promise<boolean>;
   /** Why each command is refused on a project connection (null when it is read-only and allowed). */
-  checkProjectCommands?: (opts: { commands: string[] }) => Promise<{ ok: boolean; problems: (string | null)[] }>;
+  checkProjectCommands?: (opts: { commands: string[]; projectPath?: string }) => Promise<{ ok: boolean; problems: (string | null)[] }>;
   deployStartBg?: (opts: {
     serverId?: string;
     cwd?: string;

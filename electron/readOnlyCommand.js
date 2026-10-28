@@ -2,6 +2,8 @@
 // `docker compose` lifecycle in the project folder. `sudo` is accepted only in front of git and docker.
 // Returns null when the command is allowed, or a short reason it was refused.
 
+const path = require('path');
+
 const SIMPLE = new Set(['ls', 'cat', 'head', 'tail', 'grep', 'wc', 'pwd', 'echo', 'df', 'du', 'free', 'uptime', 'whoami', 'id', 'ps', 'stat', 'ss', 'cut']);
 const GIT = new Set(['status', 'log', 'diff', 'show', 'rev-parse', 'pull', 'fetch']);
 const DOCKER = new Set(['ps', 'logs', 'inspect', 'images', 'stats', 'top', 'port', 'version', 'info']);
@@ -52,7 +54,15 @@ function words(segment) {
   return out;
 }
 
-function segmentProblem(segment) {
+// A path given to a compose flag must stay inside the project folder (relative paths resolve against it).
+function insideProject(value, projectPath) {
+  const root = path.posix.normalize(String(projectPath || '')).replace(/\/+$/, '');
+  if (!root || root === '.') return !value.startsWith('/') && !path.posix.normalize(value).startsWith('..');
+  const abs = path.posix.normalize(value.startsWith('/') ? value : path.posix.join(root, value));
+  return abs === root || abs.startsWith(root + '/');
+}
+
+function segmentProblem(segment, projectPath) {
   const t = words(segment);
   if (!t.length) return 'empty command';
   let [prog, ...args] = t;
@@ -73,16 +83,25 @@ function segmentProblem(segment) {
   if (prog === 'docker') {
     const sub = args[0];
     if (sub === 'compose') {
-      let redirected = false;
+      let redirected = '';
       for (let i = 1; i < args.length; i++) {
         const a = args[i];
         if (a.startsWith('-')) {
-          if (COMPOSE_FLAGS_WITH_VALUE.has(a)) { redirected = true; i++; }
-          else if (/^(-f|-p)./.test(a) || /^--(file|project-name|project-directory|env-file)=/.test(a)) redirected = true;
+          let flag = a;
+          let value = '';
+          const eq = a.match(/^(--[a-z-]+)=(.*)$/);
+          const short = a.match(/^(-f|-p)(.+)$/);
+          if (eq) { flag = eq[1]; value = eq[2]; }
+          else if (short) { flag = short[1]; value = short[2]; }
+          else if (COMPOSE_FLAGS_WITH_VALUE.has(a)) { value = args[++i] ?? ''; }
+          else continue;
+          if (!COMPOSE_FLAGS_WITH_VALUE.has(flag)) continue;
+          if (flag === '-p' || flag === '--project-name') redirected = '-p / --project-name';
+          else if (flag !== '--profile' && !insideProject(value, projectPath)) redirected = `${flag} ${value}`.trim();
           continue;
         }
         if (COMPOSE.has(a)) return null;
-        if (COMPOSE_LIFECYCLE.has(a)) return redirected ? `docker compose ${a} must run in the project folder, without -f or -p` : null;
+        if (COMPOSE_LIFECYCLE.has(a)) return redirected ? `docker compose ${a} cannot use ${redirected}: only files inside the project folder are allowed, and no -p` : null;
         return `docker compose ${a} is not allowed`;
       }
       return 'docker compose needs a read-only subcommand';
@@ -92,13 +111,13 @@ function segmentProblem(segment) {
   return `${prog} is not in the read-only list`;
 }
 
-function readOnlyCommandProblem(cmd) {
+function readOnlyCommandProblem(cmd, projectPath) {
   const text = String(cmd || '').trim();
   if (!text) return 'empty command';
   const { segments, error } = splitSegments(text);
   if (error) return error;
   for (const s of segments) {
-    const problem = segmentProblem(s.trim());
+    const problem = segmentProblem(s.trim(), projectPath);
     if (problem) return problem;
   }
   return null;

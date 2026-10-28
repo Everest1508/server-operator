@@ -106,6 +106,36 @@
 <path class="a" d="M62 56l8 8 14-16M62 104l8 8 14-16M62 152l8 8 14-16"/>
 <path class="l" d="M104 56h110M104 104h110M104 152h80"/></g></svg></div>
 
+          <!-- 2.12.1 — Beacon -->
+          <div class="release-card" style="margin-bottom: 32px;">
+            <div class="release-card__header">
+              <div>
+                <span class="release-badge">v2.12.1</span>
+                <h3>Beacon</h3>
+              </div>
+              <p>2026-10-28</p>
+            </div>
+            <p style="color: var(--ash); font-size: 15px; margin: 0 0 24px;">
+              Teams now has its own icon in the left bar and the page scrolls properly. Shared servers are gone, so you only see the projects you were given. Docker compose commands with -f now run in a project when the file is inside the project folder.
+            </p>
+            <div class="release-grid">
+              <article class="release-block">
+                <h4>Teams</h4>
+                <ul>
+                    <li>Teams has its own icon in the left bar, with a count of pending invitations, instead of hiding in the profile menu.</li>
+                    <li>Shared servers are removed. Teams now shows your teams, invitations and the projects you can open.</li>
+                    <li>The Teams page scrolls again and no longer shows the screen behind it.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Commands</h4>
+                <ul>
+                    <li>docker compose commands with -f now run in a project, with or without sudo, as long as the compose file is inside the project folder. Files outside it, and -p, stay locked.</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+
           <!-- 2.12.0 — Lantern -->
           <div class="release-card" style="margin-bottom: 32px;">
             <div class="release-card__header">
@@ -866,7 +896,7 @@
 
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.12.0</span></p>
+        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.12.1</span></p>
         <div class="site-footer__links">
           <a href="https://github.com/everest1508/server-operator">GitHub</a>
           <a href="https://github.com/everest1508/server-operator/issues">Issues</a>

@@ -54,7 +54,7 @@ export function ProjectCommands({ currentServer, proxy }: ProjectCommandsProps) 
         if (shortcuts.length) loaded.push({ file, commands: shortcuts.map((s) => ({ ...s, id: `${file}:${s.id}` })) });
       }
       const all = loaded.flatMap((f) => f.commands);
-      const check = await api.checkProjectCommands?.({ commands: all.map((c) => c.command) });
+      const check = await api.checkProjectCommands?.({ commands: all.map((c) => c.command), projectPath: currentServer.projectPath });
       all.forEach((c, i) => { c.blocked = check?.problems[i] ?? undefined; });
       setFiles(loaded);
     } catch (err) {
@@ -144,7 +144,7 @@ export function ProjectCommands({ currentServer, proxy }: ProjectCommandsProps) 
         <div>
           <h2 className="text-sm font-bold flex items-center gap-2"><Terminal size={15} /> Commands</h2>
           <p className="text-[11px] text-text-secondary mt-0.5">
-            Shortcuts from <span className="font-mono">{SEROP_DIR}</span> in {currentServer.projectLock?.projectName ?? 'this project'}. Only a safe set can run here (inspection, git pull, docker compose); the rest are locked.
+            Shortcuts from <span className="font-mono">{SEROP_DIR}</span> in {currentServer.projectLock?.projectName ?? 'this project'}. Only a safe set can run here (inspection, git pull, docker compose with files in the project); the rest are locked.
           </p>
         </div>
         <button

@@ -1,4 +1,4 @@
-import { Database, GitBranch, History, TerminalSquare, Sliders, Shield, Sparkles, Keyboard, Layers, ListOrdered, FolderTree, Send, ScrollText } from 'lucide-react';
+import { Users, Database, GitBranch, History, TerminalSquare, Sliders, Shield, Sparkles, Keyboard, Layers, ListOrdered, FolderTree, Send, ScrollText } from 'lucide-react';
 import React from 'react';
 
 export interface ChangeEntry {
@@ -22,6 +22,33 @@ export interface ChangelogVersion {
 }
 
 export const CHANGELOG: ChangelogVersion[] = [
+  {
+    version: '2.12.1',
+    codename: 'Beacon',
+    date: '2026-10-28',
+    summary:
+      'Teams now has its own icon in the left bar and the page scrolls properly. Shared servers are gone, so you only see the projects you were given. Docker compose commands with -f now run in a project when the file is inside the project folder.',
+    groups: [
+      {
+        label: 'Teams',
+        icon: Users,
+        color: '#7dd3fc',
+        items: [
+          { type: 'feat', text: 'Teams has its own icon in the left bar, with a count of pending invitations, instead of hiding in the profile menu.' },
+          { type: 'improve', text: 'Shared servers are removed. Teams now shows your teams, invitations and the projects you can open.' },
+          { type: 'fix', text: 'The Teams page scrolls again and no longer shows the screen behind it.' },
+        ],
+      },
+      {
+        label: 'Commands',
+        icon: TerminalSquare,
+        color: '#86efac',
+        items: [
+          { type: 'improve', text: 'docker compose commands with -f now run in a project, with or without sudo, as long as the compose file is inside the project folder. Files outside it, and -p, stay locked.' },
+        ],
+      },
+    ],
+  },
   {
     version: '2.12.0',
     codename: 'Lantern',

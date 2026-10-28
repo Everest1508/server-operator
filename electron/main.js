@@ -2528,15 +2528,15 @@ async function runDeployJob(job, connection, proxy, cwd, cmd) {
   }
 }
 
-ipcMain.handle('project:check-commands', (_, { commands }) => ({
+ipcMain.handle('project:check-commands', (_, { commands, projectPath }) => ({
   ok: true,
-  problems: (Array.isArray(commands) ? commands : []).map((c) => readOnlyCommandProblem(c)),
+  problems: (Array.isArray(commands) ? commands : []).map((c) => readOnlyCommandProblem(c, projectPath)),
 }));
 
 ipcMain.handle('deploy:start-bg', async (_, { cwd, cmd, name, connection, proxy }) => {
   if (!connection || !String(cmd || '').trim()) return { ok: false, error: 'A server and a command are required.' };
   if (connection.projectLock) {
-    const problem = readOnlyCommandProblem(cmd);
+    const problem = readOnlyCommandProblem(cmd, connection.projectPath);
     if (problem) return { ok: false, error: `Blocked: ${problem}. Project connections can only run inspection, git pull and docker compose commands.` };
   }
   const job = createDeployJob({ connection, name, cmd: String(cmd).trim(), cwd });
