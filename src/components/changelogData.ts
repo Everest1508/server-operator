@@ -52,7 +52,7 @@ export const CHANGELOG: ChangelogVersion[] = [
         icon: Layers,
         color: '#fda4af',
         items: [
-          { type: 'feat', text: 'Give any server its own border colour. Pick a preset or a custom one when you add or edit a server; it outlines the server's card and marks it in the sidebar, and overrides the production red.' },
+          { type: 'feat', text: 'Give any server its own border colour. Pick a preset or a custom one when you add or edit a server; it outlines the card and marks it in the sidebar, and overrides the production red.' },
         ],
       },
     ],
