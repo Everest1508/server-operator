@@ -157,7 +157,7 @@ function startUpdateChecker(getWindow) {
   // electron-updater cannot resume a partial download: a dropped connection throws the temp file away.
   // So a network error is retried automatically (with a growing pause) instead of making the person click again.
   const send = (channel, payload) => { const w = getWindow(); if (w && !w.isDestroyed()) w.webContents.send(channel, payload); };
-  autoUpdater.on('download-progress', (p) => send('update-progress', Math.round(p.percent)));
+  autoUpdater.on('download-progress', (p) => send('update-progress', { percent: Math.round(p.percent), transferred: p.transferred, total: p.total }));
 
   let installing = false;
   ipcMain.handle('updates:install', async () => {
@@ -171,7 +171,7 @@ function startUpdateChecker(getWindow) {
           await autoUpdater.checkForUpdates();
           await autoUpdater.downloadUpdate();
           send('update-status', '');
-          setImmediate(() => autoUpdater.quitAndInstall());
+          setImmediate(() => autoUpdater.quitAndInstall(true, true));
           return { ok: true };
         } catch (err) {
           lastErr = err;

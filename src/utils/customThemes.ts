@@ -37,7 +37,7 @@ const CUSTOM_THEMES_KEY = 'server-operator:custom-themes';
 const CUSTOM_PREFIX = 'custom:';
 const MAX_JSON_CHARS = 20000;
 const MAX_CUSTOM_THEMES = 20;
-const BUILT_IN: AppTheme[] = ['default', 'glassy', 'light', 'tokyo-night'];
+const BUILT_IN: AppTheme[] = ['default', 'glassy', 'light', 'tokyo-night', 'dracula', 'nord', 'gruvbox', 'rose-pine'];
 
 export const THEME_TEMPLATE = `{
   "name": "My Brand",

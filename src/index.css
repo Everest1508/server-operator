@@ -110,6 +110,112 @@
   --glass-blur: 26px;
 }
 
+/* More built-in dark themes */
+:root[data-app-theme='dracula'] {
+  --popover-base: #282a36;
+  --color-bg-primary: rgba(40,42,54, 0.72);
+  --color-bg-secondary: rgba(33,34,44, 0.6);
+  --color-bg-tertiary: rgba(52,55,70, 0.55);
+  --color-bg-activity: rgba(44,46,60, 0.65);
+  --color-border: rgba(98,114,164, 0.4);
+  --color-text-primary: #f8f8f2;
+  --color-text-secondary: #c4c8dc;
+  --color-text-muted: #6272a4;
+  --color-accent: #bd93f9;
+  --color-accent-hover: #d6b8ff;
+  --color-success: #50fa7b;
+  --color-warning: #f1fa8c;
+  --color-error: #ff5555;
+  --color-input-bg: rgba(44,46,60, 0.5);
+  --glass-blur: 26px;
+}
+:root[data-app-theme='dracula'] body::before {
+  background:
+    radial-gradient(circle at top left, rgba(189,147,249, 0.13), transparent 38%),
+    radial-gradient(circle at top right, rgba(255,121,198, 0.1), transparent 42%),
+    linear-gradient(160deg, rgba(40,42,54, 0.92), rgba(40,42,54, 0.94));
+  backdrop-filter: blur(var(--glass-blur, 26px)) saturate(1.2);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 26px)) saturate(1.2);
+}
+:root[data-app-theme='nord'] {
+  --popover-base: #2e3440;
+  --color-bg-primary: rgba(46,52,64, 0.72);
+  --color-bg-secondary: rgba(39,44,55, 0.6);
+  --color-bg-tertiary: rgba(59,66,82, 0.55);
+  --color-bg-activity: rgba(52,59,74, 0.65);
+  --color-border: rgba(94,108,133, 0.4);
+  --color-text-primary: #eceff4;
+  --color-text-secondary: #d8dee9;
+  --color-text-muted: #7b88a1;
+  --color-accent: #88c0d0;
+  --color-accent-hover: #a3d4e2;
+  --color-success: #a3be8c;
+  --color-warning: #ebcb8b;
+  --color-error: #bf616a;
+  --color-input-bg: rgba(52,59,74, 0.5);
+  --glass-blur: 26px;
+}
+:root[data-app-theme='nord'] body::before {
+  background:
+    radial-gradient(circle at top left, rgba(136,192,208, 0.13), transparent 38%),
+    radial-gradient(circle at top right, rgba(129,161,193, 0.1), transparent 42%),
+    linear-gradient(160deg, rgba(46,52,64, 0.92), rgba(46,52,64, 0.94));
+  backdrop-filter: blur(var(--glass-blur, 26px)) saturate(1.2);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 26px)) saturate(1.2);
+}
+:root[data-app-theme='gruvbox'] {
+  --popover-base: #282828;
+  --color-bg-primary: rgba(40,40,40, 0.72);
+  --color-bg-secondary: rgba(29,32,33, 0.6);
+  --color-bg-tertiary: rgba(60,56,54, 0.55);
+  --color-bg-activity: rgba(50,48,47, 0.65);
+  --color-border: rgba(124,111,100, 0.4);
+  --color-text-primary: #ebdbb2;
+  --color-text-secondary: #d5c4a1;
+  --color-text-muted: #928374;
+  --color-accent: #fabd2f;
+  --color-accent-hover: #ffd25a;
+  --color-success: #b8bb26;
+  --color-warning: #fe8019;
+  --color-error: #fb4934;
+  --color-input-bg: rgba(50,48,47, 0.5);
+  --glass-blur: 26px;
+}
+:root[data-app-theme='gruvbox'] body::before {
+  background:
+    radial-gradient(circle at top left, rgba(250,189,47, 0.13), transparent 38%),
+    radial-gradient(circle at top right, rgba(254,128,25, 0.1), transparent 42%),
+    linear-gradient(160deg, rgba(40,40,40, 0.92), rgba(40,40,40, 0.94));
+  backdrop-filter: blur(var(--glass-blur, 26px)) saturate(1.2);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 26px)) saturate(1.2);
+}
+:root[data-app-theme='rose-pine'] {
+  --popover-base: #191724;
+  --color-bg-primary: rgba(25,23,36, 0.72);
+  --color-bg-secondary: rgba(21,19,32, 0.6);
+  --color-bg-tertiary: rgba(38,35,58, 0.55);
+  --color-bg-activity: rgba(31,29,46, 0.65);
+  --color-border: rgba(110,106,134, 0.4);
+  --color-text-primary: #e0def4;
+  --color-text-secondary: #c5c1dd;
+  --color-text-muted: #6e6a86;
+  --color-accent: #ebbcba;
+  --color-accent-hover: #f4d0ce;
+  --color-success: #9ccfd8;
+  --color-warning: #f6c177;
+  --color-error: #eb6f92;
+  --color-input-bg: rgba(31,29,46, 0.5);
+  --glass-blur: 26px;
+}
+:root[data-app-theme='rose-pine'] body::before {
+  background:
+    radial-gradient(circle at top left, rgba(196,167,231, 0.13), transparent 38%),
+    radial-gradient(circle at top right, rgba(235,188,186, 0.1), transparent 42%),
+    linear-gradient(160deg, rgba(25,23,36, 0.92), rgba(25,23,36, 0.94));
+  backdrop-filter: blur(var(--glass-blur, 26px)) saturate(1.2);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 26px)) saturate(1.2);
+}
+
 * {
   box-sizing: border-box;
 }

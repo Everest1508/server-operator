@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Download, ChevronDown, ChevronUp, Sparkles, CheckCircle2 } from 'lucide-react';
-import { Button } from './ui/Button';
+import { X, CheckCircle2 } from 'lucide-react';
 
 /* ─── Types ────────────────────────────────────────────────────────────── */
 interface UpdateInfo {
@@ -38,30 +37,56 @@ function UpToDateToast({ onClose }: { onClose: () => void }) {
   );
 }
 
-/* ─── Main banner ───────────────────────────────────────────────────────── */
-function UpdateBannerInner({
-  info,
-  onDismiss,
-}: {
+/* ─── Main panel: a small rollout. Tick ruler fills as the download runs ── */
+const TICKS = 36;
+const STEPS = ['fetch', 'apply', 'reopen'];
+const mono = { fontFamily: 'var(--font-mono)' } as const;
+
+interface Progress { percent: number; transferred: number; total: number }
+const mb = (n: number) => Math.round(n / 1048576);
+
+function Ruler({ percent, waiting, failedAt }: { percent: number; waiting: boolean; failedAt: number | null }) {
+  const filled = Math.floor((percent / 100) * TICKS);
+  return (
+    <div className="flex items-end gap-[2px] h-6 px-5" aria-hidden>
+      {Array.from({ length: TICKS }, (_, i) => {
+        const on = i < filled;
+        const head = i === filled && percent > 0 && percent < 100 && failedAt === null;
+        const cut = failedAt !== null && i === failedAt;
+        return (
+          <i
+            key={i}
+            className="flex-1 transition-[background-color,height] duration-100"
+            style={{
+              height: head || cut ? 24 : i % 5 === 0 ? 16 : 10,
+              background: cut ? 'var(--color-error)' : head ? 'var(--color-text-primary)' : on ? (failedAt !== null ? 'var(--color-error)' : 'var(--color-accent)') : 'var(--color-border)',
+              animation: waiting ? `serop-tick 1.4s ${i * 25}ms infinite` : undefined,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+interface InnerProps {
   info: UpdateInfo;
   onDismiss: () => void;
-}) {
+  progress: Progress | null;
+  setProgress: (p: Progress | null) => void;
+  error: string;
+  setError: (e: string) => void;
+  status: string;
+}
+
+function UpdateBannerInner({ info, onDismiss, progress, setProgress, error, setError, status }: InnerProps) {
   const [notesOpen, setNotesOpen] = useState(false);
 
-  const [progress, setProgress] = useState<number | null>(null);
-  const [error, setError] = useState('');
-  const [status, setStatus] = useState('');
-
   useEffect(() => {
-    const onProgress = (e: Event) => { setProgress((e as CustomEvent<number>).detail); setStatus(''); };
-    const onStatus = (e: Event) => setStatus((e as CustomEvent<string>).detail || '');
-    window.addEventListener('update-progress', onProgress);
-    window.addEventListener('update-status', onStatus);
-    return () => {
-      window.removeEventListener('update-progress', onProgress);
-      window.removeEventListener('update-status', onStatus);
-    };
-  }, []);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onDismiss(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onDismiss]);
 
   const handleDownload = async () => {
     if (!info.canInstall) {
@@ -69,79 +94,83 @@ function UpdateBannerInner({
       return;
     }
     setError('');
-    setProgress(0);
+    setProgress({ percent: 0, transferred: 0, total: 0 });
     const r = await window.serverOperator?.installUpdate?.();
-    if (r && !r.ok) { setError(r.error || 'Update failed'); setProgress(null); }
+    if (r && !r.ok) setError(r.error || 'Update failed');
   };
 
+  const running = progress !== null && !error;
+  const percent = progress?.percent ?? 0;
+  const waiting = running && percent === 0;
+  const step = percent >= 100 ? 1 : 0;
+  const failedAt = error ? Math.min(TICKS - 1, Math.floor((percent / 100) * TICKS)) : null;
+  const note = error
+    ? error
+    : status
+      ? status
+      : running
+      ? percent >= 100 ? 'Installing. Serop reopens by itself.'
+        : waiting ? 'Connecting to GitHub' : progress!.total ? `${mb(progress!.transferred)} of ${mb(progress!.total)} MB` : 'Downloading'
+      : info.canInstall ? 'About a minute. Your tabs stay open.' : 'Opens the release page in your browser.';
+
+  const btn = 'flex-1 py-3 text-xs font-medium border-r border-border last:border-r-0 text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors';
+  const go = `${btn} !text-accent hover:!bg-accent hover:!text-white`;
+
   return (
-    <div className="flex flex-col w-full rounded-2xl shadow-2xl border border-border/40 popover-surface  overflow-hidden font-sans p-1 animate-slide-down">
-      {/* Main row */}
-      <div className="flex items-start gap-2.5 p-3">
-        {/* Icon */}
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 bg-accent/10 text-accent border border-accent/20 shadow-sm">
-          <Sparkles size={14} />
-        </div>
-
-        {/* Text */}
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold leading-normal text-text-primary">
-            Update Available:{' '}
-            <span className="font-bold text-accent">{info.version}</span>
-          </p>
-          <p className="text-[11px] mt-0.5 leading-normal text-text-secondary">
-            {error || status || 'A new release has been published to GitHub.'}
-          </p>
-        </div>
-
-        {/* Dismiss Button */}
-        <button
-          onClick={onDismiss}
-          className="shrink-0 p-1 rounded-lg hover:bg-bg-tertiary text-text-secondary hover:text-text-primary transition-all"
-          title="Dismiss"
-        >
-          <X size={13} />
-        </button>
+    <div
+      role="dialog"
+      aria-label={`Update to ${info.version}`}
+      className="relative w-[360px] max-w-[calc(100vw-2rem)] border border-border popover-surface text-text-primary shadow-2xl animate-slide-down"
+      style={{ borderRadius: 4 }}
+    >
+      <span className="absolute -left-px top-4 bottom-4 w-[2px] bg-accent" />
+      <div className="flex items-baseline justify-between pl-5 pr-4 pt-4">
+        <p className="text-[13px]">
+          Serop <span className="text-text-muted">→</span>{' '}
+          <span className="font-semibold text-accent">{info.version}</span>
+        </p>
+        <span className="text-[10px] text-text-muted" style={mono}>{error ? 'failed' : running ? STEPS[step] : 'ready'}</span>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex items-center gap-1.5 px-3 py-2 border-t border-border/30 bg-bg-secondary/40 rounded-xl mt-1">
-        {info.releaseNotes && (
-          <button
-            onClick={() => setNotesOpen((o) => !o)}
-            className="flex items-center gap-0.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors text-text-secondary hover:text-text-primary hover:bg-bg-tertiary"
+      <div className="flex items-baseline gap-1.5 pl-5 pr-4 pt-3 pb-4">
+        <span className="text-[44px] leading-none tracking-tighter tabular-nums min-w-[2.1ch]" style={{ ...mono, fontWeight: 300 }}>
+          {progress ? String(percent).padStart(2, '0') : '--'}
+        </span>
+        <span className="text-[13px] text-text-muted" style={mono}>%</span>
+        <span className="ml-auto text-right text-xs leading-snug text-text-secondary max-w-[190px]" aria-live="polite">{note}</span>
+      </div>
+
+      <Ruler percent={percent} waiting={waiting} failedAt={failedAt} />
+
+      <div className="grid grid-cols-3 pl-5 pr-4 pt-2 pb-3">
+        {STEPS.map((l, i) => (
+          <span
+            key={l}
+            className="flex items-center gap-1.5 text-[9.5px]"
+            style={{ ...mono, color: running && i <= step ? (i === step ? 'var(--color-text-primary)' : 'var(--color-accent)') : 'var(--color-text-muted)' }}
           >
-            Changelog
-            {notesOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+            <i className="w-[5px] h-[5px] bg-current" style={running && i === step ? { outline: '1px solid var(--color-accent)', outlineOffset: 2 } : undefined} />
+            {l}
+          </span>
+        ))}
+      </div>
+
+      <div className="flex border-t border-border">
+        {!running && info.releaseNotes && (
+          <button onClick={() => setNotesOpen((o) => !o)} className={btn}>Changelog</button>
+        )}
+        <button onClick={onDismiss} className={btn}>{running ? 'Hide' : 'Later'}</button>
+        {!running && (
+          <button onClick={handleDownload} className={go}>
+            {error ? 'Retry' : info.canInstall ? 'Update now' : 'Download'}
           </button>
         )}
-
-        <div className="flex-1" />
-
-        <button
-          onClick={onDismiss}
-          className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-tertiary"
-        >
-          Later
-        </button>
-        <Button size="sm"
-          disabled={progress !== null}
-          onClick={handleDownload}
-        >
-          <Download size={11} />
-          {progress !== null ? `Updating… ${progress}%` : info.canInstall ? 'Update now' : 'Download'}
-        </Button>
       </div>
 
-      {/* Expandable release notes */}
       {notesOpen && info.releaseNotes && (
-        <div
-          className="px-3 pb-3 border-t border-border/20 bg-black/10"
-        >
-          <pre className="text-[11px] leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto rounded-lg p-2 mt-2 border border-border/30 bg-bg-primary/60 text-text-primary font-mono scrollbar-vs">
-            {info.releaseNotes}
-          </pre>
-        </div>
+        <pre className="text-[11px] leading-relaxed whitespace-pre-wrap max-h-40 overflow-y-auto p-3 border-t border-border text-text-secondary scrollbar-vs" style={mono}>
+          {info.releaseNotes}
+        </pre>
       )}
     </div>
   );
@@ -152,6 +181,9 @@ export function UpdateBanner() {
   const [updateInfo, setUpdateInfo]       = useState<UpdateInfo | null>(null);
   const [showUpToDate, setShowUpToDate]   = useState(false);
   const [dismissed, setDismissed]         = useState(false);
+  const [progress, setProgress]           = useState<Progress | null>(null);
+  const [error, setError]                 = useState('');
+  const [status, setStatus]               = useState('');
 
   const handleDismiss = useCallback(() => {
     setDismissed(true);
@@ -177,9 +209,20 @@ export function UpdateBanner() {
       }
     };
 
+    const onProgress = (e: Event) => {
+      const d = (e as CustomEvent<Progress | number>).detail;
+      setProgress(typeof d === 'number' ? { percent: d, transferred: 0, total: 0 } : d);
+      setStatus('');
+    };
+    const onStatus = (e: Event) => setStatus((e as CustomEvent<string>).detail || '');
+
+    window.addEventListener('update-progress', onProgress);
+    window.addEventListener('update-status', onStatus);
     window.addEventListener('update-available', onUpdateAvailable);
     window.addEventListener('update-check-result', onCheckResult);
     return () => {
+      window.removeEventListener('update-progress', onProgress);
+      window.removeEventListener('update-status', onStatus);
       window.removeEventListener('update-available', onUpdateAvailable);
       window.removeEventListener('update-check-result', onCheckResult);
     };
@@ -187,33 +230,48 @@ export function UpdateBanner() {
 
   if (!updateInfo && !showUpToDate) return null;
 
+  const modal = !!updateInfo && !dismissed;
+  const running = progress !== null && !error;
+
   return (
     <>
-      {/* Keyframe injection */}
       <style>{`
         @keyframes slideDown {
           from { opacity: 0; transform: translateY(-10px) scale(0.98); }
           to   { opacity: 1; transform: translateY(0)    scale(1); }
         }
+        @keyframes serop-tick { 0%,100% { opacity: .35 } 50% { opacity: 1 } }
       `}</style>
 
-      <div
-        className="fixed top-12 right-4 z-[9999] w-[280px] max-w-[calc(100vw-2rem)] pointer-events-auto"
-        style={{ filter: 'drop-shadow(0 8px 32px rgba(0,0,0,0.5))' }}
-      >
-        {showUpToDate && !updateInfo && (
-          <UpToDateToast onClose={() => setShowUpToDate(false)} />
-        )}
-        {updateInfo && !dismissed && (
-          <UpdateBannerInner info={updateInfo} onDismiss={handleDismiss} />
-        )}
+      {modal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/45" onMouseDown={(e) => { if (e.target === e.currentTarget) handleDismiss(); }}>
+          <UpdateBannerInner
+            info={updateInfo}
+            onDismiss={handleDismiss}
+            progress={progress}
+            setProgress={setProgress}
+            error={error}
+            setError={setError}
+            status={status}
+          />
+        </div>
+      )}
+
+      <div className="fixed top-12 right-4 z-[9999] pointer-events-auto flex flex-col items-end gap-2">
+        {showUpToDate && !updateInfo && <UpToDateToast onClose={() => setShowUpToDate(false)} />}
         {updateInfo && dismissed && (
           <button
             onClick={() => setDismissed(false)}
-            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold border border-accent/30 popover-surface text-accent"
-            title="Click to update"
+            className="flex items-center gap-2.5 px-3 py-1.5 text-[11px] border-b border-accent/50 popover-surface text-text-primary"
+            style={{ fontFamily: 'var(--font-mono)', borderRadius: 2 }}
+            title="Show update"
           >
-            <Sparkles size={11} /> Update {updateInfo.version} available
+            {running ? `updating ${progress!.percent}%` : `${updateInfo.version} available`}
+            {running && (
+              <span className="relative w-10 h-[2px] bg-border">
+                <i className="absolute inset-y-0 left-0 bg-accent" style={{ width: `${progress!.percent}%` }} />
+              </span>
+            )}
           </button>
         )}
       </div>

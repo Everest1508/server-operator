@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { AppTheme } from '../types';
 
-const THEME_IDS: AppTheme[] = ['default', 'glassy', 'light', 'tokyo-night'];
+const THEME_IDS: AppTheme[] = ['default', 'glassy', 'light', 'tokyo-night', 'dracula', 'nord', 'gruvbox', 'rose-pine'];
 
 /** Reads the active app theme from the `data-app-theme` attribute, reacting to changes. */
 export function useAppTheme(): AppTheme {

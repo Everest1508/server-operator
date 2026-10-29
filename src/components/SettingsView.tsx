@@ -76,6 +76,30 @@ const THEMES: { id: AppTheme; label: string; desc: string; swatch: string[] }[] 
     desc: 'Deep indigo-navy dark with cyan and violet accents.',
     swatch: ['#1a1b26', '#7aa2f7', '#9ece6a', '#c0caf5'],
   },
+  {
+    id: 'dracula',
+    label: 'Dracula',
+    desc: 'Purple-grey dark with pink and violet accents.',
+    swatch: ['#282a36', '#bd93f9', '#50fa7b', '#f8f8f2'],
+  },
+  {
+    id: 'nord',
+    label: 'Nord',
+    desc: 'Cold arctic blue-grey with frost accents.',
+    swatch: ['#2e3440', '#88c0d0', '#a3be8c', '#eceff4'],
+  },
+  {
+    id: 'gruvbox',
+    label: 'Gruvbox',
+    desc: 'Warm retro dark with amber and olive.',
+    swatch: ['#282828', '#fabd2f', '#b8bb26', '#ebdbb2'],
+  },
+  {
+    id: 'rose-pine',
+    label: 'Rosé Pine',
+    desc: 'Soft dusk purple with rose and gold.',
+    swatch: ['#191724', '#ebbcba', '#9ccfd8', '#e0def4'],
+  },
 ];
 
 function loadOpacity(): number {
