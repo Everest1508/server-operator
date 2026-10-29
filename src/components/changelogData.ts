@@ -1,4 +1,4 @@
-import { Users, Database, GitBranch, History, TerminalSquare, Sliders, Shield, Sparkles, Keyboard, Layers, ListOrdered, FolderTree, Send, ScrollText } from 'lucide-react';
+import { Users, Database, GitBranch, History, TerminalSquare, Sliders, Shield, Sparkles, Keyboard, Layers, ListOrdered, FolderTree, Send, ScrollText, Palette } from 'lucide-react';
 import React from 'react';
 
 export interface ChangeEntry {
@@ -22,6 +22,33 @@ export interface ChangelogVersion {
 }
 
 export const CHANGELOG: ChangelogVersion[] = [
+  {
+    version: '2.13.0',
+    codename: 'Gauge',
+    date: '2026-10-29',
+    summary:
+      'The update box now opens in the middle of the window with a ruler that fills as it downloads, Windows updates install without the setup wizard, and four new themes are built in.',
+    groups: [
+      {
+        label: 'Updates',
+        icon: Sparkles,
+        color: '#7dd3fc',
+        items: [
+          { type: 'improve', text: 'The update box opens centered, with a live percentage, megabytes downloaded, and a tick ruler that fills as the download runs. Hide it to a small tag that keeps counting.' },
+          { type: 'improve', text: 'A failed download shows where it stopped and a Retry button, and network retries still show their status in the box.' },
+          { type: 'improve', text: 'On Windows, updates now install silently and reopen Serop by themselves instead of showing the installer wizard.' },
+        ],
+      },
+      {
+        label: 'Themes',
+        icon: Palette,
+        color: '#c4b5fd',
+        items: [
+          { type: 'feat', text: 'Four new built-in themes: Dracula, Nord, Gruvbox and Rosé Pine. Pick them in Settings.' },
+        ],
+      },
+    ],
+  },
   {
     version: '2.12.2',
     codename: 'Tether',

@@ -61,7 +61,7 @@
       "url": "https://server-operator-zeta.vercel.app/",
       "downloadUrl": "https://github.com/Everest1508/server-operator/releases/latest",
       "license": "https://www.apache.org/licenses/LICENSE-2.0",
-      "softwareVersion": "2.12.2",
+      "softwareVersion": "2.13.0",
       "isAccessibleForFree": true,
       "image": "https://server-operator-zeta.vercel.app/logo.png",
       "author": {
@@ -405,25 +405,31 @@
 
       <section class="section" id="whats-new" aria-labelledby="whats-new-heading">
         <div class="section__inner">
-          <h2 class="section__title" id="whats-new-heading">What’s New in 2.12.2</h2>
+          <h2 class="section__title" id="whats-new-heading">What’s New in 2.13.0</h2>
           <p class="section__subtitle">
-            If the network drops while Serop is downloading an update, it now retries by itself and tells you what it is doing, instead of stopping and making you start again.
+            The update box now opens in the middle of the window with a ruler that fills as it downloads, Windows updates install without the setup wizard, and four new themes are built in.
           </p>
           <div class="release-card">
             <div class="release-card__header">
               <div>
-                <span class="release-badge">v2.12.2</span>
-                <h3>Tether</h3>
+                <span class="release-badge">v2.13.0</span>
+                <h3>Gauge</h3>
               </div>
-              <p>2026-10-28</p>
+              <p>2026-10-29</p>
             </div>
             <div class="release-grid">
               <article class="release-block">
                 <h4>Updates</h4>
                 <ul>
-                    <li>A dropped connection during an update download is retried automatically, up to five more times with a short pause, so you no longer have to press Update now again.</li>
-                    <li>The update box shows what is happening, such as Network error, retrying in 4s (2/5), and a clear message if the connection keeps dropping.</li>
-                    <li>Pressing Update now more than once no longer stacks up duplicate progress updates, and a second press while a download is running is ignored.</li>
+                    <li>The update box opens centered, with a live percentage, megabytes downloaded, and a tick ruler that fills as the download runs. Hide it to a small tag that keeps counting.</li>
+                    <li>A failed download shows where it stopped and a Retry button, and network retries still show their status in the box.</li>
+                    <li>On Windows, updates now install silently and reopen Serop by themselves instead of showing the installer wizard.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Themes</h4>
+                <ul>
+                    <li>Four new built-in themes: Dracula, Nord, Gruvbox and Rosé Pine. Pick them in Settings.</li>
                 </ul>
               </article>
             </div>
@@ -523,7 +529,7 @@
 
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.12.2</span></p>
+        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.13.0</span></p>
         <div class="site-footer__links">
           <a href="https://github.com/everest1508/server-operator">GitHub</a>
           <a href="https://github.com/everest1508/server-operator/issues">Issues</a>
