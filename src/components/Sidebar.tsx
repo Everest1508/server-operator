@@ -248,7 +248,7 @@ function ServerList({
                       isSelected ? 'bg-bg-tertiary/75 text-accent font-semibold' : 'text-text-primary hover:bg-bg-tertiary/35'
                     }`}
                   >
-                    {s.production && <span aria-hidden className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-error/80" />}
+                    {(s.color || s.production) && <span aria-hidden className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-error/80" style={s.color ? { background: s.color } : undefined} />}
                     <span className="relative shrink-0 flex items-center justify-center w-6 h-6 rounded-lg bg-bg-primary/40 border border-border/30" title={state}>
                       <Icon size={12} className={s.production ? 'text-error' : isSelected ? 'text-accent' : 'text-text-secondary'} />
                       <span

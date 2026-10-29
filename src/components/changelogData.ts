@@ -27,7 +27,7 @@ export const CHANGELOG: ChangelogVersion[] = [
     codename: 'Gauge',
     date: '2026-10-29',
     summary:
-      'The update box now opens in the middle of the window with a ruler that fills as it downloads, Windows updates install without the setup wizard, and four new themes are built in.',
+      'The update box now opens in the middle of the window with a ruler that fills as it downloads, Windows updates install without the setup wizard, and four new themes are built in. Servers can have their own border colour.',
     groups: [
       {
         label: 'Updates',
@@ -45,6 +45,14 @@ export const CHANGELOG: ChangelogVersion[] = [
         color: '#c4b5fd',
         items: [
           { type: 'feat', text: 'Four new built-in themes: Dracula, Nord, Gruvbox and Rosé Pine. Pick them in Settings.' },
+        ],
+      },
+      {
+        label: 'Servers',
+        icon: Layers,
+        color: '#fda4af',
+        items: [
+          { type: 'feat', text: 'Give any server its own border colour. Pick a preset or a custom one when you add or edit a server; it outlines the server's card and marks it in the sidebar, and overrides the production red.' },
         ],
       },
     ],

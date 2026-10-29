@@ -55,7 +55,10 @@ interface Draft {
   projectPath: string;
   useProxy: boolean;
   production: boolean;
+  color: string;
 }
+
+const SERVER_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899'];
 
 function ServerDrawer({
   server, onClose, onSubmit,
@@ -78,8 +81,9 @@ function ServerDrawer({
           projectPath: server.projectPath ?? '',
           useProxy: !!server.useProxy,
           production: !!server.production,
+          color: server.color ?? '',
         }
-      : { name: '', host: '', username: '', type: 'ec2', cfAuth: 'key', privateKeyPath: '', password: '', projectPath: '', useProxy: false, production: false },
+      : { name: '', host: '', username: '', type: 'ec2', cfAuth: 'key', privateKeyPath: '', password: '', projectPath: '', useProxy: false, production: false, color: '' },
   );
   const [showPwd, setShowPwd] = useState(false);
   const [tried, setTried] = useState(false);
@@ -258,6 +262,29 @@ function ServerDrawer({
             </button>
           )}
 
+          <div className="rounded-xl border border-border/30 px-3.5 py-3">
+            <span className="block text-xs font-semibold text-text-primary">Border colour</span>
+            <span className="block text-[11px] text-text-muted mt-0.5">Outlines this server's card and marks it in the sidebar. Overrides the production red.</span>
+            <div className="flex items-center flex-wrap gap-2 mt-2.5" role="radiogroup" aria-label="Border colour">
+              <button
+                type="button" role="radio" aria-checked={!d.color} aria-label="No colour" title="None"
+                onClick={() => set('color', '')}
+                className={`w-6 h-6 rounded-md border text-[10px] text-text-muted cursor-pointer ${!d.color ? 'border-text-primary' : 'border-border/50'}`}
+              >–</button>
+              {SERVER_COLORS.map((c) => (
+                <button
+                  key={c} type="button" role="radio" aria-checked={d.color === c} aria-label={c} title={c}
+                  onClick={() => set('color', c)}
+                  className="w-6 h-6 rounded-md cursor-pointer"
+                  style={{ background: c, outline: d.color === c ? '2px solid var(--color-text-primary)' : 'none', outlineOffset: 2 }}
+                />
+              ))}
+              <label className="relative w-6 h-6 rounded-md border border-border/50 overflow-hidden cursor-pointer" title="Custom colour">
+                <input type="color" value={d.color || '#3b82f6'} onChange={(e) => set('color', e.target.value)} className="absolute -inset-2 w-10 h-10 cursor-pointer" aria-label="Custom colour" />
+              </label>
+            </div>
+          </div>
+
           <button
             type="button"
             role="switch"
@@ -350,6 +377,7 @@ export function NoServerView({
       cwd: d.projectPath.trim() || undefined,
       useProxy: local ? false : d.useProxy,
       production: d.production,
+      color: d.color || undefined,
     };
     if (drawer?.server) {
       const patch: Partial<ServerConnection> = { ...base, privateKeyPath: key ? d.privateKeyPath.trim() : undefined };
@@ -451,8 +479,9 @@ export function NoServerView({
                     <div
                       key={s.id}
                       className={`group flex flex-col rounded-xl border bg-bg-secondary/35 hover:bg-bg-secondary/55 transition-colors p-4 ${
-                        s.production ? 'border-error/40 hover:border-error/60' : 'border-border/30 hover:border-accent/40'
+                        s.color ? '' : s.production ? 'border-error/40 hover:border-error/60' : 'border-border/30 hover:border-accent/40'
                       }`}
+                      style={s.color ? { borderColor: `color-mix(in srgb, ${s.color} 70%, transparent)` } : undefined}
                     >
                       <div className="flex items-start gap-3">
                         <div className={`p-2 rounded-xl border shrink-0 ${meta.tone}`}><meta.Icon size={16} /></div>
