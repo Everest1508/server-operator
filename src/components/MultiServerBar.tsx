@@ -70,6 +70,7 @@ export function MultiServerBar({
                   if (e.key === 'Enter' || e.key === ' ') onSelectTab(t);
                 }}
                 title={`${s.name} (${s.host})${s.production ? ' · production' : ''}`}
+                style={s.color ? { borderColor: `color-mix(in srgb, ${s.color} ${isActive ? 80 : 40}%, transparent)` } : undefined}
                 className={`flex items-center gap-2 px-2.5 py-1 rounded-lg cursor-pointer shrink-0 max-w-[180px] min-w-0 group border transition-all duration-150 text-xs ${
                   isActive
                     ? `bg-bg-primary font-semibold shadow-sm ${s.production ? 'border-error/60 text-error' : 'border-border/40 text-accent'}`

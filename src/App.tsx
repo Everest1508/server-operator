@@ -1799,6 +1799,11 @@ export default function App() {
       prev.map((x) => (x.id === id ? { ...x, ...patch } : x))
     );
     // Connection details apply on the next connect, but production mode must take effect on open tabs right away.
+    if ('color' in patch) {
+      const color = patch.color;
+      setCurrentServer((cs) => (cs && cs.id === id ? { ...cs, color } : cs));
+      setServerTabs((tabs) => tabs.map((t) => (t.server.id === id ? { ...t, server: { ...t.server, color } } : t)));
+    }
     if ('production' in patch) {
       const production = patch.production;
       setCurrentServer((cs) => (cs && cs.id === id ? { ...cs, production } : cs));

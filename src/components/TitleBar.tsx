@@ -307,7 +307,9 @@ export function TitleBar({
       }`}
     >
       {/* Production server active: a red line across the window, so it is never mistaken for staging. */}
-      {currentServer?.production && <div aria-hidden className="absolute inset-x-0 bottom-[-1px] h-[2px] bg-error pointer-events-none" />}
+      {(currentServer?.production || currentServer?.color) && (
+        <div aria-hidden className="absolute inset-x-0 bottom-[-1px] h-[2px] bg-error pointer-events-none" style={currentServer.color ? { background: currentServer.color } : undefined} />
+      )}
       {/* Left: logo + menu bar */}
       <div className="flex items-center gap-1 h-full" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties} ref={menuRef}>
         <img src="logo.png" alt="" className="h-5 w-auto object-contain mr-2 shrink-0 pointer-events-none" />
