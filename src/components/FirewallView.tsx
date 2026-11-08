@@ -5,6 +5,7 @@ import { Select } from './Select';
 import { confirmDialog } from '../utils/confirm';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
+import { SecurityScan } from './SecurityScan';
 
 interface FirewallViewProps {
   currentServer: ServerConnection;
@@ -64,7 +65,7 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
   const [ruleFrom, setRuleFrom] = useState('any');
 
   // Security group tab
-  const [tab, setTab] = useState<'ports' | 'firewall' | 'groups' | 'scanner'>('ports');
+  const [tab, setTab] = useState<'security' | 'ports' | 'firewall' | 'groups' | 'scanner'>('security');
 
   // Network scanner
   const [scanCidr, setScanCidr] = useState('');
@@ -283,14 +284,14 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
           <ShieldCheck size={18} />
         </div>
         <div>
-          <h2 className="text-sm font-semibold text-text-primary">Firewall and ports</h2>
+          <h2 className="text-sm font-semibold text-text-primary">Security, firewall and ports</h2>
           <p className="text-[11px] text-text-secondary mt-0.5">{currentServer.name} · {currentServer.username}@{currentServer.host}</p>
         </div>
       </div>
 
       {/* Tabs */}
       <div role="tablist" className="flex border-b border-border/20 shrink-0 select-none bg-bg-secondary/20">
-        {([['ports', 'Open ports'], ['firewall', 'Firewall rules'], ['groups', 'Presets'], ['scanner', 'Port scanner']] as const).map(([id, label]) => (
+        {([['security', 'Security check'], ['ports', 'Open ports'], ['firewall', 'Firewall rules'], ['groups', 'Presets'], ['scanner', 'Port scanner']] as const).map(([id, label]) => (
           <button
             key={id}
             type="button"
@@ -307,6 +308,9 @@ export function FirewallView({ currentServer, proxy }: FirewallViewProps) {
       </div>
 
       <div className="flex-1 overflow-auto p-6 min-h-0">
+
+        {/* ── Security check ── */}
+        {tab === 'security' && <SecurityScan currentServer={currentServer} proxy={proxy} />}
 
         {/* ── Open Ports ── */}
         {tab === 'ports' && (

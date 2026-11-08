@@ -15,7 +15,7 @@ const items = [
   { id: 'files' as const, icon: FolderIcon, label: 'Files' },
   { id: 'docker' as const, icon: DockerIcon, label: 'Docker' },
   { id: 'database' as const, icon: Database, label: 'Database' },
-  { id: 'firewall' as const, icon: ShieldCheck, label: 'Firewall & Ports' },
+  { id: 'firewall' as const, icon: ShieldCheck, label: 'Security & Firewall' },
   { id: 'logs' as const, icon: ScrollText, label: 'Logs' },
   { id: 'api' as const, icon: Send, label: 'API Tester' },
   { id: 'commands' as const, icon: Terminal, label: 'Commands' },

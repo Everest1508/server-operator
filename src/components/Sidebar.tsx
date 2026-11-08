@@ -671,7 +671,7 @@ export function Sidebar({
               {activeView === 'docker' && 'Docker'}
               {activeView === 'deploy' && 'Deploy'}
               {activeView === 'database' && 'Database'}
-              {activeView === 'firewall' && 'Firewall & Ports'}
+              {activeView === 'firewall' && 'Security & Firewall'}
             </span>
           </div>
           {showFileBrowser && (
