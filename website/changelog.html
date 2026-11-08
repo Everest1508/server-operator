@@ -106,7 +106,33 @@
 <path class="a" d="M62 56l8 8 14-16M62 104l8 8 14-16M62 152l8 8 14-16"/>
 <path class="l" d="M104 56h110M104 104h110M104 152h80"/></g></svg></div>
 
-                    <!-- 2.13.1 — Swatch -->
+                    <!-- 2.14.0 — Bastion -->
+          <div class="release-card" style="margin-bottom: 32px;">
+            <div class="release-card__header">
+              <div>
+                <span class="release-badge">v2.14.0</span>
+                <h3>Bastion</h3>
+              </div>
+              <p>2026-11-08</p>
+            </div>
+            <p style="color: var(--ash); font-size: 15px; margin: 0 0 24px;">
+              A new Security check finds databases open to the internet, missing or weak passwords, crypto miners, password SSH logins and a disabled firewall, with a fix for each.
+            </p>
+            <div class="release-grid">
+              <article class="release-block">
+                <h4>Security</h4>
+                <ul>
+                    <li>Security check, the first tab of Security &amp; Firewall. One button scans the server, read-only, and lists each problem by severity with a fix you can copy.</li>
+                    <li>Flags database and admin-panel containers published to the internet, Redis with no password, weak database passwords in container settings, and databases on the host that accept connections from anywhere.</li>
+                    <li>Spots signs of a break-in: hidden files dropped in a container, crypto miners, programs running from temporary folders, and connections to mining pools.</li>
+                    <li>Checks SSH password logins and the firewall, and warns that ports published by Docker skip UFW.</li>
+                    <li>Some fixes run from the app after a confirm: block a public database port, stop a compromised container, or kill a miner. The last result is kept per server.</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+
+<!-- 2.13.1 — Swatch -->
           <div class="release-card" style="margin-bottom: 32px;">
             <div class="release-card__header">
               <div>
@@ -972,7 +998,7 @@
 
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.13.1</span></p>
+        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.14.0</span></p>
         <div class="site-footer__links">
           <a href="https://github.com/everest1508/server-operator">GitHub</a>
           <a href="https://github.com/everest1508/server-operator/issues">Issues</a>

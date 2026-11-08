@@ -23,6 +23,27 @@ export interface ChangelogVersion {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: '2.14.0',
+    codename: 'Bastion',
+    date: '2026-11-08',
+    summary:
+      "A new Security check finds databases open to the internet, missing or weak passwords, crypto miners, password SSH logins and a disabled firewall, with a fix for each.",
+    groups: [
+      {
+        label: 'Security',
+        icon: Shield,
+        color: '#fca5a5',
+        items: [
+          { type: 'feat', text: "Security check, the first tab of Security & Firewall. One button scans the server, read-only, and lists each problem by severity with a fix you can copy." },
+          { type: 'feat', text: "Flags database and admin-panel containers published to the internet, Redis with no password, weak database passwords in container settings, and databases on the host that accept connections from anywhere." },
+          { type: 'feat', text: "Spots signs of a break-in: hidden files dropped in a container, crypto miners, programs running from temporary folders, and connections to mining pools." },
+          { type: 'feat', text: "Checks SSH password logins and the firewall, and warns that ports published by Docker skip UFW." },
+          { type: 'improve', text: "Some fixes run from the app after a confirm: block a public database port, stop a compromised container, or kill a miner. The last result is kept per server." },
+        ],
+      },
+    ],
+  },
+  {
     version: '2.13.1',
     codename: 'Swatch',
     date: '2026-10-29',

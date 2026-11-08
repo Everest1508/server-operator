@@ -61,7 +61,7 @@
       "url": "https://server-operator-zeta.vercel.app/",
       "downloadUrl": "https://github.com/Everest1508/server-operator/releases/latest",
       "license": "https://www.apache.org/licenses/LICENSE-2.0",
-      "softwareVersion": "2.13.1",
+      "softwareVersion": "2.14.0",
       "isAccessibleForFree": true,
       "image": "https://server-operator-zeta.vercel.app/logo.png",
       "author": {
@@ -405,23 +405,27 @@
 
       <section class="section" id="whats-new" aria-labelledby="whats-new-heading">
         <div class="section__inner">
-          <h2 class="section__title" id="whats-new-heading">What’s New in 2.13.1</h2>
+          <h2 class="section__title" id="whats-new-heading">What’s New in 2.14.0</h2>
           <p class="section__subtitle">
-            Servers can now have their own border colour, shown on the server card and as a bar in the sidebar.
+            A new Security check finds databases open to the internet, missing or weak passwords, crypto miners, password SSH logins and a disabled firewall, with a fix for each.
           </p>
           <div class="release-card">
             <div class="release-card__header">
               <div>
-                <span class="release-badge">v2.13.1</span>
-                <h3>Swatch</h3>
+                <span class="release-badge">v2.14.0</span>
+                <h3>Bastion</h3>
               </div>
-              <p>2026-10-29</p>
+              <p>2026-11-08</p>
             </div>
             <div class="release-grid">
               <article class="release-block">
-                <h4>Servers</h4>
+                <h4>Security</h4>
                 <ul>
-                    <li>Give any server its own border colour. Pick a preset or a custom one when you add or edit a server; it outlines the card and marks the server in the sidebar, the title bar and the tabs, and overrides the production red.</li>
+                    <li>Security check, the first tab of Security &amp; Firewall. One button scans the server, read-only, and lists each problem by severity with a fix you can copy.</li>
+                    <li>Flags database and admin-panel containers published to the internet, Redis with no password, weak database passwords in container settings, and databases on the host that accept connections from anywhere.</li>
+                    <li>Spots signs of a break-in: hidden files dropped in a container, crypto miners, programs running from temporary folders, and connections to mining pools.</li>
+                    <li>Checks SSH password logins and the firewall, and warns that ports published by Docker skip UFW.</li>
+                    <li>Some fixes run from the app after a confirm: block a public database port, stop a compromised container, or kill a miner. The last result is kept per server.</li>
                 </ul>
               </article>
             </div>
@@ -521,7 +525,7 @@
 
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.13.1</span></p>
+        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.14.0</span></p>
         <div class="site-footer__links">
           <a href="https://github.com/everest1508/server-operator">GitHub</a>
           <a href="https://github.com/everest1508/server-operator/issues">Issues</a>
