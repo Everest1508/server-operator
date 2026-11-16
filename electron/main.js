@@ -740,13 +740,16 @@ function connectSSH(connection, proxy) {
         })(),
       };
       // SSH auth layer on top of the cloudflared tunnel: password takes priority, then SSH key.
-      if (connection.password && connection.password.length > 0) {
+      // With a key, `password` is the key's passphrase (if any), not a login password.
+      const cfPassword = !connection.privateKeyPath && connection.password && connection.password.length > 0;
+      if (cfPassword) {
         config.password = connection.password;
         config.tryKeyboard = true;
       } else if (connection.privateKeyPath) {
         try {
           const keyPath = resolveKeyPath(connection.privateKeyPath);
           if (fs.existsSync(keyPath)) config.privateKey = fs.readFileSync(keyPath, 'utf8');
+          if (connection.password && !passphraseExpired(connection)) config.passphrase = connection.password;
         } catch (_) {}
       }
       conn.on('ready', () => {
@@ -758,7 +761,7 @@ function connectSSH(connection, proxy) {
         try { cf.kill(); } catch (_) {}
         reject(new Error(msg));
       });
-      if (connection.password && connection.password.length > 0) {
+      if (cfPassword) {
         conn.on('keyboard-interactive', (_name, _inst, _lang, prompts, finish) => {
           finish([connection.password]);
         });
@@ -769,7 +772,7 @@ function connectSSH(connection, proxy) {
 
 
     // ── Standard SSH (password / EC2 key) ─────────────────────────────────
-    const usePassword = (connection.connectionType === 'password' || connection.password) && typeof connection.password === 'string' && connection.password.length > 0;
+    const usePassword = !connection.privateKeyPath && (connection.connectionType === 'password' || connection.password) && typeof connection.password === 'string' && connection.password.length > 0;
     const viaProxy = useProxy(connection, proxy);
     const config = {
       username,
@@ -793,6 +796,11 @@ function connectSSH(connection, proxy) {
           return;
         }
         config.privateKey = fs.readFileSync(keyPath, 'utf8');
+        if (passphraseExpired(connection)) {
+          reject(new Error('Key passphrase expired (30 days). Edit the server and enter it again.'));
+          return;
+        }
+        if (connection.password) config.passphrase = connection.password; // key passphrase
       } catch (e) {
         reject(new Error('Invalid key path: ' + errMsg(e)));
         return;
@@ -1248,6 +1256,8 @@ ipcMain.handle('server:test-connection', async (_, { connection, proxy }) => {
     return { ok: false, error: err };
   }
 });
+
+const passphraseExpired = (c) => !!c.password && !(Date.now() - (c.passphraseSavedAt || 0) < 30 * 864e5);
 
 ipcMain.handle('server:run-command', async (_, { host, username, privateKeyPath, command, cwd, connection, proxy }) => {
   try {

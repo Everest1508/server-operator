@@ -201,8 +201,12 @@ function ServerDrawer({
               </Field>
             )}
 
-            {usesPwd && (
-              <Field label="Password" error={err('password')} hint={editing && hadPassword ? 'Leave blank to keep the saved password.' : undefined}>
+            {(usesPwd || usesKey) && (
+              <Field
+                label={usesKey ? 'Key passphrase (optional)' : 'Password'}
+                error={err('password')}
+                hint={editing && hadPassword ? 'Leave blank to keep the saved one.' : usesKey ? 'Only needed if the key is encrypted.' : undefined}
+              >
                 <div className="relative flex items-center">
                   <input
                     type={showPwd ? 'text' : 'password'}
@@ -381,8 +385,8 @@ export function NoServerView({
     };
     if (drawer?.server) {
       const patch: Partial<ServerConnection> = { ...base, privateKeyPath: key ? d.privateKeyPath.trim() : undefined };
-      if (pwd) {
-        if (d.password) patch.password = d.password;
+      if (pwd || key) {
+        if (d.password) { patch.password = d.password; if (key) patch.passphraseSavedAt = Date.now(); }
       } else {
         patch.password = undefined;
         patch.passwordEnc = undefined;
@@ -393,7 +397,7 @@ export function NoServerView({
         id: crypto.randomUUID(),
         ...base,
         ...(key ? { privateKeyPath: d.privateKeyPath.trim() } : {}),
-        ...(pwd ? { password: d.password } : {}),
+        ...((pwd || key) && d.password ? { password: d.password, ...(key ? { passphraseSavedAt: Date.now() } : {}) } : {}),
       });
     }
     setDrawer(null);

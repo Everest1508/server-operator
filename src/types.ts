@@ -57,6 +57,8 @@ export interface ServerConnection {
   password?: string;
   /** Password encrypted with the OS keychain. Stored instead of `password` when encryption is available. */
   passwordEnc?: string;
+  /** When the key passphrase was saved (ms). It expires after 30 days and must be re-entered. */
+  passphraseSavedAt?: number;
   projectPath?: string;
   cwd?: string;
   /**
