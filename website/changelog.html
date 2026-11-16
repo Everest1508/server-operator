@@ -106,6 +106,41 @@
 <path class="a" d="M62 56l8 8 14-16M62 104l8 8 14-16M62 152l8 8 14-16"/>
 <path class="l" d="M104 56h110M104 104h110M104 152h80"/></g></svg></div>
 
+                    <!-- 2.15.0 — Keyring -->
+          <div class="release-card" style="margin-bottom: 32px;">
+            <div class="release-card__header">
+              <div>
+                <span class="release-badge">v2.15.0</span>
+                <h3>Keyring</h3>
+              </div>
+              <p>2026-11-16</p>
+            </div>
+            <p style="color: var(--ash); font-size: 15px; margin: 0 0 24px;">
+              Servers with a passphrase-protected SSH key can now connect, there are six new themes, and Settings has a Check for updates button.
+            </p>
+            <div class="release-grid">
+              <article class="release-block">
+                <h4>Servers</h4>
+                <ul>
+                    <li>Fixed “Encrypted private OpenSSH key detected, but no passphrase given”. Servers that sign in with a key now have an optional Key passphrase field.</li>
+                    <li>The passphrase is saved in the OS keychain and expires after 30 days. When it does, the connection tells you to edit the server and enter it again.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Themes</h4>
+                <ul>
+                    <li>Six new themes: Catppuccin, One Dark, Solarized Dark, Solarized Light, High Contrast and Monokai. They use mostly solid panels so text is easy to read.</li>
+                </ul>
+              </article>
+              <article class="release-block">
+                <h4>Settings</h4>
+                <ul>
+                    <li>Check for updates button at the top of Settings. It shows Checking, then Up to date or Update available.</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+
                     <!-- 2.14.0 — Bastion -->
           <div class="release-card" style="margin-bottom: 32px;">
             <div class="release-card__header">

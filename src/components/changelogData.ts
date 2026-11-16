@@ -23,6 +23,40 @@ export interface ChangelogVersion {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: '2.15.0',
+    codename: 'Keyring',
+    date: '2026-11-16',
+    summary:
+      "Servers with a passphrase-protected SSH key can now connect, there are six new themes, and Settings has a Check for updates button.",
+    groups: [
+      {
+        label: 'Servers',
+        icon: Shield,
+        color: '#fca5a5',
+        items: [
+          { type: 'fix', text: "Fixed \"Encrypted private OpenSSH key detected, but no passphrase given\". Servers that sign in with a key now have an optional Key passphrase field." },
+          { type: 'feat', text: "The passphrase is saved in the OS keychain and expires after 30 days. When it does, the connection tells you to edit the server and enter it again." },
+        ],
+      },
+      {
+        label: 'Themes',
+        icon: Palette,
+        color: '#c4b5fd',
+        items: [
+          { type: 'feat', text: "Six new themes: Catppuccin, One Dark, Solarized Dark, Solarized Light, High Contrast and Monokai. They use mostly solid panels so text is easy to read." },
+        ],
+      },
+      {
+        label: 'Settings',
+        icon: Sliders,
+        color: '#93c5fd',
+        items: [
+          { type: 'feat', text: "Check for updates button at the top of Settings. It shows Checking, then Up to date or Update available." },
+        ],
+      },
+    ],
+  },
+  {
     version: '2.14.0',
     codename: 'Bastion',
     date: '2026-11-08',
