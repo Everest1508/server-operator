@@ -69,7 +69,7 @@ export function createTerminal(
     scrollback: 5000,
     // blinking bar instead of the default solid block; hollow when the terminal loses focus
     cursorStyle: 'bar',
-    cursorWidth: 3,
+    cursorWidth: 2,
     cursorBlink: true,
     cursorInactiveStyle: 'outline',
   });

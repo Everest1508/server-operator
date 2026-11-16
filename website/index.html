@@ -61,7 +61,7 @@
       "url": "https://server-operator-zeta.vercel.app/",
       "downloadUrl": "https://github.com/Everest1508/server-operator/releases/latest",
       "license": "https://www.apache.org/licenses/LICENSE-2.0",
-      "softwareVersion": "2.16.0",
+      "softwareVersion": "2.16.1",
       "isAccessibleForFree": true,
       "image": "https://server-operator-zeta.vercel.app/logo.png",
       "author": {
@@ -405,38 +405,39 @@
 
       <section class="section" id="whats-new" aria-labelledby="whats-new-heading">
         <div class="section__inner">
-          <h2 class="section__title" id="whats-new-heading">What’s New in 2.16.0</h2>
+          <h2 class="section__title" id="whats-new-heading">What’s New in 2.16.1</h2>
           <p class="section__subtitle">
-            A clearer update panel with time left and what it is doing, a cleaner Settings page, and a simpler set of easy-to-read themes.
+            A slim glowing cursor, tidier Deploy and Docker screens, and clear error messages when the Groq key fails.
           </p>
           <div class="release-card">
             <div class="release-card__header">
               <div>
-                <span class="release-badge">v2.16.0</span>
-                <h3>Clearview</h3>
+                <span class="release-badge">v2.16.1</span>
+                <h3>Glimmer</h3>
               </div>
               <p>2026-11-16</p>
             </div>
             <div class="release-grid">
               <article class="release-block">
-                <h4>Updates</h4>
+                <h4>Cursor</h4>
                 <ul>
-                    <li>The update panel shows what it is doing right now (contacting GitHub, downloading with MB done, installing), the time left, the download speed and the total time.</li>
-                    <li>Step icons for fetch, apply and reopen with a progress line between them, a pulsing ruler and a count-up percent.</li>
+                    <li>The terminal and editor cursor is a slim 2px bar with a soft glow in your theme's accent colour that fades in and out.</li>
+                    <li>The terminal cursor turns into a hollow outline when the terminal is not focused.</li>
                 </ul>
               </article>
               <article class="release-block">
-                <h4>Settings</h4>
+                <h4>Deploy</h4>
                 <ul>
-                    <li>New Settings header with the version, an icon on the Check for updates button and underline tabs.</li>
-                    <li>Optional module boxes line up in the same grid. The two Deploy boxes were pushed to the right.</li>
+                    <li>Compose projects are full-width rows with the name, path, service count, service buttons, refresh and delete lined up.</li>
+                    <li>The Deploy sidebar lists projects instead of pills, gives each section an icon and shows a clear empty state with a Create starter shortcuts button.</li>
+                    <li>Ask for a command keeps its title on one line. The Groq key and model sit behind a small settings button once a key is saved, and example prompts are a list.</li>
                 </ul>
               </article>
               <article class="release-block">
-                <h4>Themes</h4>
+                <h4>AI chat</h4>
                 <ul>
-                    <li>New themes that are easier to read: Slate, Graphite, Ember and Paper, all with solid panels and strong text contrast.</li>
-                    <li>Removed Tokyo Night, Dracula, Nord, Gruvbox, Ros&eacute; Pine, Catppuccin, One Dark, Solarized, High Contrast and Monokai. Anyone using one of them is switched to Default.</li>
+                    <li>Groq failures now say why: rejected key, blocked request, rate limit or no connection. Quotes and spaces around a pasted key are removed.</li>
+                    <li>If a model has been retired, the next model is tried. Longer answers no longer come back empty on reasoning models.</li>
                 </ul>
               </article>
             </div>
@@ -536,7 +537,7 @@
 
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.16.0</span></p>
+        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.16.1</span></p>
         <div class="site-footer__links">
           <a href="https://github.com/everest1508/server-operator">GitHub</a>
           <a href="https://github.com/everest1508/server-operator/issues">Issues</a>

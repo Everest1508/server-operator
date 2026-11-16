@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.16.1 "Glimmer" - 2026-11-16
+
+### Cursor
+- The terminal and editor cursor is a slim 2px bar with a soft glow in your theme's accent colour that fades in and out.
+- The terminal cursor turns into a hollow outline when the terminal is not focused.
+
+### Deploy
+- Compose projects are full-width rows with the name, path, service count, service buttons, refresh and delete lined up.
+- The Deploy sidebar lists projects instead of pills, gives each section an icon and shows a clear empty state with a Create starter shortcuts button.
+- Ask for a command keeps its title on one line. The Groq key and model sit behind a small settings button once a key is saved, and example prompts are a list.
+
+### AI chat
+- Groq failures now say why: rejected key, blocked request, rate limit or no connection. Quotes and spaces around a pasted key are removed.
+- If a model has been retired, the next model is tried. Longer answers no longer come back empty on reasoning models.
+
 ## 2.16.0 "Clearview" - 2026-11-16
 
 ### Updates

@@ -1,5 +1,5 @@
 import { Fragment, useState, useRef, useEffect } from 'react';
-import { Rocket, TerminalSquare, Loader2, Key, FileCode, FolderTree, Send, Sparkles, Play, ChevronDown, Server, Copy, Wand2, GitBranch, RefreshCw, GitCommitHorizontal } from 'lucide-react';
+import { Rocket, TerminalSquare, Loader2, Key, FileCode, FolderTree, Send, Sparkles, Play, ChevronDown, Server, Copy, Wand2, GitBranch, RefreshCw, GitCommitHorizontal, ArrowUpRight, SlidersHorizontal } from 'lucide-react';
 import EyeIcon from './icons/EyeIcon';
 import EyeOffIcon from './icons/EyeOffIcon';
 import { useFeatureFlag } from '../contexts/FeatureFlagContext';
@@ -369,28 +369,39 @@ async function suggestCommandWithGroq(
   ];
   let lastError = 'No response returned';
 
-  // Chosen model first; on rate limit fall through to the defaults.
+  // Chosen model first; on rate limit or a retired model fall through to the defaults.
   for (const model of [preferredModel, ...DEFAULT_GROQ_MODELS.filter((m) => m !== preferredModel)]) {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        max_tokens: 256,
-        temperature: 0.2,
-      }),
-    });
+    let res: Response;
+    try {
+      res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          max_tokens: 1024, // reasoning models spend part of this thinking, 256 left them with an empty answer
+          temperature: 0.2,
+        }),
+      });
+    } catch (e) {
+      return { answer: '', command: '', error: `Could not reach Groq (${e instanceof Error ? e.message : 'network error'}). Check your internet, VPN or firewall.` };
+    }
 
     if (!res.ok) {
-      const err = await res.text();
-      lastError = `Groq API error: ${res.status} ${err}`;
-      const shouldRetryWithNextModel =
-        res.status === 429 && /rate limit|tokens per minute|tpm|limit reached/i.test(err);
-      if (shouldRetryWithNextModel) continue;
+      const body = await res.text();
+      let detail = body;
+      try { detail = (JSON.parse(body) as { error?: { message?: string } }).error?.message || body; } catch { /* keep raw text */ }
+      if (res.status === 401) lastError = `Groq rejected this key (401). Copy the whole key again from console.groq.com/keys. It starts with gsk_.`;
+      else if (res.status === 403) lastError = `Groq blocked the request (403). Your account, region or network may be restricted. ${detail}`;
+      else if (res.status === 429) lastError = `Groq rate limit reached (429). Wait a minute or pick another model. ${detail}`;
+      else lastError = `Groq error ${res.status}: ${detail}`;
+      const retryOtherModel =
+        (res.status === 429 && /rate limit|tokens per minute|tpm|limit reached/i.test(body)) ||
+        ((res.status === 400 || res.status === 404) && /model|decommission|not found|does not exist/i.test(body));
+      if (retryOtherModel) continue;
       return { answer: '', command: '', error: lastError };
     }
 
@@ -535,7 +546,7 @@ export function DeployView({
   const activeProjectPath = selectedDeployProjectPath.trim() || currentServer.projectPath || currentServer.cwd || '';
 
   const sendDeployMessage = async () => {
-    const key = groqApiKey.trim();
+    const key = groqApiKey.trim().replace(/^bearer\s+/i, '').replace(/^["']|["']$/g, '');
     if (!key) {
       setAiError('Enter your Groq API key first (get one at console.groq.com)');
       return;
@@ -884,39 +895,52 @@ export function DeployView({
               >
                 {isAiEnabled && (
                   <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
-                    <div className="p-4 border-b border-border/20 shrink-0 select-none space-y-2.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-semibold text-text-primary">Ask for a command</p>
-                        <span className="text-[11px] text-text-muted truncate font-mono" title={activeProjectPath}>{activeProjectPath}</span>
+                    <div className="px-4 py-3 border-b border-border/20 shrink-0 select-none">
+                      <div className="flex items-center gap-2.5">
+                        <Sparkles size={15} className="text-accent shrink-0" />
+                        <p className="text-sm font-semibold text-text-primary whitespace-nowrap">Ask for a command</p>
+                        <span className="text-[11px] text-text-muted truncate font-mono min-w-0 flex-1 text-right" title={activeProjectPath}>
+                          {activeProjectPath.split('/').filter(Boolean).pop() || activeProjectPath}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowGroqKey((v) => !v)}
+                          className={`shrink-0 flex items-center gap-1.5 px-2 py-1 text-[11px] border transition-colors cursor-pointer ${
+                            groqApiKey.trim() ? 'border-border/40 text-text-secondary hover:text-text-primary hover:bg-bg-tertiary' : 'border-warning/50 text-warning'
+                          }`}
+                          style={{ borderRadius: 3 }}
+                          title="Groq key and model"
+                          aria-expanded={showGroqKey || !groqApiKey.trim()}
+                        >
+                          {groqApiKey.trim() ? <Key size={12} className="text-success" /> : <Key size={12} />}
+                          <SlidersHorizontal size={12} />
+                        </button>
                       </div>
-                      {groqApiKey.trim() && !showGroqKey ? (
-                        <div className="flex items-center gap-2 text-xs text-text-secondary">
-                          <Key size={13} className="shrink-0 text-success" />
-                          <span>Groq key saved on this computer</span>
-                          <button type="button" onClick={() => setShowGroqKey(true)} className="text-accent hover:underline cursor-pointer">Change</button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Input size="sm"
-                            type="password"
-                            value={groqApiKey}
-                            onChange={(e) => setGroqApiKey(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') { handleSaveGroqKey(); setShowGroqKey(false); } }}
-                            placeholder="Paste your Groq API key"
-                            aria-label="Groq API key" className="flex-1 min-w-0"
-                          />
-                          <Button variant="outline" className="shrink-0"
-                            onClick={() => { handleSaveGroqKey(); setShowGroqKey(false); }}
-                            disabled={!groqApiKey.trim()}
-                          >
-                            Save key
-                          </Button>
+                      {(showGroqKey || !groqApiKey.trim()) && (
+                        <div className="mt-3 space-y-2 border-l-2 border-accent/60 pl-3">
+                          <div className="flex items-center gap-2">
+                            <Input size="sm"
+                              type="password"
+                              value={groqApiKey}
+                              onChange={(e) => setGroqApiKey(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') { handleSaveGroqKey(); setShowGroqKey(false); } }}
+                              placeholder="Paste your Groq API key (gsk_…)"
+                              aria-label="Groq API key" className="flex-1 min-w-0"
+                            />
+                            <Button variant="outline" className="shrink-0"
+                              onClick={() => { handleSaveGroqKey(); setShowGroqKey(false); }}
+                              disabled={!groqApiKey.trim()}
+                            >
+                              Save
+                            </Button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-text-secondary shrink-0">Model</span>
+                            <div className="flex-1 min-w-0"><GroqModelSelect apiKey={groqApiKey} model={groqModel} onChange={setGroqModel} /></div>
+                          </div>
+                          <p className="text-[11px] text-text-muted">Get a free key at console.groq.com/keys. It is stored on this computer only.</p>
                         </div>
                       )}
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-text-secondary shrink-0">Model</span>
-                        <div className="flex-1 min-w-0"><GroqModelSelect apiKey={groqApiKey} model={groqModel} onChange={setGroqModel} /></div>
-                      </div>
                     </div>
                     <div className="flex-1 min-h-[160px] flex flex-col overflow-hidden bg-bg-primary/10">
                       {bgJobs.length > 0 && (
@@ -959,15 +983,16 @@ export function DeployView({
                           <div className="flex flex-col items-center justify-center py-8 text-center select-none">
                             <Sparkles size={22} className="text-text-muted mb-2.5" />
                             <p className="text-xs text-text-secondary max-w-xs">Describe what you want done. You get a command to review, then run it in the terminal yourself.</p>
-                            <div className="flex flex-wrap justify-center gap-1.5 mt-4 max-w-sm">
+                            <div className="flex flex-col mt-4 w-full max-w-xs border border-border/30 divide-y divide-border/30" style={{ borderRadius: 4 }}>
                               {['Show disk usage', 'Is nginx running?', 'Last 100 lines of syslog', 'What is using port 80?'].map((ex) => (
                                 <button
                                   key={ex}
                                   type="button"
                                   onClick={() => setAiRequest(ex)}
-                                  className="px-2.5 py-1 rounded-full border border-border/40 text-[11px] text-text-secondary hover:text-accent hover:border-accent/50 transition-colors cursor-pointer"
+                                  className="group flex items-center justify-between gap-3 px-3 py-2 text-left text-xs text-text-secondary hover:text-text-primary hover:bg-bg-secondary/60 transition-colors cursor-pointer"
                                 >
                                   {ex}
+                                  <ArrowUpRight size={12} className="shrink-0 text-text-muted group-hover:text-accent" />
                                 </button>
                               ))}
                             </div>

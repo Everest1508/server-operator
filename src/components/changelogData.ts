@@ -23,6 +23,43 @@ export interface ChangelogVersion {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: '2.16.1',
+    codename: 'Glimmer',
+    date: '2026-11-16',
+    summary:
+      "A slim glowing cursor, tidier Deploy and Docker screens, and clear error messages when the Groq key fails.",
+    groups: [
+      {
+        label: 'Cursor',
+        icon: TerminalSquare,
+        color: '#93c5fd',
+        items: [
+          { type: 'improve', text: "The terminal and editor cursor is a slim 2px bar with a soft glow in your theme's accent colour that fades in and out." },
+          { type: 'improve', text: "The terminal cursor turns into a hollow outline when the terminal is not focused." },
+        ],
+      },
+      {
+        label: 'Deploy',
+        icon: Layers,
+        color: '#c4b5fd',
+        items: [
+          { type: 'improve', text: "Compose projects are full-width rows with the name, path, service count, service buttons, refresh and delete lined up." },
+          { type: 'improve', text: "The Deploy sidebar lists projects instead of pills, gives each section an icon and shows a clear empty state with a Create starter shortcuts button." },
+          { type: 'improve', text: "Ask for a command keeps its title on one line. The Groq key and model sit behind a small settings button once a key is saved, and example prompts are a list." },
+        ],
+      },
+      {
+        label: 'AI chat',
+        icon: Sparkles,
+        color: '#fcd34d',
+        items: [
+          { type: 'fix', text: "Groq failures now say why: rejected key, blocked request, rate limit or no connection. Quotes and spaces around a pasted key are removed." },
+          { type: 'fix', text: "If a model has been retired, the next model is tried. Longer answers no longer come back empty on reasoning models." },
+        ],
+      },
+    ],
+  },
+  {
     version: '2.16.0',
     codename: 'Clearview',
     date: '2026-11-16',

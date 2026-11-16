@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarClock, ChevronDown, Copy, FolderTree, Loader2, Play, Square, Trash2, Wand2, X } from 'lucide-react';
+import { CalendarClock, ChevronDown, Copy, FileCode2, Folder, FolderTree, Loader2, Play, Sparkles, Square, Trash2, Wand2, X } from 'lucide-react';
 import type { ProxySettings, ServerConnection } from '../types';
 import { joinRemotePath } from '../utils/remotePath';
 import { stopScheduledJob } from '../utils/useScheduleWatcher';
@@ -604,32 +604,36 @@ export function DeploySidebar({
             </span>
           )}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-1" role="listbox" aria-label="Projects">
           {projectPaths.map((path) => {
             const isSelected = path === activeProjectPath;
             return (
               <button
                 key={path}
                 type="button"
+                role="option"
+                aria-selected={isSelected}
                 onClick={() => onSelectProject(path)}
-                className={`max-w-full px-2.5 py-1.5 rounded-full border text-[11px] font-semibold transition-colors cursor-pointer ${
+                className={`flex items-center gap-2.5 w-full pl-3 pr-2.5 py-2 text-left text-xs border-l-2 transition-colors cursor-pointer ${
                   isSelected
-                    ? 'border-accent/50 bg-accent/20 text-accent'
-                    : 'border-border/25 bg-bg-secondary/40 text-text-secondary hover:text-text-primary hover:bg-bg-secondary/70'
+                    ? 'border-accent bg-accent/10 text-text-primary font-semibold'
+                    : 'border-transparent text-text-secondary hover:text-text-primary hover:bg-bg-secondary/60'
                 }`}
+                style={{ borderRadius: 2 }}
                 title={path}
               >
-                <span className="truncate block max-w-[180px]">{pathChipLabel(path)}</span>
+                <Folder size={13} className={isSelected ? 'text-accent shrink-0' : 'text-text-muted shrink-0'} />
+                <span className="truncate flex-1">{pathChipLabel(path)}</span>
               </button>
             );
           })}
         </div>
-        {currentServer && <p className="text-text-muted text-xs">On {currentServer.name}</p>}
+        {currentServer && <p className="text-text-muted text-[11px]">On {currentServer.name}</p>}
       </Card>
 
       <div className="rounded-lg border border-border bg-bg-primary overflow-hidden">
         <button type="button" onClick={() => setShortcutsOpen((open) => !open)} aria-expanded={shortcutsOpen} className="w-full flex items-center justify-between gap-2 px-3 py-3 text-left hover:bg-bg-secondary/60 transition-colors cursor-pointer">
-          <SectionLabel>Serop Commands</SectionLabel>
+          <span className="flex items-center gap-2"><FileCode2 size={14} className="text-accent" /><SectionLabel>Serop Commands</SectionLabel></span>
           <ChevronDown size={14} className={`text-text-secondary transition-transform ${shortcutsOpen ? 'rotate-0' : '-rotate-90'}`} />
         </button>
         {shortcutsOpen && (
@@ -707,14 +711,19 @@ export function DeploySidebar({
                 );
               })}
               {shortcutsError && <p className="text-xs text-error break-words">{shortcutsError}</p>}
-              {shortcutsWarning && !shortcutsError && <p className="text-xs text-text-muted">{shortcutsWarning}</p>}
+              {shortcutsWarning && !shortcutsError && (
+                <div className="border border-dashed border-border/50 px-3 py-3 space-y-1" style={{ borderRadius: 4 }}>
+                  <p className="text-xs font-medium text-text-primary">No shortcuts yet</p>
+                  <p className="text-[11px] text-text-muted leading-relaxed">{shortcutsWarning}</p>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2 flex-wrap pt-1">
+              <Button variant="solid" onClick={handleCreateStarterShortcuts} disabled={shortcutBootstrapBusy || !activeProjectPath}>
+                {shortcutBootstrapBusy ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}Create starter shortcuts
+              </Button>
               <Button variant="outline" onClick={handleCopyShortcutBootstrapPrompt}>
                 <Copy size={12} />Copy AI recipe prompt
-              </Button>
-              <Button variant="soft" onClick={handleCreateStarterShortcuts} disabled={shortcutBootstrapBusy || !activeProjectPath}>
-                {shortcutBootstrapBusy ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}Write starter shortcuts
               </Button>
             </div>
             {shortcutBootstrapMessage && <p className="text-xs text-text-secondary">{shortcutBootstrapMessage}</p>}
@@ -725,7 +734,7 @@ export function DeploySidebar({
 
       <div className="rounded-lg border border-border bg-bg-primary overflow-hidden">
         <button type="button" onClick={() => setScheduleOpen((open) => !open)} aria-expanded={scheduleOpen} className="w-full flex items-center justify-between gap-2 px-3 py-3 text-left hover:bg-bg-secondary/60 transition-colors cursor-pointer">
-          <SectionLabel>Scheduled commands</SectionLabel>
+          <span className="flex items-center gap-2"><CalendarClock size={14} className="text-accent" /><SectionLabel>Scheduled commands</SectionLabel></span>
           <ChevronDown size={14} className={`text-text-secondary transition-transform ${scheduleOpen ? 'rotate-0' : '-rotate-90'}`} />
         </button>
         {scheduleOpen && (
@@ -824,7 +833,7 @@ export function DeploySidebar({
 
       <div className="rounded-lg border border-border bg-bg-primary overflow-hidden">
         <button type="button" onClick={() => setContextOpen((open) => !open)} aria-expanded={contextOpen} className="w-full flex items-center justify-between gap-2 px-3 py-3 text-left hover:bg-bg-secondary/60 transition-colors cursor-pointer">
-          <span className="text-xs font-semibold text-text-secondary">AI context</span>
+          <span className="flex items-center gap-2"><Sparkles size={14} className="text-accent" /><span className="text-xs font-semibold text-text-secondary">AI context</span></span>
           <ChevronDown size={14} className={`text-text-secondary transition-transform ${contextOpen ? 'rotate-0' : '-rotate-90'}`} />
         </button>
         {contextOpen && (

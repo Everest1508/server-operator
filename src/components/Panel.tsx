@@ -679,61 +679,52 @@ export function Panel({ currentServer, proxy, panelTab, onTabChange, composePath
                 {composePaths.length > 0 && (
                   <div className="space-y-2">
                     <p className="text-xs font-semibold text-text-secondary">Compose projects</p>
-                    <div className="flex flex-wrap gap-3">
+                    <div className="flex flex-col gap-2">
                       {composePaths.map((p) => {
                         const services = servicesByPath[p] ?? [];
                         const isLoading = loadingServicesForPath === p;
-                        const shortName = p.split('/').pop() || p;
+                        const shortName = p.split('/').filter(Boolean).pop() || p;
                         return (
                           <div
                             key={p}
-                            className="flex items-center gap-3 rounded-xl border border-border/30 bg-bg-primary/50 px-3.5 py-2"
+                            className="grid grid-cols-[minmax(170px,300px)_1fr_auto] items-center gap-4 border border-border/40 border-l-2 border-l-accent bg-bg-primary/50 pl-3.5 pr-2.5 py-2.5"
+                            style={{ borderRadius: 4 }}
                           >
-                            <div className="flex flex-col gap-0.5 min-w-0 max-w-[240px]">
-                              <span className="text-xs font-semibold text-text-primary truncate" title={p}>
-                                {shortName}
-                              </span>
-                              <span className="text-[11px] text-text-muted truncate font-mono" title={p}>
-                                {p}
-                              </span>
-                              <span className="text-[11px] text-text-secondary mt-0.5">
-                                {isLoading ? 'Loading services…' : `${services.length} service${services.length !== 1 ? 's' : ''}`}
-                              </span>
+                            <div className="min-w-0">
+                              <p className="text-[13px] font-semibold text-text-primary truncate" title={p}>{shortName}</p>
+                              <p className="text-[11px] text-text-muted truncate font-mono" title={p}>
+                                {shortName !== p ? `${p} · ` : ''}{isLoading ? 'loading…' : `${services.length} service${services.length !== 1 ? 's' : ''}`}
+                              </p>
                             </div>
-                            <div className="flex flex-wrap gap-1">
-                              <Button variant="outline" size="sm"
-                                onClick={() => openLogTab(p, '')}
-                              >
+                            <div className="flex flex-wrap gap-1.5 min-w-0">
+                              <Button variant="outline" size="sm" onClick={() => openLogTab(p, '')}>
                                 All services
                               </Button>
                               {services.map((s) => (
-                                <Button variant="outline" size="sm"
-                                  key={s}
-                                  onClick={() => openLogTab(p, s)}
-                                >
+                                <Button variant="outline" size="sm" key={s} onClick={() => openLogTab(p, s)}>
                                   {s}
                                 </Button>
                               ))}
                             </div>
-                            <div className="flex items-center gap-0.5 border-l border-border/20 pl-2 ml-1">
+                            <div className="flex items-center gap-0.5">
                               <button
                                 type="button"
                                 onClick={() => refreshServicesForPath(p)}
                                 disabled={loadingServicesForPath !== null}
-                                className="p-1 rounded-md text-text-secondary hover:bg-bg-tertiary hover:text-accent disabled:opacity-50 cursor-pointer transition-colors"
+                                className="p-1.5 rounded-md text-text-secondary hover:bg-bg-tertiary hover:text-accent disabled:opacity-50 cursor-pointer transition-colors"
                                 title="Reload services"
                                 aria-label="Reload services"
                               >
-                                {loadingServicesForPath === p ? <Loader2 size={12} className="animate-spin text-accent" /> : <RefreshCw size={12} />}
+                                {loadingServicesForPath === p ? <Loader2 size={14} className="animate-spin text-accent" /> : <RefreshCw size={14} />}
                               </button>
                               <button
                                 type="button"
                                 onClick={() => removeComposePath(p)}
-                                className="p-1 rounded-md text-text-secondary hover:bg-error/15 hover:text-error cursor-pointer transition-colors"
+                                className="p-1.5 rounded-md text-text-secondary hover:bg-error/15 hover:text-error cursor-pointer transition-colors"
                                 title="Remove this project from the list"
                                 aria-label="Remove compose project"
                               >
-                                <Trash2 size={12} />
+                                <Trash2 size={14} />
                               </button>
                             </div>
                           </div>

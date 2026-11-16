@@ -326,11 +326,19 @@ input[type="number"] {
   @keyframes befui-slide-left { from { transform: translateX(-100%); } }
 }
 
-/* Glowing cursor: a soft accent halo around the terminal and editor cursor so it is easy to spot. */
+/* Cursor: a slim rounded bar with a soft accent glow that fades in and out.
+   The terminal draws it as a background, the editor styles Monaco's own caret. */
+@property --caret { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@keyframes serop-caret { 0%, 40% { --caret: var(--color-accent); } 75%, 100% { --caret: transparent; } }
 .xterm .xterm-rows .xterm-cursor-bar {
-  filter: drop-shadow(0 0 3px var(--color-accent)) drop-shadow(0 0 7px var(--color-accent));
+  --caret: var(--color-accent);
+  box-shadow: none !important;
+  background: linear-gradient(var(--caret), var(--caret)) 0 0 / 2px 100% no-repeat !important;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--caret) 75%, transparent));
+  animation: serop-caret 1.2s ease-in-out infinite alternate !important;
 }
 .monaco-editor .cursors-layer > .cursor {
   border-radius: 2px;
-  box-shadow: 0 0 4px var(--color-accent), 0 0 9px var(--color-accent);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--color-accent) 70%, transparent);
 }
+@media (prefers-reduced-motion: reduce) { .xterm .xterm-rows .xterm-cursor-bar { animation: none !important; } }
