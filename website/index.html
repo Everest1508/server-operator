@@ -61,7 +61,7 @@
       "url": "https://server-operator-zeta.vercel.app/",
       "downloadUrl": "https://github.com/Everest1508/server-operator/releases/latest",
       "license": "https://www.apache.org/licenses/LICENSE-2.0",
-      "softwareVersion": "2.15.0",
+      "softwareVersion": "2.15.1",
       "isAccessibleForFree": true,
       "image": "https://server-operator-zeta.vercel.app/logo.png",
       "author": {
@@ -405,36 +405,24 @@
 
       <section class="section" id="whats-new" aria-labelledby="whats-new-heading">
         <div class="section__inner">
-          <h2 class="section__title" id="whats-new-heading">What’s New in 2.15.0</h2>
+          <h2 class="section__title" id="whats-new-heading">What’s New in 2.15.1</h2>
           <p class="section__subtitle">
-            Servers with a passphrase-protected SSH key can now connect, there are six new themes, and Settings has a Check for updates button.
+            The terminal cursor is now a blinking bar instead of a solid block, and the editor cursor blinks clearly.
           </p>
           <div class="release-card">
             <div class="release-card__header">
               <div>
-                <span class="release-badge">v2.15.0</span>
-                <h3>Keyring</h3>
+                <span class="release-badge">v2.15.1</span>
+                <h3>Caret</h3>
               </div>
               <p>2026-11-16</p>
             </div>
             <div class="release-grid">
               <article class="release-block">
-                <h4>Servers</h4>
+                <h4>Cursor</h4>
                 <ul>
-                    <li>Fixed “Encrypted private OpenSSH key detected, but no passphrase given”. Servers that sign in with a key now have an optional Key passphrase field.</li>
-                    <li>The passphrase is saved in the OS keychain and expires after 30 days. When it does, the connection tells you to edit the server and enter it again.</li>
-                </ul>
-              </article>
-              <article class="release-block">
-                <h4>Themes</h4>
-                <ul>
-                    <li>Six new themes: Catppuccin, One Dark, Solarized Dark, Solarized Light, High Contrast and Monokai. They use mostly solid panels so text is easy to read.</li>
-                </ul>
-              </article>
-              <article class="release-block">
-                <h4>Settings</h4>
-                <ul>
-                    <li>Check for updates button at the top of Settings. It shows Checking, then Up to date or Update available.</li>
+                    <li>Terminal cursor is now a blinking bar in your theme’s accent colour, and turns into a hollow outline when the terminal is not focused. It used to be a solid block that covered the letter under it.</li>
+                    <li>Editor cursor is a glowing 3px bar that blinks clearly and glides between positions.</li>
                 </ul>
               </article>
             </div>
@@ -534,7 +522,7 @@
 
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.15.0</span></p>
+        <p>Server Operator · Made by <a href="https://beforth.in">BeForth</a> <span class="release-badge" style="font-size: 10px; padding: 2px 8px;">v2.15.1</span></p>
         <div class="site-footer__links">
           <a href="https://github.com/everest1508/server-operator">GitHub</a>
           <a href="https://github.com/everest1508/server-operator/issues">Issues</a>

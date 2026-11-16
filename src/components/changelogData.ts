@@ -23,6 +23,24 @@ export interface ChangelogVersion {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: '2.15.1',
+    codename: 'Caret',
+    date: '2026-11-16',
+    summary:
+      "The terminal cursor is now a blinking bar instead of a solid block, and the editor cursor blinks clearly.",
+    groups: [
+      {
+        label: 'Cursor',
+        icon: TerminalSquare,
+        color: '#93c5fd',
+        items: [
+          { type: 'improve', text: "Terminal cursor is now a blinking bar with a soft glow in your theme's accent colour, and turns into a hollow outline when the terminal is not focused. It used to be a solid block that covered the letter under it." },
+          { type: 'improve', text: "Editor cursor is a glowing 3px bar that blinks clearly and glides between positions." },
+        ],
+      },
+    ],
+  },
+  {
     version: '2.15.0',
     codename: 'Keyring',
     date: '2026-11-16',

@@ -67,6 +67,11 @@ export function createTerminal(
     fontFamily: TERMINAL_FONT,
     allowProposedApi: true, // the search add-on's match decorations need it
     scrollback: 5000,
+    // blinking bar instead of the default solid block; hollow when the terminal loses focus
+    cursorStyle: 'bar',
+    cursorWidth: 3,
+    cursorBlink: true,
+    cursorInactiveStyle: 'outline',
   });
   const fit = new FitAddon();
   const search = new SearchAddon();

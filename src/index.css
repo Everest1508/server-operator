@@ -539,3 +539,12 @@ input[type="number"] {
   @keyframes befui-slide-right { from { transform: translateX(100%); } }
   @keyframes befui-slide-left { from { transform: translateX(-100%); } }
 }
+
+/* Glowing cursor: a soft accent halo around the terminal and editor cursor so it is easy to spot. */
+.xterm .xterm-rows .xterm-cursor-bar {
+  filter: drop-shadow(0 0 3px var(--color-accent)) drop-shadow(0 0 7px var(--color-accent));
+}
+.monaco-editor .cursors-layer > .cursor {
+  border-radius: 2px;
+  box-shadow: 0 0 4px var(--color-accent), 0 0 9px var(--color-accent);
+}

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.15.1 "Caret" - 2026-11-16
+
+### Improved
+- Terminal and editor cursors get a soft accent glow. Terminal cursor is a blinking bar (hollow when unfocused) instead of a solid block. Editor cursor blinks clearly.
+
 ## 2.15.0 "Keyring" - 2026-11-16
 
 ### Added
