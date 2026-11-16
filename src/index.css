@@ -216,6 +216,164 @@
   -webkit-backdrop-filter: blur(var(--glass-blur, 26px)) saturate(1.2);
 }
 
+/* Extra built-in themes (readable, mostly solid panels) */
+:root[data-app-theme='catppuccin'] {
+  --popover-base: #1e1e2e;
+  --color-bg-primary: rgba(30,30,46, 0.94);
+  --color-bg-secondary: rgba(24,24,37, 0.9);
+  --color-bg-tertiary: rgba(49,50,68, 0.88);
+  --color-bg-activity: rgba(36,36,54, 0.92);
+  --color-border: rgba(108,112,134, 0.45);
+  --color-text-primary: #cdd6f4;
+  --color-text-secondary: #bac2de;
+  --color-text-muted: #7f849c;
+  --color-accent: #cba6f7;
+  --color-accent-hover: #d9bdfb;
+  --color-success: #a6e3a1;
+  --color-warning: #f9e2af;
+  --color-error: #f38ba8;
+  --color-input-bg: rgba(49,50,68, 0.7);
+  --glass-blur: 20px;
+}
+:root[data-app-theme='catppuccin'] body::before {
+  background:
+    radial-gradient(circle at top left, rgba(203,166,247, 0.1), transparent 38%),
+    radial-gradient(circle at top right, rgba(137,180,250, 0.08), transparent 42%),
+    linear-gradient(160deg, rgba(30,30,46, 0.96), rgba(30,30,46, 0.98));
+  backdrop-filter: blur(var(--glass-blur, 20px));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px));
+}
+:root[data-app-theme='one-dark'] {
+  --popover-base: #282c34;
+  --color-bg-primary: rgba(40,44,52, 0.94);
+  --color-bg-secondary: rgba(33,37,43, 0.9);
+  --color-bg-tertiary: rgba(50,56,66, 0.88);
+  --color-bg-activity: rgba(44,49,58, 0.92);
+  --color-border: rgba(92,99,112, 0.45);
+  --color-text-primary: #abb2bf;
+  --color-text-secondary: #9da5b4;
+  --color-text-muted: #6b7385;
+  --color-accent: #61afef;
+  --color-accent-hover: #82c0f5;
+  --color-success: #98c379;
+  --color-warning: #e5c07b;
+  --color-error: #e06c75;
+  --color-input-bg: rgba(50,56,66, 0.7);
+  --glass-blur: 20px;
+}
+:root[data-app-theme='one-dark'] body::before {
+  background:
+    radial-gradient(circle at top left, rgba(97,175,239, 0.1), transparent 38%),
+    radial-gradient(circle at top right, rgba(198,120,221, 0.08), transparent 42%),
+    linear-gradient(160deg, rgba(40,44,52, 0.96), rgba(40,44,52, 0.98));
+  backdrop-filter: blur(var(--glass-blur, 20px));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px));
+}
+:root[data-app-theme='solarized-dark'] {
+  --popover-base: #002b36;
+  --color-bg-primary: rgba(0,43,54, 0.94);
+  --color-bg-secondary: rgba(0,34,43, 0.9);
+  --color-bg-tertiary: rgba(7,54,66, 0.88);
+  --color-bg-activity: rgba(3,48,60, 0.92);
+  --color-border: rgba(88,110,117, 0.45);
+  --color-text-primary: #93a1a1;
+  --color-text-secondary: #839496;
+  --color-text-muted: #657b83;
+  --color-accent: #268bd2;
+  --color-accent-hover: #4aa3e6;
+  --color-success: #859900;
+  --color-warning: #b58900;
+  --color-error: #dc322f;
+  --color-input-bg: rgba(7,54,66, 0.7);
+  --glass-blur: 20px;
+}
+:root[data-app-theme='solarized-dark'] body::before {
+  background:
+    radial-gradient(circle at top left, rgba(38,139,210, 0.1), transparent 38%),
+    radial-gradient(circle at top right, rgba(42,161,152, 0.08), transparent 42%),
+    linear-gradient(160deg, rgba(0,43,54, 0.96), rgba(0,43,54, 0.98));
+  backdrop-filter: blur(var(--glass-blur, 20px));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px));
+}
+:root[data-app-theme='solarized-light'] {
+  --popover-base: #fdf6e3;
+  --color-bg-primary: rgba(253,246,227, 0.94);
+  --color-bg-secondary: rgba(238,232,213, 0.9);
+  --color-bg-tertiary: rgba(233,226,203, 0.88);
+  --color-bg-activity: rgba(226,219,194, 0.92);
+  --color-border: rgba(147,161,161, 0.45);
+  --color-text-primary: #073642;
+  --color-text-secondary: #586e75;
+  --color-text-muted: #657b83;
+  --color-accent: #268bd2;
+  --color-accent-hover: #1a6fb0;
+  --color-success: #5f7300;
+  --color-warning: #8a6900;
+  --color-error: #cb2b28;
+  --color-input-bg: rgba(233,226,203, 0.7);
+  --glass-blur: 20px;
+}
+:root[data-app-theme='solarized-light'] body::before {
+  background:
+    radial-gradient(circle at top left, rgba(38,139,210, 0.1), transparent 38%),
+    radial-gradient(circle at top right, rgba(181,137,0, 0.08), transparent 42%),
+    linear-gradient(160deg, rgba(253,246,227, 0.96), rgba(253,246,227, 0.98));
+  backdrop-filter: blur(var(--glass-blur, 20px));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px));
+}
+:root[data-app-theme='high-contrast'] {
+  --popover-base: #000000;
+  --color-bg-primary: rgba(0,0,0, 0.94);
+  --color-bg-secondary: rgba(10,10,10, 0.9);
+  --color-bg-tertiary: rgba(28,28,28, 0.88);
+  --color-bg-activity: rgba(18,18,18, 0.92);
+  --color-border: rgba(255,255,255, 0.45);
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #f0f0f0;
+  --color-text-muted: #c8c8c8;
+  --color-accent: #ffd400;
+  --color-accent-hover: #ffe55c;
+  --color-success: #3fff7f;
+  --color-warning: #ffd400;
+  --color-error: #ff6b6b;
+  --color-input-bg: rgba(28,28,28, 0.7);
+  --glass-blur: 20px;
+}
+:root[data-app-theme='high-contrast'] body::before {
+  background:
+    radial-gradient(circle at top left, rgba(255,212,0, 0.1), transparent 38%),
+    radial-gradient(circle at top right, rgba(0,200,255, 0.08), transparent 42%),
+    linear-gradient(160deg, rgba(0,0,0, 0.96), rgba(0,0,0, 0.98));
+  backdrop-filter: blur(var(--glass-blur, 20px));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px));
+}
+:root[data-app-theme='monokai'] {
+  --popover-base: #272822;
+  --color-bg-primary: rgba(39,40,34, 0.94);
+  --color-bg-secondary: rgba(31,32,28, 0.9);
+  --color-bg-tertiary: rgba(55,56,48, 0.88);
+  --color-bg-activity: rgba(45,46,39, 0.92);
+  --color-border: rgba(117,113,94, 0.45);
+  --color-text-primary: #f8f8f2;
+  --color-text-secondary: #d6d6c8;
+  --color-text-muted: #8f8c7a;
+  --color-accent: #a6e22e;
+  --color-accent-hover: #c2f066;
+  --color-success: #a6e22e;
+  --color-warning: #e6db74;
+  --color-error: #f92672;
+  --color-input-bg: rgba(55,56,48, 0.7);
+  --glass-blur: 20px;
+}
+:root[data-app-theme='monokai'] body::before {
+  background:
+    radial-gradient(circle at top left, rgba(166,226,46, 0.1), transparent 38%),
+    radial-gradient(circle at top right, rgba(102,217,239, 0.08), transparent 42%),
+    linear-gradient(160deg, rgba(39,40,34, 0.96), rgba(39,40,34, 0.98));
+  backdrop-filter: blur(var(--glass-blur, 20px));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px));
+}
+
 * {
   box-sizing: border-box;
 }

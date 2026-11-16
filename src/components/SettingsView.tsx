@@ -100,6 +100,42 @@ const THEMES: { id: AppTheme; label: string; desc: string; swatch: string[] }[] 
     desc: 'Soft dusk purple with rose and gold.',
     swatch: ['#191724', '#ebbcba', '#9ccfd8', '#e0def4'],
   },
+  {
+    id: 'catppuccin',
+    label: 'Catppuccin',
+    desc: 'Soft pastel dark with lavender accents.',
+    swatch: ['#1e1e2e', '#cba6f7', '#a6e3a1', '#cdd6f4'],
+  },
+  {
+    id: 'one-dark',
+    label: 'One Dark',
+    desc: 'Familiar editor dark with clear blue accents.',
+    swatch: ['#282c34', '#61afef', '#98c379', '#abb2bf'],
+  },
+  {
+    id: 'solarized-dark',
+    label: 'Solarized Dark',
+    desc: 'Low-glare teal dark, easy on the eyes.',
+    swatch: ['#002b36', '#268bd2', '#859900', '#93a1a1'],
+  },
+  {
+    id: 'solarized-light',
+    label: 'Solarized Light',
+    desc: 'Warm cream light with gentle contrast.',
+    swatch: ['#fdf6e3', '#268bd2', '#5f7300', '#073642'],
+  },
+  {
+    id: 'high-contrast',
+    label: 'High Contrast',
+    desc: 'Pure black with bright yellow. Easiest to read.',
+    swatch: ['#000000', '#ffd400', '#3fff7f', '#ffffff'],
+  },
+  {
+    id: 'monokai',
+    label: 'Monokai',
+    desc: 'Classic dark with vivid green and pink.',
+    swatch: ['#272822', '#a6e22e', '#66d9ef', '#f8f8f2'],
+  },
 ];
 
 function loadOpacity(): number {
@@ -1145,6 +1181,31 @@ type SettingsTab = 'modules' | 'changelog' | 'cloudinary';
 
 export function SettingsView() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('modules');
+  const [updateState, setUpdateState] = useState<'idle' | 'checking' | 'latest' | 'found' | 'error'>('idle');
+  useEffect(() => {
+    const onResult = (e: Event) => {
+      const r = (e as CustomEvent<{ ok: boolean; upToDate?: boolean }>).detail;
+      setUpdateState((cur) => (cur === 'checking' ? (r?.upToDate ? 'latest' : r?.ok === false ? 'error' : cur) : cur));
+    };
+    const onFound = () => setUpdateState('found');
+    window.addEventListener('update-check-result', onResult);
+    window.addEventListener('update-available', onFound);
+    return () => {
+      window.removeEventListener('update-check-result', onResult);
+      window.removeEventListener('update-available', onFound);
+    };
+  }, []);
+  const checkUpdates = async () => {
+    setUpdateState('checking');
+    try {
+      const res = await window.serverOperator?.checkForUpdates?.();
+      if (!res) setUpdateState('error');
+    } catch {
+      setUpdateState('error');
+    }
+    // no event within 15s: stop spinning
+    setTimeout(() => setUpdateState((cur) => (cur === 'checking' ? 'idle' : cur)), 15000);
+  };
 
   const tabs: { id: SettingsTab; label: string; icon: React.ComponentType<any> }[] = [
     { id: 'modules',   label: 'Feature Modules', icon: Sliders },
@@ -1168,6 +1229,14 @@ export function SettingsView() {
           </div>
           {/* Version badge */}
           <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={checkUpdates}
+              disabled={updateState === 'checking'}
+              className="px-2.5 py-0.5 rounded-md text-[11px] font-semibold border border-border/40 text-text-secondary hover:text-text-primary hover:bg-bg-tertiary disabled:opacity-60"
+            >
+              {updateState === 'checking' ? 'Checking…' : updateState === 'latest' ? 'Up to date' : updateState === 'found' ? 'Update available' : updateState === 'error' ? 'Check failed, retry' : 'Check for updates'}
+            </button>
             <span
               className="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider border border-indigo-500/20 bg-indigo-500/5 text-indigo-400"
             >

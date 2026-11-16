@@ -1,6 +1,6 @@
 export type ViewId = 'servers' | 'files' | 'docker' | 'deploy' | 'notes' | 'database' | 'guide' | 'settings' | 'firewall' | 'team' | 'api' | 'logs' | 'commands';
 
-export type AppTheme = 'default' | 'glassy' | 'light' | 'tokyo-night' | 'dracula' | 'nord' | 'gruvbox' | 'rose-pine';
+export type AppTheme = 'default' | 'glassy' | 'light' | 'tokyo-night' | 'dracula' | 'nord' | 'gruvbox' | 'rose-pine' | 'catppuccin' | 'one-dark' | 'solarized-dark' | 'solarized-light' | 'high-contrast' | 'monokai';
 
 export interface FeatureFlags {
   deployModule: boolean;
