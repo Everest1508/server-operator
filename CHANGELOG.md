@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.16.2 "Midnight" - 2026-11-16
+
+### Themes
+- New Midnight theme: deep navy with a soft violet accent and solid, readable panels.
+- Glassy and Ember are removed. If you had one selected, the app falls back to Default.
+
+
+### AI chat
+- The Ask for a command box no longer shows a stray blue line across the input when it is focused.
+
+
 ## 2.16.1 "Glimmer" - 2026-11-16
 
 ### Cursor

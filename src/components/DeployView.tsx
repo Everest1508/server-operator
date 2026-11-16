@@ -1057,6 +1057,7 @@ export function DeployView({
                             placeholder="e.g. rebuild the api service, or show nginx status"
                             aria-label="Describe what you want to do"
                             className="w-full px-4 py-2.5 bg-transparent border-0 text-xs text-text-primary placeholder-text-muted focus:outline-none select-text"
+                            style={{ outline: 'none' }}
                           />
                           <div className="flex justify-end px-2.5 pb-2.5">
                             <Button

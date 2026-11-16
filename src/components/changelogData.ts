@@ -23,6 +23,32 @@ export interface ChangelogVersion {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: '2.16.2',
+    codename: 'Midnight',
+    date: '2026-11-16',
+    summary:
+      "A tidier AI command box, a new Midnight theme, and two hard-to-read themes retired.",
+    groups: [
+      {
+        label: 'Themes',
+        icon: Palette,
+        color: '#8b9cff',
+        items: [
+          { type: 'feat', text: "New Midnight theme: deep navy with a soft violet accent and solid, readable panels." },
+          { type: 'improve', text: "Glassy and Ember are removed. If you had one selected, the app falls back to Default." },
+        ],
+      },
+      {
+        label: 'AI chat',
+        icon: Sparkles,
+        color: '#93c5fd',
+        items: [
+          { type: 'fix', text: "The Ask for a command box no longer shows a stray blue line across the input when it is focused." },
+        ],
+      },
+    ],
+  },
+  {
     version: '2.16.1',
     codename: 'Glimmer',
     date: '2026-11-16',

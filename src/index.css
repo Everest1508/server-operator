@@ -45,31 +45,12 @@
   --glass-blur: 28px;
   --popover-base: #1c1d21;
 }
-:root[data-app-theme='glassy'] { --popover-base: #0f172a; }
 :root[data-app-theme='light'] { --popover-base: #f7f8fb; }
 /* Menus that sit inside a backdrop-blurred bar can't blur what's behind them, so give them a solid base. */
 .popover-surface {
   background: linear-gradient(var(--color-bg-tertiary), var(--color-bg-tertiary)), var(--popover-base);
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-}
-
-:root[data-app-theme='glassy'] {
-  --color-bg-primary: rgba(8, 12, 20, 0.48);
-  --color-bg-secondary: rgba(17, 24, 39, 0.34);
-  --color-bg-tertiary: rgba(30, 41, 59, 0.28);
-  --color-bg-activity: rgba(15, 23, 42, 0.62);
-  --color-border: rgba(148, 163, 184, 0.24);
-  --color-text-primary: #dbe5f5;
-  --color-text-secondary: #a8b6cc;
-  --color-text-muted: #7f8ca3;
-  --color-accent: #5cc8ff;
-  --color-accent-hover: #93ddff;
-  --color-success: #7ff0c2;
-  --color-warning: #ffe28a;
-  --color-error: #ff8f8f;
-  --color-input-bg: rgba(15, 23, 42, 0.35);
-  --glass-blur: 32px;
 }
 
 :root[data-app-theme='light'] {
@@ -130,25 +111,25 @@
 :root[data-app-theme='graphite'] body::before {
   background: rgb(28,28,30);
 }
-:root[data-app-theme='ember'] {
-  --popover-base: #201a18;
-  --color-bg-primary: rgba(32,26,24, 1);
-  --color-bg-secondary: rgba(26,21,19, 1);
-  --color-bg-tertiary: rgba(47,39,36, 1);
-  --color-bg-activity: rgba(38,31,28, 1);
-  --color-border: rgba(122,100,90, 0.45);
-  --color-text-primary: #f6efe9;
-  --color-text-secondary: #d6c8bf;
-  --color-text-muted: #a39185;
-  --color-accent: #ff9f43;
-  --color-accent-hover: #ffb86b;
-  --color-success: #8ce99a;
-  --color-warning: #ffd166;
-  --color-error: #ff6b6b;
-  --color-input-bg: rgba(47,39,36, 1);
+:root[data-app-theme='midnight'] {
+  --popover-base: #12141f;
+  --color-bg-primary: rgba(18,20,31, 1);
+  --color-bg-secondary: rgba(14,16,25, 1);
+  --color-bg-tertiary: rgba(30,34,52, 1);
+  --color-bg-activity: rgba(23,26,40, 1);
+  --color-border: rgba(110,120,170, 0.4);
+  --color-text-primary: #e8ebf7;
+  --color-text-secondary: #bcc3dd;
+  --color-text-muted: #8790b0;
+  --color-accent: #8b9cff;
+  --color-accent-hover: #adb9ff;
+  --color-success: #5eead4;
+  --color-warning: #fcd34d;
+  --color-error: #ff7a90;
+  --color-input-bg: rgba(30,34,52, 1);
 }
-:root[data-app-theme='ember'] body::before {
-  background: rgb(32,26,24);
+:root[data-app-theme='midnight'] body::before {
+  background: rgb(18,20,31);
 }
 :root[data-app-theme='paper'] {
   --popover-base: #fbf8f2;
@@ -218,16 +199,6 @@ body::before {
   -webkit-backdrop-filter: blur(var(--glass-blur, 28px)) saturate(1.2);
 }
 
-:root[data-app-theme='glassy'] body::before {
-  background:
-    radial-gradient(circle at top left, rgba(92, 200, 255, 0.18), transparent 35%),
-    radial-gradient(circle at top right, rgba(99, 102, 241, 0.2), transparent 40%),
-    radial-gradient(circle at bottom center, rgba(34, 197, 94, 0.1), transparent 35%),
-    linear-gradient(135deg, rgba(7, 16, 24, 0.8), rgba(13, 19, 33, 0.75), rgba(17, 24, 39, 0.7));
-  backdrop-filter: blur(var(--glass-blur, 32px)) saturate(1.25);
-  -webkit-backdrop-filter: blur(var(--glass-blur, 32px)) saturate(1.25);
-}
-
 :root[data-app-theme='light'] body::before {
   background:
     radial-gradient(circle at top left, rgba(10, 102, 212, 0.07), transparent 40%),
@@ -237,19 +208,6 @@ body::before {
   -webkit-backdrop-filter: blur(var(--glass-blur, 24px)) saturate(1.05);
 }
 
-:root[data-app-theme='glassy'] body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: -1;
-  background:
-    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-  background-size: 32px 32px;
-  mask-image: linear-gradient(to bottom, rgba(0,0,0,0.95), rgba(0,0,0,0.55));
-}
-
 #root {
   height: 100vh;
   display: flex;
@@ -257,14 +215,6 @@ body::before {
   position: relative;
 }
 
-:root[data-app-theme='glassy'] #root {
-  backdrop-filter: saturate(1.1);
-}
-
-:root[data-app-theme='glassy'] .backdrop-blur-sm,
-:root[data-app-theme='glassy'] .backdrop-blur-md,
-:root[data-app-theme='glassy'] .backdrop-blur-xs,
-:root[data-app-theme='glassy'] [class*='bg-bg-'],
 :root[data-custom-theme] [class*='bg-bg-'] {
   backdrop-filter: blur(calc(var(--glass-blur, 28px) * 0.6)) saturate(1.15);
   -webkit-backdrop-filter: blur(calc(var(--glass-blur, 28px) * 0.6)) saturate(1.15);

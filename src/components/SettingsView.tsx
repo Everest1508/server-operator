@@ -60,12 +60,6 @@ const THEMES: { id: AppTheme; label: string; desc: string; swatch: string[] }[] 
     swatch: ['#1e1e1e', '#0078d4', '#4ec9b0', '#cccccc'],
   },
   {
-    id: 'glassy',
-    label: 'Glassy',
-    desc: 'Transparent layered panels with a Linux-terminal-style glass look.',
-    swatch: ['#0b1426', '#5cc8ff', '#7ff0c2', '#dbe5f5'],
-  },
-  {
     id: 'light',
     label: 'Light',
     desc: 'Bright, clean light mode with soft panels.',
@@ -84,10 +78,10 @@ const THEMES: { id: AppTheme; label: string; desc: string; swatch: string[] }[] 
     swatch: ['#1c1c1e', '#34d399', '#fbbf24', '#f2f2f3'],
   },
   {
-    id: 'ember',
-    label: 'Ember',
-    desc: 'Warm dark brown with an orange accent.',
-    swatch: ['#201a18', '#ff9f43', '#8ce99a', '#f6efe9'],
+    id: 'midnight',
+    label: 'Midnight',
+    desc: 'Deep navy with a soft violet accent.',
+    swatch: ['#12141f', '#8b9cff', '#5eead4', '#e8ebf7'],
   },
   {
     id: 'paper',
