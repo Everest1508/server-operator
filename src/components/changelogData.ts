@@ -1,4 +1,4 @@
-import { Users, Database, GitBranch, History, TerminalSquare, Sliders, Shield, Sparkles, Keyboard, Layers, ListOrdered, FolderTree, Send, ScrollText, Palette } from 'lucide-react';
+import { Users, Database, GitBranch, History, TerminalSquare, Sliders, Shield, Sparkles, Keyboard, Layers, ListOrdered, FolderTree, Send, ScrollText, Palette, Download } from 'lucide-react';
 import React from 'react';
 
 export interface ChangeEntry {
@@ -22,6 +22,42 @@ export interface ChangelogVersion {
 }
 
 export const CHANGELOG: ChangelogVersion[] = [
+  {
+    version: '2.16.0',
+    codename: 'Clearview',
+    date: '2026-11-16',
+    summary:
+      "A clearer update panel with time left and what it is doing, a cleaner Settings page, and a simpler set of easy-to-read themes.",
+    groups: [
+      {
+        label: 'Updates',
+        icon: Download,
+        color: '#93c5fd',
+        items: [
+          { type: 'improve', text: "The update panel shows what it is doing right now (contacting GitHub, downloading with MB done, installing), the time left, the download speed and the total time." },
+          { type: 'improve', text: "Step icons for fetch, apply and reopen with a progress line between them, a pulsing ruler and a count-up percent." },
+        ],
+      },
+      {
+        label: 'Settings',
+        icon: Sliders,
+        color: '#c4b5fd',
+        items: [
+          { type: 'improve', text: "New Settings header with the version, an icon on the Check for updates button and underline tabs." },
+          { type: 'improve', text: "Optional module boxes line up in the same grid. The two Deploy boxes were pushed to the right." },
+        ],
+      },
+      {
+        label: 'Themes',
+        icon: Palette,
+        color: '#fcd34d',
+        items: [
+          { type: 'improve', text: "New themes that are easier to read: Slate, Graphite, Ember and Paper, all with solid panels and strong text contrast." },
+          { type: 'improve', text: "Removed Tokyo Night, Dracula, Nord, Gruvbox, Rosé Pine, Catppuccin, One Dark, Solarized, High Contrast and Monokai. Anyone using one of them is switched to Default." },
+        ],
+      },
+    ],
+  },
   {
     version: '2.15.1',
     codename: 'Caret',

@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.16.0 "Clearview" - 2026-11-16
+
+### Updates
+- The update panel shows what it is doing right now (contacting GitHub, downloading with MB done, installing), the time left, the download speed and the total time.
+- Step icons for fetch, apply and reopen with a progress line between them, a pulsing ruler and a count-up percent.
+
+### Settings
+- New Settings header with the version, an icon on the Check for updates button and underline tabs.
+- Optional module boxes line up in the same grid. The two Deploy boxes were pushed to the right.
+
+### Themes
+- New themes that are easier to read: Slate, Graphite, Ember and Paper, all with solid panels and strong text contrast.
+- Removed Tokyo Night, Dracula, Nord, Gruvbox, Rosé Pine, Catppuccin, One Dark, Solarized, High Contrast and Monokai. Anyone using one of them is switched to Default.
+
 ## 2.15.1 "Caret" - 2026-11-16
 
 ### Improved

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { AppTheme } from '../types';
 
-const THEME_IDS: AppTheme[] = ['default', 'glassy', 'light', 'tokyo-night', 'dracula', 'nord', 'gruvbox', 'rose-pine', 'catppuccin', 'one-dark', 'solarized-dark', 'solarized-light', 'high-contrast', 'monokai'];
+const THEME_IDS: AppTheme[] = ['default', 'glassy', 'light', 'slate', 'graphite', 'ember', 'paper'];
 
 /** Reads the active app theme from the `data-app-theme` attribute, reacting to changes. */
 export function useAppTheme(): AppTheme {
@@ -51,4 +51,4 @@ export function cssVar(name: string, fallback = ''): string {
   return value || fallback;
 }
 
-export const isLightTheme = (theme: AppTheme) => theme === 'light' || theme === 'solarized-light';
+export const isLightTheme = (theme: AppTheme) => theme === 'light' || theme === 'paper';

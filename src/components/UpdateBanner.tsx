@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { X, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { X, CheckCircle2, Download, PackageCheck, RotateCw, Check, TriangleAlert } from 'lucide-react';
 
 /* ─── Types ────────────────────────────────────────────────────────────── */
 interface UpdateInfo {
@@ -39,11 +39,67 @@ function UpToDateToast({ onClose }: { onClose: () => void }) {
 
 /* ─── Main panel: a small rollout. Tick ruler fills as the download runs ── */
 const TICKS = 36;
-const STEPS = ['fetch', 'apply', 'reopen'];
+const STEPS = [
+  { id: 'fetch', label: 'fetch', Icon: Download },
+  { id: 'apply', label: 'apply', Icon: PackageCheck },
+  { id: 'reopen', label: 'reopen', Icon: RotateCw },
+] as const;
 const mono = { fontFamily: 'var(--font-mono)' } as const;
 
 interface Progress { percent: number; transferred: number; total: number }
 const mb = (n: number) => Math.round(n / 1048576);
+const fmtTime = (s: number) => (s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`);
+
+/** Eases the shown percent toward the real one so the number counts up instead of jumping. */
+function useTween(target: number) {
+  const [v, setV] = useState(target);
+  const cur = useRef(target);
+  useEffect(() => {
+    const from = cur.current;
+    const t0 = performance.now();
+    let raf = 0;
+    const tick = (t: number) => {
+      const k = Math.min(1, (t - t0) / 350);
+      cur.current = from + (target - from) * (1 - Math.pow(1 - k, 3));
+      setV(cur.current);
+      if (k < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target]);
+  return Math.round(v);
+}
+
+/** Speed over the last ~8s, time left and time spent. Needs a second of data before it guesses. */
+function useStats(progress: Progress | null) {
+  const samples = useRef<{ t: number; b: number }[]>([]);
+  const start = useRef<number | null>(null);
+  const [st, setSt] = useState<{ bps: number | null; left: number | null; elapsed: number }>({ bps: null, left: null, elapsed: 0 });
+  useEffect(() => {
+    if (!progress) {
+      samples.current = [];
+      start.current = null;
+      setSt({ bps: null, left: null, elapsed: 0 });
+      return;
+    }
+    const now = Date.now();
+    if (start.current === null) start.current = now;
+    if (progress.total > 0) {
+      samples.current.push({ t: now, b: progress.transferred });
+      samples.current = samples.current.filter((x) => now - x.t < 8000);
+    }
+    const first = samples.current[0];
+    const last = samples.current[samples.current.length - 1];
+    let bps: number | null = null;
+    let left: number | null = null;
+    if (first && last && last.t - first.t >= 1000 && last.b > first.b) {
+      bps = (last.b - first.b) / ((last.t - first.t) / 1000);
+      left = Math.max(0, Math.ceil((progress.total - progress.transferred) / bps));
+    }
+    setSt({ bps, left, elapsed: Math.round((now - start.current) / 1000) });
+  }, [progress]);
+  return st;
+}
 
 function Ruler({ percent, waiting, failedAt }: { percent: number; waiting: boolean; failedAt: number | null }) {
   const filled = Math.floor((percent / 100) * TICKS);
@@ -60,7 +116,8 @@ function Ruler({ percent, waiting, failedAt }: { percent: number; waiting: boole
             style={{
               height: head || cut ? 24 : i % 5 === 0 ? 16 : 10,
               background: cut ? 'var(--color-error)' : head ? 'var(--color-text-primary)' : on ? (failedAt !== null ? 'var(--color-error)' : 'var(--color-accent)') : 'var(--color-border)',
-              animation: waiting ? `serop-tick 1.4s ${i * 25}ms infinite` : undefined,
+              boxShadow: head ? '0 0 8px var(--color-accent)' : undefined,
+              animation: waiting ? `serop-tick 1.4s ${i * 25}ms infinite` : head ? 'serop-head 0.8s ease-in-out infinite alternate' : undefined,
             }}
           />
         );
@@ -101,17 +158,24 @@ function UpdateBannerInner({ info, onDismiss, progress, setProgress, error, setE
 
   const running = progress !== null && !error;
   const percent = progress?.percent ?? 0;
+  const shown = useTween(percent);
+  const stats = useStats(progress);
   const waiting = running && percent === 0;
   const step = percent >= 100 ? 1 : 0;
   const failedAt = error ? Math.min(TICKS - 1, Math.floor((percent / 100) * TICKS)) : null;
-  const note = error
+
+  // What it is doing right now, in plain words
+  const doing = error
     ? error
     : status
       ? status
       : running
-      ? percent >= 100 ? 'Installing. Serop reopens by itself.'
-        : waiting ? 'Connecting to GitHub' : progress!.total ? `${mb(progress!.transferred)} of ${mb(progress!.total)} MB` : 'Downloading'
-      : info.canInstall ? 'About a minute. Your tabs stay open.' : 'Opens the release page in your browser.';
+        ? percent >= 100 ? 'Checking the download and installing it. Serop reopens by itself.'
+          : waiting ? 'Contacting GitHub releases'
+          : progress!.total ? `Downloading ${mb(progress!.transferred)} of ${mb(progress!.total)} MB` : 'Downloading the update'
+        : info.canInstall ? 'Downloads, installs and reopens. Your tabs stay open.' : 'Opens the release page in your browser.';
+  const ActiveIcon = error ? TriangleAlert : STEPS[step].Icon;
+  const speed = stats.bps ? `${(stats.bps / 1048576).toFixed(1)} MB/s` : null;
 
   const btn = 'flex-1 py-3 text-xs font-medium border-r border-border last:border-r-0 text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors';
   const go = `${btn} !text-accent hover:!bg-accent hover:!text-white`;
@@ -120,40 +184,83 @@ function UpdateBannerInner({ info, onDismiss, progress, setProgress, error, setE
     <div
       role="dialog"
       aria-label={`Update to ${info.version}`}
-      className="relative w-[360px] max-w-[calc(100vw-2rem)] border border-border popover-surface text-text-primary shadow-2xl animate-slide-down"
+      className="relative w-[380px] max-w-[calc(100vw-2rem)] border border-border popover-surface text-text-primary shadow-2xl animate-slide-down"
       style={{ borderRadius: 4 }}
     >
-      <span className="absolute -left-px top-4 bottom-4 w-[2px] bg-accent" />
+      <span className="absolute -left-px top-4 bottom-4 w-[2px] bg-accent" style={running ? { animation: 'serop-tick 1.6s infinite' } : undefined} />
       <div className="flex items-baseline justify-between pl-5 pr-4 pt-4">
         <p className="text-[13px]">
           Serop <span className="text-text-muted">→</span>{' '}
           <span className="font-semibold text-accent">{info.version}</span>
         </p>
-        <span className="text-[10px] text-text-muted" style={mono}>{error ? 'failed' : running ? STEPS[step] : 'ready'}</span>
+        <span className="text-[10px] text-text-muted" style={mono}>{error ? 'failed' : running ? STEPS[step].label : 'ready'}</span>
       </div>
 
-      <div className="flex items-baseline gap-1.5 pl-5 pr-4 pt-3 pb-4">
+      <div className="flex items-baseline gap-1.5 pl-5 pr-4 pt-3">
         <span className="text-[44px] leading-none tracking-tighter tabular-nums min-w-[2.1ch]" style={{ ...mono, fontWeight: 300 }}>
-          {progress ? String(percent).padStart(2, '0') : '--'}
+          {progress ? String(shown).padStart(2, '0') : '--'}
         </span>
         <span className="text-[13px] text-text-muted" style={mono}>%</span>
-        <span className="ml-auto text-right text-xs leading-snug text-text-secondary max-w-[190px]" aria-live="polite">{note}</span>
+        <span className="ml-auto text-right text-[11px] leading-snug text-text-secondary" style={mono} aria-live="polite">
+          {running && stats.left !== null ? (
+            <>
+              <span className="block text-[15px] text-text-primary">{fmtTime(stats.left)} left</span>
+              <span className="block text-text-muted">{speed}</span>
+            </>
+          ) : running ? (
+            <span className="block text-text-muted">estimating time…</span>
+          ) : !error && info.canInstall ? (
+            <span className="block text-text-muted">about 1 min total</span>
+          ) : null}
+        </span>
+      </div>
+
+      <div className="flex items-start gap-2 pl-5 pr-4 pt-3 pb-4 min-h-[44px]" aria-live="polite">
+        <ActiveIcon
+          size={14}
+          className={`shrink-0 mt-px ${error ? 'text-error' : 'text-accent'}`}
+          style={running ? { animation: step === 0 ? 'serop-bob 1s ease-in-out infinite' : 'serop-spin 1.2s linear infinite' } : undefined}
+        />
+        <span className={`text-xs leading-snug ${error ? 'text-error' : 'text-text-secondary'}`}>{doing}</span>
       </div>
 
       <Ruler percent={percent} waiting={waiting} failedAt={failedAt} />
 
-      <div className="grid grid-cols-3 pl-5 pr-4 pt-2 pb-3">
-        {STEPS.map((l, i) => (
-          <span
-            key={l}
-            className="flex items-center gap-1.5 text-[9.5px]"
-            style={{ ...mono, color: running && i <= step ? (i === step ? 'var(--color-text-primary)' : 'var(--color-accent)') : 'var(--color-text-muted)' }}
-          >
-            <i className="w-[5px] h-[5px] bg-current" style={running && i === step ? { outline: '1px solid var(--color-accent)', outlineOffset: 2 } : undefined} />
-            {l}
-          </span>
-        ))}
+      <div className="flex items-center pl-5 pr-4 pt-3 pb-3">
+        {STEPS.map(({ id, label, Icon }, i) => {
+          const done = running && i < step;
+          const active = running && i === step;
+          return (
+            <div key={id} className="flex items-center flex-1 last:flex-none">
+              <span
+                className="flex items-center gap-1.5 text-[9.5px]"
+                style={{ ...mono, color: done ? 'var(--color-accent)' : active ? 'var(--color-text-primary)' : 'var(--color-text-muted)' }}
+              >
+                <span
+                  className="grid place-items-center w-[18px] h-[18px] border"
+                  style={{ borderColor: done || active ? 'var(--color-accent)' : 'var(--color-border)', background: done ? 'var(--color-accent)' : undefined, color: done ? 'var(--color-bg-primary)' : undefined, borderRadius: 2 }}
+                >
+                  {done ? <Check size={11} strokeWidth={3} /> : <Icon size={11} />}
+                </span>
+                {label}
+              </span>
+              {i < STEPS.length - 1 && (
+                <span className="flex-1 h-px mx-2.5 relative overflow-hidden bg-border">
+                  {(done || (active && i === step)) && (
+                    <i className="absolute inset-0 bg-accent" style={{ transformOrigin: 'left', animation: done ? undefined : 'serop-tick 1.2s infinite' }} />
+                  )}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
+
+      {running && stats.elapsed > 0 && (
+        <p className="pl-5 pr-4 pb-3 text-[10px] text-text-muted" style={mono}>
+          {stats.left !== null ? `total ≈ ${fmtTime(stats.elapsed + stats.left)} · ` : ''}elapsed {fmtTime(stats.elapsed)}
+        </p>
+      )}
 
       <div className="flex border-t border-border">
         {!running && info.releaseNotes && (
@@ -241,6 +348,10 @@ export function UpdateBanner() {
           to   { opacity: 1; transform: translateY(0)    scale(1); }
         }
         @keyframes serop-tick { 0%,100% { opacity: .35 } 50% { opacity: 1 } }
+        @keyframes serop-head { from { transform: scaleY(0.75); } to { transform: scaleY(1); } }
+        @keyframes serop-bob { 0%,100% { transform: translateY(-2px); } 50% { transform: translateY(2px); } }
+        @keyframes serop-spin { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) { [aria-label^='Update to'] * { animation: none !important; } }
       `}</style>
 
       {modal && (

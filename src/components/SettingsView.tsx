@@ -33,6 +33,7 @@ import {
   Check,
   Plus,
   Pencil,
+  RefreshCw,
 } from 'lucide-react';
 
 import { CHANGELOG, ChangeEntry } from './changelogData';
@@ -71,70 +72,28 @@ const THEMES: { id: AppTheme; label: string; desc: string; swatch: string[] }[] 
     swatch: ['#f7f8fc', '#0a66d4', '#1a7f37', '#1f2328'],
   },
   {
-    id: 'tokyo-night',
-    label: 'Tokyo Night',
-    desc: 'Deep indigo-navy dark with cyan and violet accents.',
-    swatch: ['#1a1b26', '#7aa2f7', '#9ece6a', '#c0caf5'],
+    id: 'slate',
+    label: 'Slate',
+    desc: 'Cool dark grey with a clear blue accent.',
+    swatch: ['#1b1f27', '#5aa9ff', '#4ade80', '#eef2f8'],
   },
   {
-    id: 'dracula',
-    label: 'Dracula',
-    desc: 'Purple-grey dark with pink and violet accents.',
-    swatch: ['#282a36', '#bd93f9', '#50fa7b', '#f8f8f2'],
+    id: 'graphite',
+    label: 'Graphite',
+    desc: 'Neutral dark with a fresh green accent.',
+    swatch: ['#1c1c1e', '#34d399', '#fbbf24', '#f2f2f3'],
   },
   {
-    id: 'nord',
-    label: 'Nord',
-    desc: 'Cold arctic blue-grey with frost accents.',
-    swatch: ['#2e3440', '#88c0d0', '#a3be8c', '#eceff4'],
+    id: 'ember',
+    label: 'Ember',
+    desc: 'Warm dark brown with an orange accent.',
+    swatch: ['#201a18', '#ff9f43', '#8ce99a', '#f6efe9'],
   },
   {
-    id: 'gruvbox',
-    label: 'Gruvbox',
-    desc: 'Warm retro dark with amber and olive.',
-    swatch: ['#282828', '#fabd2f', '#b8bb26', '#ebdbb2'],
-  },
-  {
-    id: 'rose-pine',
-    label: 'Rosé Pine',
-    desc: 'Soft dusk purple with rose and gold.',
-    swatch: ['#191724', '#ebbcba', '#9ccfd8', '#e0def4'],
-  },
-  {
-    id: 'catppuccin',
-    label: 'Catppuccin',
-    desc: 'Soft pastel dark with lavender accents.',
-    swatch: ['#1e1e2e', '#cba6f7', '#a6e3a1', '#cdd6f4'],
-  },
-  {
-    id: 'one-dark',
-    label: 'One Dark',
-    desc: 'Familiar editor dark with clear blue accents.',
-    swatch: ['#282c34', '#61afef', '#98c379', '#abb2bf'],
-  },
-  {
-    id: 'solarized-dark',
-    label: 'Solarized Dark',
-    desc: 'Low-glare teal dark, easy on the eyes.',
-    swatch: ['#002b36', '#268bd2', '#859900', '#93a1a1'],
-  },
-  {
-    id: 'solarized-light',
-    label: 'Solarized Light',
-    desc: 'Warm cream light with gentle contrast.',
-    swatch: ['#fdf6e3', '#268bd2', '#5f7300', '#073642'],
-  },
-  {
-    id: 'high-contrast',
-    label: 'High Contrast',
-    desc: 'Pure black with bright yellow. Easiest to read.',
-    swatch: ['#000000', '#ffd400', '#3fff7f', '#ffffff'],
-  },
-  {
-    id: 'monokai',
-    label: 'Monokai',
-    desc: 'Classic dark with vivid green and pink.',
-    swatch: ['#272822', '#a6e22e', '#66d9ef', '#f8f8f2'],
+    id: 'paper',
+    label: 'Paper',
+    desc: 'Warm off-white with dark text and a teal accent.',
+    swatch: ['#fbf8f2', '#0f766e', '#166534', '#1f2933'],
   },
 ];
 
@@ -861,12 +820,9 @@ function ModulesView() {
                       <div
                         key={item.key}
                         className={`relative flex gap-3 p-4 rounded-xl border border-border/30 bg-bg-secondary/30 transition-all duration-200 ${
-                          item.isSubFeature ? 'ml-6 border-dashed border-l-2' : ''
+                          item.isSubFeature ? 'border-dashed' : ''
                         } ${isDisabled ? 'opacity-40' : 'hover:border-accent/30 hover:bg-bg-secondary/50'}`}
                       >
-                        {item.isSubFeature && (
-                          <div className="absolute left-[-16px] top-[50%] w-4 h-[1px] border-t border-dashed border-border/30 pointer-events-none" />
-                        )}
                         <div className={`p-2 rounded-lg shrink-0 flex items-center justify-center h-9 w-9 border ${
                           isChecked && !isDisabled
                             ? 'bg-accent/10 text-accent border-accent/20'
@@ -1216,54 +1172,59 @@ export function SettingsView() {
   return (
     <div className="flex flex-col h-full bg-bg-primary text-text-primary font-sans overflow-hidden">
       {/* Header */}
-      <div className="border-b border-border/30 px-6 pt-5 pb-0 shrink-0 bg-bg-secondary/30 backdrop-blur-sm sticky top-0 z-10">
-        <div className="flex items-center justify-between gap-4 pb-3.5">
-          <div>
-            <h1 className="text-lg font-bold flex items-center gap-2">
-              <Sliders className="text-accent" size={18} />
-              Settings
-            </h1>
-            <p className="text-[11px] text-text-secondary mt-0.5">
-              Manage feature modules, preferences, and view release notes.
-            </p>
+      <div className="border-b border-border px-6 pt-5 pb-0 shrink-0 bg-bg-secondary sticky top-0 z-10">
+        <div className="flex items-center justify-between gap-4 pb-4">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <span className="grid place-items-center w-10 h-10 shrink-0 border border-accent/40 bg-accent/10 text-accent" style={{ borderRadius: 4 }}>
+              <Sliders size={18} />
+            </span>
+            <div className="min-w-0">
+              <h1 className="text-xl font-semibold leading-tight tracking-tight">Settings</h1>
+              <p className="text-xs text-text-secondary mt-0.5 truncate">Modules, themes, backups and release notes.</p>
+            </div>
           </div>
-          {/* Version badge */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-4 shrink-0">
+            <div className="text-right leading-tight hidden sm:block" style={{ fontFamily: 'var(--font-mono)' }}>
+              <p className="text-[13px] text-text-primary">v{packageJson.version}</p>
+              <p className="text-[10.5px] text-text-muted">{CHANGELOG[0].codename}</p>
+            </div>
             <button
               type="button"
               onClick={checkUpdates}
               disabled={updateState === 'checking'}
-              className="px-2.5 py-0.5 rounded-md text-[11px] font-semibold border border-border/40 text-text-secondary hover:text-text-primary hover:bg-bg-tertiary disabled:opacity-60"
+              className={`flex items-center gap-2 px-3 py-2 text-xs font-medium border transition-colors disabled:opacity-70 ${
+                updateState === 'found'
+                  ? 'border-accent text-accent bg-accent/10'
+                  : updateState === 'error'
+                    ? 'border-error/60 text-error'
+                    : updateState === 'latest'
+                      ? 'border-success/50 text-success'
+                      : 'border-border text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
+              }`}
+              style={{ borderRadius: 4 }}
             >
+              {updateState === 'latest' ? <Check size={14} /> : updateState === 'error' ? <X size={14} /> : <RefreshCw size={14} className={updateState === 'checking' ? 'animate-spin' : ''} />}
               {updateState === 'checking' ? 'Checking…' : updateState === 'latest' ? 'Up to date' : updateState === 'found' ? 'Update available' : updateState === 'error' ? 'Check failed, retry' : 'Check for updates'}
             </button>
-            <span
-              className="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider border border-indigo-500/20 bg-indigo-500/5 text-indigo-400"
-            >
-              v{packageJson.version}
-            </span>
-            <span
-              className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold border border-amber-500/20 bg-amber-500/5 text-amber-400 hidden sm:inline-flex"
-            >
-              ✦ {CHANGELOG[0].codename}
-            </span>
           </div>
         </div>
 
         {/* Tab Bar */}
-        <div className="flex gap-1.5 pb-2.5">
+        <div className="flex gap-1 -mb-px" role="tablist">
           {tabs.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               type="button"
+              role="tab"
+              aria-selected={activeTab === id}
               onClick={() => setActiveTab(id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150 ${
+              className={`flex items-center gap-2 px-4 py-2.5 text-[13px] font-medium border-b-2 transition-colors ${
                 activeTab === id
-                  ? 'bg-bg-tertiary text-text-primary border border-border/25 shadow-md shadow-black/10'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/40'
+                  ? 'border-accent text-text-primary'
+                  : 'border-transparent text-text-secondary hover:text-text-primary hover:border-border'
               }`}
             >
-              <Icon size={13} />
+              <Icon size={14} className={activeTab === id ? 'text-accent' : ''} />
               {label}
             </button>
           ))}
