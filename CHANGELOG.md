@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.15.0 "Keyring" (unreleased)
+## 2.15.0 "Keyring" - 2026-11-16
 
 ### Added
 - Six new themes: Catppuccin, One Dark, Solarized Dark, Solarized Light, High Contrast, Monokai.
