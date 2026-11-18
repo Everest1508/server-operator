@@ -31,6 +31,14 @@ export function ProjectTerminal({ currentServer, proxy, projectPath, onReady, on
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<'connecting' | 'connected' | 'closed'>('connecting');
 
+  // Tracks whether a command is running: the prompt emits an invisible OSC marker when idle, Enter makes it busy.
+  const idleRef = useRef(true);
+  const setBusy = (busy: boolean) => {
+    if (idleRef.current === !busy) return;
+    idleRef.current = !busy;
+    window.dispatchEvent(new CustomEvent('deploy:terminal-busy', { detail: busy }));
+  };
+
   const onReadyRef = useRef(onReady);
   const onUnreadyRef = useRef(onUnready);
   onReadyRef.current = onReady;
@@ -100,6 +108,7 @@ export function ProjectTerminal({ currentServer, proxy, projectPath, onReady, on
     const handle = createTerminal(container, {
       theme: xtermTheme,
       onData: (data) => {
+        if (data.includes('\r')) setBusy(true);
         if (window.serverOperator && sid && !disabled) window.serverOperator.shellWrite({ shellId: sid, data });
       },
       onResize: (cols, rows) => void window.serverOperator?.shellResize?.({ shellId: sid, cols, rows }),
@@ -109,10 +118,15 @@ export function ProjectTerminal({ currentServer, proxy, projectPath, onReady, on
     // the shell opened at a default size: tell it the real one
     void window.serverOperator?.shellResize?.({ shellId: sid, cols: term.cols, rows: term.rows });
     const handler = (e: CustomEvent<{ shellId: string; data: string }>) => {
-      if (e.detail.shellId === sid) term.write(e.detail.data);
+      if (e.detail.shellId !== sid) return;
+      if (e.detail.data.includes('\x1b]777;i\x07')) setBusy(false);
+      term.write(e.detail.data);
     };
     window.addEventListener('shell-output', handler as EventListener);
+    // ponytail: bash/zsh only; other shells just never report busy
+    void window.serverOperator?.shellWrite({ shellId: sid, data: ` _s(){ printf '\\033]777;i\\007';};PROMPT_COMMAND=_s;precmd(){ _s;}\n` });
     return () => {
+      setBusy(false);
       window.removeEventListener('shell-output', handler as EventListener);
       termRef.current = null;
       handle.dispose();

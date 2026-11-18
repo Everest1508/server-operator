@@ -214,6 +214,21 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
   const [activeView, setActiveView] = useState<ViewId>(() => viewFromHash());
+  const [runningDeploys, setRunningDeploys] = useState(0);
+  const [terminalBusy, setTerminalBusy] = useState(false);
+  useEffect(() => {
+    const h = (e: Event) => setTerminalBusy(!!(e as CustomEvent<boolean>).detail);
+    window.addEventListener('deploy:terminal-busy', h);
+    return () => window.removeEventListener('deploy:terminal-busy', h);
+  }, []);
+  useEffect(() => {
+    const api = window.serverOperator;
+    if (!api?.deployList) return;
+    const poll = () => api.deployList!().then((r) => setRunningDeploys(r.ok ? (r.jobs || []).filter((j: any) => j.status === 'running').length : 0)).catch(() => {});
+    poll();
+    const iv = setInterval(poll, 3000);
+    return () => clearInterval(iv);
+  }, []);
   const [panelOpen, setPanelOpen] = useState(true);
   const [panelHeight, setPanelHeight] = useState(PANEL_DEFAULT);
   const [panelTab, setPanelTab] = useState<'logs' | 'terminal'>('logs');
@@ -2114,31 +2129,9 @@ export default function App() {
         )}
         <div className="flex-1 flex min-h-0 min-w-0">
           <div className="flex-1 flex flex-col min-h-0 min-w-0">
-            {activeView === 'team' ? (
-              <CloudTeamView onConnectServer={handleSelectServer} />
-            ) : activeView === 'settings' ? (
-              <SettingsView />
-            ) : activeView === 'commands' && currentServer ? (
-              <ProjectCommands currentServer={currentServer} proxy={proxy} />
-            ) : activeView === 'logs' ? (
-              <LogsView currentServer={currentServer} proxy={proxy} />
-            ) : activeView === 'api' ? (
-              <ApiView currentServer={currentServer} proxy={proxy} />
-            ) : activeView === 'servers' ? (
-              <NoServerView
-                servers={servers}
-                proxy={proxy}
-                connectingTo={connectingTo}
-                connectionError={connectionError}
-                onAddServer={addServer}
-                onUpdateServer={updateServer}
-                onRemoveServer={removeServer}
-                onSelectServer={handleSelectServer}
-                onProxyChange={setProxyAndRef}
-                onDismissError={() => setConnectionError(null)}
-                onViewGuide={handleSelectGuideId}
-              />
-            ) : (activeView === 'guide' || currentServer || (activeView === 'files' && openTabs.includes('notes://general'))) ? (
+            {/* Keep EditorArea mounted (hidden) on other views so deploy shells aren't closed on tab switch */}
+            {(activeView === 'guide' || currentServer || (activeView === 'files' && openTabs.includes('notes://general'))) && (
+              <div className={['team','settings','logs','api','servers'].includes(activeView) || (activeView === 'commands' && currentServer) ? 'hidden' : 'flex-1 flex flex-col min-h-0 min-w-0'}>
               <EditorArea
                 currentServer={currentServer}
                 servers={servers}
@@ -2193,7 +2186,43 @@ export default function App() {
                 connectedSqlitePath={connectedSqlitePath}
                 onSqliteDisconnect={() => setConnectedSqlitePath(null)}
               />
-            ) : (
+              </div>
+            )}
+            {(runningDeploys > 0 || terminalBusy) && activeView !== 'deploy' && (
+              <button
+                type="button"
+                onClick={() => setActiveViewAndRoute('deploy')}
+                className="fixed bottom-4 right-4 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-bg-secondary border border-accent/30 shadow-lg text-xs text-text-primary cursor-pointer hover:bg-accent/10"
+              >
+                <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                Deploying{runningDeploys + (terminalBusy ? 1 : 0) > 1 ? ` (${runningDeploys + (terminalBusy ? 1 : 0)})` : ''} · View
+              </button>
+            )}
+            {activeView === 'team' ? (
+              <CloudTeamView onConnectServer={handleSelectServer} />
+            ) : activeView === 'settings' ? (
+              <SettingsView />
+            ) : activeView === 'commands' && currentServer ? (
+              <ProjectCommands currentServer={currentServer} proxy={proxy} />
+            ) : activeView === 'logs' ? (
+              <LogsView currentServer={currentServer} proxy={proxy} />
+            ) : activeView === 'api' ? (
+              <ApiView currentServer={currentServer} proxy={proxy} />
+            ) : activeView === 'servers' ? (
+              <NoServerView
+                servers={servers}
+                proxy={proxy}
+                connectingTo={connectingTo}
+                connectionError={connectionError}
+                onAddServer={addServer}
+                onUpdateServer={updateServer}
+                onRemoveServer={removeServer}
+                onSelectServer={handleSelectServer}
+                onProxyChange={setProxyAndRef}
+                onDismissError={() => setConnectionError(null)}
+                onViewGuide={handleSelectGuideId}
+              />
+            ) : !(activeView === 'guide' || currentServer || (activeView === 'files' && openTabs.includes('notes://general'))) ? (
               <DisconnectedView
                 view={activeView as 'files' | 'docker' | 'database' | 'firewall' | 'deploy' | 'notes'}
                 servers={servers}
@@ -2201,7 +2230,7 @@ export default function App() {
                 onSelectServer={handleSelectServer}
                 onManageServers={() => setActiveViewAndRoute('servers')}
               />
-            )}
+            ) : null}
           </div>
           {currentServer && activeView === 'files' && (
             <>
