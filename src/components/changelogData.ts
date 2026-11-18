@@ -23,6 +23,24 @@ export interface ChangelogVersion {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: '2.16.3',
+    codename: 'Steadfast',
+    date: '2026-11-18',
+    summary:
+      "Deploys keep running when you switch tabs, with a small pill to show they are still going.",
+    groups: [
+      {
+        label: 'Deploy',
+        icon: Layers,
+        color: '#c4b5fd',
+        items: [
+          { type: 'fix', text: "Switching to Team, Settings, Logs, API, Commands or Servers no longer closes the Deploy terminal, so a running deploy is no longer cancelled." },
+          { type: 'feat', text: "A small Deploying pill appears in the corner while a background job or a terminal command is running, and takes you back to Deploy when clicked." },
+        ],
+      },
+    ],
+  },
+  {
     version: '2.16.2',
     codename: 'Midnight',
     date: '2026-11-16',
